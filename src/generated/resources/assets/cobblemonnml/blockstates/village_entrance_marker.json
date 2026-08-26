@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "cobblemonnml:block/village_entrance_marker",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "cobblemonnml:block/village_entrance_marker"
+    },
+    "facing=south": {
+      "model": "cobblemonnml:block/village_entrance_marker",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "cobblemonnml:block/village_entrance_marker",
+      "y": 270
+    }
+  }
+}

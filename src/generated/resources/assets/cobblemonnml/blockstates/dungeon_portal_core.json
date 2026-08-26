@@ -1,0 +1,238 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_base_cell_0"
+      },
+      "when": {
+        "cell": "0"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_base_cell_1"
+      },
+      "when": {
+        "cell": "1"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_base_cell_2"
+      },
+      "when": {
+        "cell": "2"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_base_cell_3"
+      },
+      "when": {
+        "cell": "3"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_base_cell_4"
+      },
+      "when": {
+        "cell": "4"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_base_cell_5"
+      },
+      "when": {
+        "cell": "5"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_base_cell_6"
+      },
+      "when": {
+        "cell": "6"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_base_cell_7"
+      },
+      "when": {
+        "cell": "7"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_base_cell_8"
+      },
+      "when": {
+        "cell": "8"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_glow_cell_0"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "0"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_glow_cell_1"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "1"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_glow_cell_2"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "2"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_glow_cell_3"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "3"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_glow_cell_4"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "4"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_glow_cell_5"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "5"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_glow_cell_6"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "6"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_glow_cell_7"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "7"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_glow_cell_8"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "8"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_activation_cell_0"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "0"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_activation_cell_1"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "1"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_activation_cell_2"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "2"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_activation_cell_3"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "3"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_activation_cell_4"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "4"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_activation_cell_5"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "5"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_activation_cell_6"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "6"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_activation_cell_7"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "7"
+      }
+    },
+    {
+      "apply": {
+        "model": "cobblemonnml:block/dungeon_portal_activation_cell_8"
+      },
+      "when": {
+        "activated": "true",
+        "cell": "8"
+      }
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "ambientocclusion": false,
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "cullface": "down",
+          "texture": "#grave_plot"
+        },
+        "east": {
+          "texture": "#grave_plot"
+        },
+        "north": {
+          "texture": "#grave_plot"
+        },
+        "south": {
+          "texture": "#grave_plot"
+        },
+        "up": {
+          "texture": "#grave_plot"
+        },
+        "west": {
+          "texture": "#grave_plot"
+        }
+      },
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        1,
+        16
+      ]
+    }
+  ],
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "grave_plot": "cobblemonnml:block/grave_plot",
+    "particle": "cobblemonnml:block/grave_plot"
+  }
+}

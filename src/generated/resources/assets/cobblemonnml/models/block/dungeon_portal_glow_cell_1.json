@@ -1,0 +1,34 @@
+{
+  "ambientocclusion": false,
+  "elements": [
+    {
+      "faces": {
+        "up": {
+          "texture": "#overlay",
+          "tintindex": 0,
+          "uv": [
+            5.3333335,
+            0.0,
+            10.666667,
+            5.3333335
+          ]
+        }
+      },
+      "from": [
+        0,
+        10.01,
+        0
+      ],
+      "to": [
+        16,
+        10.02,
+        16
+      ]
+    }
+  ],
+  "render_type": "minecraft:translucent",
+  "textures": {
+    "overlay": "cobblemonnml:block/dungeon_portal_glow",
+    "particle": "cobblemonnml:block/dungeon_portal_glow"
+  }
+}

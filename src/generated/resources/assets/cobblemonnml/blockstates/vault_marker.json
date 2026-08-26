@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "cobblemonnml:block/vault_marker"
+    }
+  }
+}
