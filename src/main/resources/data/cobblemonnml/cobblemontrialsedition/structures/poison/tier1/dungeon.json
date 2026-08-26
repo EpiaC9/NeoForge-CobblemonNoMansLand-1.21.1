@@ -1,0 +1,180 @@
+{
+  "structureId": "cobblemonnml:dungeon/poison/tier1",
+  "uniqueReplacementBlocks": {},
+  "spawnerProperties": [
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:zombie"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 2,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 4,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 1,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/poison/tier1/trial/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/poison/tier1/trial/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "beedrill",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        },
+        {
+          "species": "ariados",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        },
+        {
+          "species": "arbok",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "beedrill",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        },
+        {
+          "species": "ariados",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        },
+        {
+          "species": "arbok",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    },
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:skeleton"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 2,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 6,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 2,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/poison/tier1/elite/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/poison/tier1/elite/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "seviper",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        },
+        {
+          "species": "swalot",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "seviper",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        },
+        {
+          "species": "swalot",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    },
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:breeze"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 3,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 8,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 3,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/poison/tier1/boss/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/poison/tier1/boss/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "garbodor",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "garbodor",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+{
+  "structureId": "cobblemonnml:dungeon/ghost/tier4",
+  "uniqueReplacementBlocks": {},
+  "spawnerProperties": [
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:zombie"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 3,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 10,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 2,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/ghost/tier4/trial/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/ghost/tier4/trial/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "decidueye",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        },
+        {
+          "species": "skeledirge",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "decidueye",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        },
+        {
+          "species": "skeledirge",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    },
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:skeleton"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 4,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 12,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 3,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/ghost/tier4/elite/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/ghost/tier4/elite/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "annihilape",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        },
+        {
+          "species": "gholdengo",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "annihilape",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        },
+        {
+          "species": "gholdengo",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    },
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:breeze"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 4,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 14,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 4,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/ghost/tier4/boss/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/ghost/tier4/boss/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "dragapult",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "dragapult",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "cobblemonnml:dungeon/ground/start",
+  "fallback": "minecraft:empty",
+  "elements": [
+    {
+      "weight": 1,
+      "element": {
+        "location": "cobblemonnml:dungeon/ground/spawnroom",
+        "processors": "minecraft:empty",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      }
+    }
+  ]
+}

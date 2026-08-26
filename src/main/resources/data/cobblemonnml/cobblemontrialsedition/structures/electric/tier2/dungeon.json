@@ -1,0 +1,180 @@
+{
+  "structureId": "cobblemonnml:dungeon/electric/tier2",
+  "uniqueReplacementBlocks": {},
+  "spawnerProperties": [
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:zombie"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 2,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 6,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 1,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/electric/tier2/trial/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/electric/tier2/trial/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "heliolisk",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        },
+        {
+          "species": "raichu",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "heliolisk",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        },
+        {
+          "species": "raichu",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    },
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:skeleton"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 3,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 8,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 2,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/electric/tier2/elite/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/electric/tier2/elite/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "electrode",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        },
+        {
+          "species": "boltund",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        },
+        {
+          "species": "kilowattrel",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "electrode",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        },
+        {
+          "species": "boltund",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        },
+        {
+          "species": "kilowattrel",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    },
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:breeze"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 3,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 10,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 3,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/electric/tier2/boss/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/electric/tier2/boss/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "pawmot",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "pawmot",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:air",
+          "weight": 14
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemon:ice_gem",
+          "weight": 12
+        }
+      ]
+    }
+  ]
+}

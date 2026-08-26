@@ -1,0 +1,135 @@
+{
+  "structureId": "cobblemonnml:dungeon/fire/tier4",
+  "uniqueReplacementBlocks": {},
+  "spawnerProperties": [
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:zombie"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 3,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 10,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 2,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/fire/tier4/trial/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/fire/tier4/trial/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "magmortar",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "magmortar",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    },
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:skeleton"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 4,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 12,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 3,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/fire/tier4/elite/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/fire/tier4/elite/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "volcarona",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "volcarona",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    },
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:breeze"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 4,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 14,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 4,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/fire/tier4/boss/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/fire/tier4/boss/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "arcanine",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "arcanine",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.epiac9.cobblemonnml.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "GravestoneEventMixin",
+    "GravestoneBlockEntityMixin"
+  ],
+  "client": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

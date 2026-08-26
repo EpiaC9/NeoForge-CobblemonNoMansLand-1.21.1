@@ -1,0 +1,59 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 5,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/common/normal/tier4"
+        }
+      ]
+    },
+    {
+      "rolls": 4,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/valuable/normal/tier4"
+        }
+      ]
+    },
+    {
+      "rolls": 4,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/themed/fighting/normal/tier4"
+        }
+      ]
+    },
+    {
+      "rolls": 4,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/special/normal/tier4"
+        }
+      ]
+    },
+    {
+      "rolls": 3,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/rare/normal/tier4"
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/tier_keys/normal/tier4"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "title": "Help the Graves Keeper",
+  "description": "Find me my lost Reaper Cloth.",
+  "repeatable": true,
+  "objectives": [
+    {
+      "id": "bring_reapers_cloth",
+      "type": "item",
+      "item": "cobblemon:reaper_cloth",
+      "target": 1
+    }
+  ],
+  "rewards": [
+    {
+      "type": "item",
+      "item": "cobblemonnml:town_invitation",
+      "count": 1
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "processors": [
+    {
+      "processor_type": "cobblemontrialsedition:spawner_replacement_processor"
+    }
+  ]
+}

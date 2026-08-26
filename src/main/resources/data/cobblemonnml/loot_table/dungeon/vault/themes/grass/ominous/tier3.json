@@ -1,0 +1,59 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 5,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/common/ominous/tier3"
+        }
+      ]
+    },
+    {
+      "rolls": 5,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/valuable/ominous/tier3"
+        }
+      ]
+    },
+    {
+      "rolls": 5,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/themed/grass/ominous/tier3"
+        }
+      ]
+    },
+    {
+      "rolls": 6,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/special/ominous/tier3"
+        }
+      ]
+    },
+    {
+      "rolls": 4,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/rare/ominous/tier3"
+        }
+      ]
+    },
+    {
+      "rolls": 2,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/tier_keys/ominous/tier3"
+        }
+      ]
+    }
+  ]
+}

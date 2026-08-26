@@ -1,0 +1,59 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 5,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/common/ominous/tier4"
+        }
+      ]
+    },
+    {
+      "rolls": 6,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/valuable/ominous/tier4"
+        }
+      ]
+    },
+    {
+      "rolls": 5,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/themed/fire/ominous/tier4"
+        }
+      ]
+    },
+    {
+      "rolls": 7,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/special/ominous/tier4"
+        }
+      ]
+    },
+    {
+      "rolls": 4,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/rare/ominous/tier4"
+        }
+      ]
+    },
+    {
+      "rolls": 2,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/tier_keys/ominous/tier4"
+        }
+      ]
+    }
+  ]
+}

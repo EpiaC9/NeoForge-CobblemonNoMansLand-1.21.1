@@ -1,0 +1,15 @@
+{
+  "name": "cobblemonnml:dungeon/ground/special/room",
+  "fallback": "minecraft:empty",
+  "elements": [
+    {
+      "weight": 4,
+      "element": {
+        "location": "cobblemonnml:dungeon/ground/special/rooms/room1",
+        "processors": "cobblemonnml:dungeon/trials_spawner_replacement",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      }
+    }
+  ]
+}

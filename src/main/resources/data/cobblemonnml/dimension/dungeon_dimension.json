@@ -1,0 +1,12 @@
+{
+  "type": "cobblemonnml:dungeon_dimension",
+  "generator": {
+    "type": "cobblemonnml:dungeon_bedrock",
+    "biome_source": {
+      "type": "minecraft:fixed",
+      "biome": "minecraft:the_void"
+    },
+    "min_y": 0,
+    "height": 256
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "structureId": "cobblemonnml:dungeon/fairy/tier4",
+  "uniqueReplacementBlocks": {},
+  "spawnerProperties": [
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:zombie"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 3,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 10,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 2,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/fairy/tier4/trial/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/fairy/tier4/trial/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "sylveon",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "sylveon",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    },
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:skeleton"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 4,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 12,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 3,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/fairy/tier4/elite/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/fairy/tier4/elite/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "primarina",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "primarina",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    },
+    {
+      "blockTypesToReplace": [
+        "minecraft:trial_spawner"
+      ],
+      "mobEntitiesInSpawnerToReplace": [
+        "minecraft:breeze"
+      ],
+      "ticksBetweenSpawnAttempts": 10,
+      "spawnerCooldown": 144000,
+      "playerDetectionRange": 18,
+      "spawnRange": 6,
+      "maximumNumberOfSimultaneousPokemon": 4,
+      "maximumNumberOfSimultaneousPokemonAddedPerPlayer": 1,
+      "totalNumberOfPokemonPerTrial": 14,
+      "totalNumberOfPokemonPerTrialAddedPerPlayer": 4,
+      "lootTables": [
+        "cobblemonnml:dungeon/spawners/fairy/tier4/boss/normal"
+      ],
+      "ominousLootTables": [
+        "cobblemonnml:dungeon/spawners/fairy/tier4/boss/ominous"
+      ],
+      "ominousSpawnerAttacksEnabled": true,
+      "doPokemonSpawnedGlow": true,
+      "listOfPokemonToSpawn": [
+        {
+          "species": "togekiss",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        },
+        {
+          "species": "florges",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true
+        }
+      ],
+      "listOfOminousPokemonToSpawn": [
+        {
+          "species": "togekiss",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        },
+        {
+          "species": "florges",
+          "weight": 10,
+          "isUncatchable": true,
+          "mustBeDefeatedInBattle": false,
+          "isAggressive": true,
+          "isAlwaysAlpha": true
+        }
+      ]
+    }
+  ]
+}

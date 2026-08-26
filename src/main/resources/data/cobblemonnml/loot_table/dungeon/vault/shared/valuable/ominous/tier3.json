@@ -1,0 +1,155 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:air",
+          "weight": 12
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:gold_ingot",
+          "weight": 16,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 2.0,
+                "max": 5.0
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:emerald",
+          "weight": 14,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1.0,
+                "max": 4.0
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:diamond",
+          "weight": 10,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1.0,
+                "max": 2.0
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:netherite_scrap",
+          "weight": 4
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:bug_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:dark_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:dragon_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:electric_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:fairy_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:fighting_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:fire_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:flying_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:ghost_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:grass_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:ground_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:ice_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:normal_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:poison_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:psychic_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:rock_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:steel_theme_key",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "cobblemonnml:water_theme_key",
+          "weight": 3
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 5,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/common/normal/tier3"
+        }
+      ]
+    },
+    {
+      "rolls": 4,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/valuable/normal/tier3"
+        }
+      ]
+    },
+    {
+      "rolls": 3,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/themed/dragon/normal/tier3"
+        }
+      ]
+    },
+    {
+      "rolls": 3,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/special/normal/tier3"
+        }
+      ]
+    },
+    {
+      "rolls": 2,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/rare/normal/tier3"
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "cobblemonnml:dungeon/vault/shared/tier_keys/normal/tier3"
+        }
+      ]
+    }
+  ]
+}

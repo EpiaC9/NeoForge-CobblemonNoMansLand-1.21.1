@@ -1,0 +1,201 @@
+{
+  "name": "Test Trainer 2",
+  "ai": {
+    "type": "rct",
+    "data": {}
+  },
+  "bag": [],
+  "team": [
+    {
+      "species": "cobblemon:squirtle",
+      "nickname": "",
+      "gender": "MALE",
+      "level": 30,
+      "nature": "cobblemon:jolly",
+      "ability": "static",
+      "moveset": [
+        "thunderbolt",
+        "quickattack",
+        "irontail",
+        "voltswitch"
+      ],
+      "ivs": {
+        "hp": 31,
+        "atk": 31,
+        "def": 31,
+        "spa": 31,
+        "spd": 31,
+        "spe": 31
+      },
+      "evs": {
+        "hp": 0,
+        "atk": 252,
+        "def": 0,
+        "spa": 0,
+        "spd": 4,
+        "spe": 252
+      },
+      "shiny": false,
+      "heldItem": "",
+      "aspects": [],
+      "gimmicks": {
+        "tera": null,
+        "dynamax": false,
+        "gmax": false
+      }
+    },
+    {
+      "species": "cobblemon:squirtle",
+      "nickname": "",
+      "gender": "MALE",
+      "level": 30,
+      "nature": "cobblemon:jolly",
+      "ability": "static",
+      "moveset": [
+        "thunderbolt",
+        "quickattack",
+        "irontail",
+        "voltswitch"
+      ],
+      "ivs": {
+        "hp": 31,
+        "atk": 31,
+        "def": 31,
+        "spa": 31,
+        "spd": 31,
+        "spe": 31
+      },
+      "evs": {
+        "hp": 0,
+        "atk": 252,
+        "def": 0,
+        "spa": 0,
+        "spd": 4,
+        "spe": 252
+      },
+      "shiny": false,
+      "heldItem": "",
+      "aspects": [],
+      "gimmicks": {
+        "tera": null,
+        "dynamax": false,
+        "gmax": false
+      }
+    },
+    {
+      "species": "cobblemon:squirtle",
+      "nickname": "",
+      "gender": "MALE",
+      "level": 30,
+      "nature": "cobblemon:jolly",
+      "ability": "static",
+      "moveset": [
+        "thunderbolt",
+        "quickattack",
+        "irontail",
+        "voltswitch"
+      ],
+      "ivs": {
+        "hp": 31,
+        "atk": 31,
+        "def": 31,
+        "spa": 31,
+        "spd": 31,
+        "spe": 31
+      },
+      "evs": {
+        "hp": 0,
+        "atk": 252,
+        "def": 0,
+        "spa": 0,
+        "spd": 4,
+        "spe": 252
+      },
+      "shiny": false,
+      "heldItem": "",
+      "aspects": [],
+      "gimmicks": {
+        "tera": null,
+        "dynamax": false,
+        "gmax": false
+      }
+    },
+    {
+      "species": "cobblemon:squirtle",
+      "nickname": "",
+      "gender": "MALE",
+      "level": 30,
+      "nature": "cobblemon:jolly",
+      "ability": "static",
+      "moveset": [
+        "thunderbolt",
+        "quickattack",
+        "irontail",
+        "voltswitch"
+      ],
+      "ivs": {
+        "hp": 31,
+        "atk": 31,
+        "def": 31,
+        "spa": 31,
+        "spd": 31,
+        "spe": 31
+      },
+      "evs": {
+        "hp": 0,
+        "atk": 252,
+        "def": 0,
+        "spa": 0,
+        "spd": 4,
+        "spe": 252
+      },
+      "shiny": false,
+      "heldItem": "",
+      "aspects": [],
+      "gimmicks": {
+        "tera": null,
+        "dynamax": false,
+        "gmax": false
+      }
+    },
+    {
+      "species": "cobblemon:squirtle",
+      "nickname": "",
+      "gender": "MALE",
+      "level": 30,
+      "nature": "cobblemon:jolly",
+      "ability": "static",
+      "moveset": [
+        "thunderbolt",
+        "quickattack",
+        "irontail",
+        "voltswitch"
+      ],
+      "ivs": {
+        "hp": 31,
+        "atk": 31,
+        "def": 31,
+        "spa": 31,
+        "spd": 31,
+        "spe": 31
+      },
+      "evs": {
+        "hp": 0,
+        "atk": 252,
+        "def": 0,
+        "spa": 0,
+        "spd": 4,
+        "spe": 252
+      },
+      "shiny": false,
+      "heldItem": "",
+      "aspects": [],
+      "gimmicks": {
+        "tera": null,
+        "dynamax": false,
+        "gmax": false
+      }
+    }
+  ],
+  "battleTheme": ""
+}

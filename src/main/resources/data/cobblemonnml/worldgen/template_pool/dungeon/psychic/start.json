@@ -1,0 +1,15 @@
+{
+  "name": "cobblemonnml:dungeon/psychic/start",
+  "fallback": "minecraft:empty",
+  "elements": [
+    {
+      "weight": 1,
+      "element": {
+        "processors": "minecraft:empty",
+        "location": "cobblemonnml:dungeon/psychic/spawnroom",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      }
+    }
+  ]
+}

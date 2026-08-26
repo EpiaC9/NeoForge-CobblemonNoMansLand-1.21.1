@@ -1,0 +1,20 @@
+{
+  "title": "First Dungeon Quest",
+  "description": "Bring me 10 apples.",
+  "repeatable": true,
+  "objectives": [
+    {
+      "id": "bring_apples",
+      "type": "item",
+      "item": "minecraft:apple",
+      "target": 10
+    }
+  ],
+  "rewards": [
+    {
+      "type": "item",
+      "item": "minecraft:diamond_block",
+      "count": 1
+    }
+  ]
+}

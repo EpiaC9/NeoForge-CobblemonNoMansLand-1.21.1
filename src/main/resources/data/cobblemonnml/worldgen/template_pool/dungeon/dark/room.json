@@ -1,0 +1,15 @@
+{
+  "name": "cobblemonnml:dungeon/dark/room",
+  "fallback": "minecraft:empty",
+  "elements": [
+    {
+      "weight": 4,
+      "element": {
+        "location": "cobblemonnml:dungeon/dark/rooms/room2",
+        "processors": "cobblemonnml:dungeon/trials_spawner_replacement",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      }
+    }
+  ]
+}

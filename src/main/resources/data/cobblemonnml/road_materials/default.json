@@ -1,0 +1,93 @@
+{
+  "exact": [
+    {
+      "input": "minecraft:grass_block",
+      "output": "nomansland:dirt_path"
+    },
+    {
+      "input": "minecraft:dirt",
+      "output": "nomansland:dirt_path"
+    },
+    {
+      "input": "minecraft:coarse_dirt",
+      "output": "nomansland:dirt_path"
+    },
+    {
+      "input": "minecraft:rooted_dirt",
+      "output": "nomansland:dirt_path"
+    },
+    {
+      "input": "minecraft:podzol",
+      "output": "nomansland:podzol_path"
+    },
+    {
+      "input": "minecraft:mycelium",
+      "output": "nomansland:mycelium_path"
+    },
+    {
+      "input": "minecraft:gravel",
+      "output": "nomansland:gravel_path"
+    },
+    {
+      "input": "minecraft:sand",
+      "output": "nomansland:sand_path"
+    },
+    {
+      "input": "minecraft:red_sand",
+      "output": "nomansland:red_sand_path"
+    },
+    {
+      "input": "minecraft:snow_block",
+      "output": "nomansland:snow_path"
+    }
+  ],
+  "families": [
+    {
+      "family": "dirt_grass",
+      "inputs": [
+        "minecraft:dirt",
+        "minecraft:grass_block",
+        "minecraft:coarse_dirt",
+        "minecraft:rooted_dirt"
+      ],
+      "output": "minecraft:dirt_path"
+    },
+    {
+      "family": "rock_stone",
+      "inputs": [
+        "minecraft:stone",
+        "minecraft:granite",
+        "minecraft:diorite",
+        "minecraft:andesite",
+        "minecraft:tuff",
+        "minecraft:calcite",
+        "minecraft:deepslate",
+        "minecraft:cobblestone"
+      ],
+      "output": "nomansland:gravel_path"
+    },
+    {
+      "family": "sand",
+      "inputs": [
+        "minecraft:sand",
+        "minecraft:sandstone"
+      ],
+      "output": "nomansland:sand_path"
+    },
+    {
+      "family": "red_sand",
+      "inputs": [
+        "minecraft:red_sand",
+        "minecraft:red_sandstone"
+      ],
+      "output": "nomansland:red_sand_path"
+    },
+    {
+      "family": "snow",
+      "inputs": [
+        "minecraft:snow_block"
+      ],
+      "output": "nomansland:snow_path"
+    }
+  ]
+}
