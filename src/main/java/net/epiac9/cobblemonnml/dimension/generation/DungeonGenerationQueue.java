@@ -165,9 +165,10 @@ public final class DungeonGenerationQueue {
      * marker-processing cost. Keep normal gameplay on summary logging.
      */
     private static final boolean VERBOSE_MARKER_LOGGING = false;
-    // OVERWORLD PORTAL
+    // OVERWORLD PORTAL / COMMAND ENTRY
     private static ServerLevel overworld;
     private static BlockPos overworldPortalCenter;
+    private static java.util.UUID commandEntryPlayerUUID;
     private static final double GENERATION_BAR_RANGE = 64.0D;
     // GENERATION PROGRESS
     private static int totalPieces = 0;
@@ -227,6 +228,11 @@ public final class DungeonGenerationQueue {
         ALPHA,
         RAID
     }
+    // COMMAND ENTRY PLAYER
+    public static void setCommandEntryPlayer(ServerPlayer player) {
+        commandEntryPlayerUUID = player != null ? player.getUUID() : null;
+    }
+
     // FORCE SPECIAL ROOM FOR NEXT GENERATION
     public static void setForceSpecialRoomForNextGeneration(boolean force) {
         forceSpecialRoomForNextGeneration = force;
@@ -264,7 +270,7 @@ public final class DungeonGenerationQueue {
         level = dungeonLevel;
         generationStartedGameTime = dungeonLevel.getGameTime();
         overworld = overworldLevel;
-        overworldPortalCenter = portalCenter.immutable();
+        overworldPortalCenter = portalCenter != null ? portalCenter.immutable() : null;
         generatingSlot = slot;
         generatingTier = tier;
 
@@ -613,11 +619,11 @@ public final class DungeonGenerationQueue {
              * Examples: cobblemonnml:dungeon/ghost/tier1
              */
             return ResourceLocation.fromNamespaceAndPath(
-                            "cobblemonnml",
-                            "dungeon/"
-                                    + generatingTheme.getId()
-                                    + "/"
-                                    + tierPath
+                    "cobblemonnml",
+                    "dungeon/"
+                            + generatingTheme.getId()
+                            + "/"
+                            + tierPath
             );
         }
         // SAFE FALLBACK
@@ -873,7 +879,7 @@ public final class DungeonGenerationQueue {
                 if (state.getBlock() instanceof SpecialRoomMarkerBlock
                         && state.hasProperty(
                         SpecialRoomMarkerBlock.FACING
-                        )) {
+                )) {
                     Direction facing = state.getValue( SpecialRoomMarkerBlock.FACING );
                     specialRoomMarkers.add( new SpecialRoomMarker( markerKey, facing ) );
                     DebugLog.log( "[CobblemonNML] Special room marker detected at " + markerKey + " facing " + facing );
@@ -1887,7 +1893,7 @@ public final class DungeonGenerationQueue {
         }
         return markers.get( random.nextInt( markers.size() ) );
     }
-// PROCESS SELECTED MARKER
+    // PROCESS SELECTED MARKER
     private static boolean processMarker(
             RoomMarker marker
     ) {
@@ -2045,6 +2051,35 @@ public final class DungeonGenerationQueue {
     }
     // COMPLETE GENERATION
     private static void completeGeneration() {
+        // COMMAND ENTRY ONLY AFTER EVERYTHING IS READY
+        if (commandEntryPlayerUUID != null && level != null) {
+            ServerPlayer commandPlayer =
+                    level.getServer()
+                            .getPlayerList()
+                            .getPlayer(commandEntryPlayerUUID);
+
+            if (commandPlayer != null
+                    && commandPlayer.level().dimension().equals(Level.OVERWORLD)) {
+                BlockPos dungeonOrigin = DungeonDimension.getCurrentDungeonOrigin();
+
+                commandPlayer.teleportTo(
+                        level,
+                        dungeonOrigin.getX() + 0.5D,
+                        dungeonOrigin.getY() + 1.0D,
+                        dungeonOrigin.getZ() + 0.5D,
+                        commandPlayer.getYRot(),
+                        commandPlayer.getXRot()
+                );
+
+                DebugLog.log(
+                        "[CobblemonNML] Command entry player teleported into completed dungeon: "
+                                + commandPlayer.getGameProfile().getName()
+                );
+            }
+
+            commandEntryPlayerUUID = null;
+        }
+
         // UNLOCK OVERWORLD PORTAL ONLY AFTER EVERYTHING IS READY
         /*
          * Structure placement, stale-entity cleanup, marker scan, return-portal placement and every logical encounter room
@@ -2117,6 +2152,16 @@ public final class DungeonGenerationQueue {
                 addBossBarPlayer( player );
             }
         }
+        if (overworld != null && commandEntryPlayerUUID != null) {
+            ServerPlayer commandPlayer =
+                    overworld.getServer()
+                            .getPlayerList()
+                            .getPlayer(commandEntryPlayerUUID);
+            if (commandPlayer != null
+                    && commandPlayer.level().dimension().equals(Level.OVERWORLD)) {
+                addBossBarPlayer(commandPlayer);
+            }
+        }
         if (overworld == null || overworldPortalCenter == null) {
             return;
         }
@@ -2157,6 +2202,12 @@ public final class DungeonGenerationQueue {
             boolean shouldSee = false;
             // INSIDE DUNGEON
             if (player .level() .dimension() .equals( DungeonDimension .DUNGEON_DIMENSION )) {
+                shouldSee = true;
+            }
+            // WAITING FOR COMMAND ENTRY
+            else if (commandEntryPlayerUUID != null
+                    && player.getUUID().equals(commandEntryPlayerUUID)
+                    && player.level().dimension().equals(Level.OVERWORLD)) {
                 shouldSee = true;
             }
             // NEAR OVERWORLD PORTAL
@@ -2212,6 +2263,7 @@ public final class DungeonGenerationQueue {
         generatingTheme = null;
         overworld = null;
         overworldPortalCenter = null;
+        commandEntryPlayerUUID = null;
         totalPieces = 0;
         placedPieces = 0;
         generatedMessageTicks = 0;

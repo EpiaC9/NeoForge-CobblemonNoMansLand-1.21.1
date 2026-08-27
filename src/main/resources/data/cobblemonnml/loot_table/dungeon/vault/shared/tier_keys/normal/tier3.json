@@ -28,6 +28,11 @@
           "type": "minecraft:item",
           "name": "cobblemonnml:tier_4_key",
           "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:trial_key",
+          "weight": 3
         }
       ]
     }
