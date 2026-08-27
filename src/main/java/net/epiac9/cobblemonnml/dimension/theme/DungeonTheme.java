@@ -3,24 +3,24 @@ package net.epiac9.cobblemonnml.dimension.theme;
 import net.minecraft.util.RandomSource;
 
 public enum DungeonTheme {
-    BUG( "bug", "Bug", 0xFFB9E63A ),
-    DARK( "dark", "Dark", 0xFF9A7B72 ),
-    DRAGON( "dragon", "Dragon", 0xFF9A68FF ),
-    ELECTRIC( "electric", "Electric", 0xFFFFE45A ),
-    FAIRY( "fairy", "Fairy", 0xFFFFB8D8 ),
-    FIGHTING( "fighting", "Fighting", 0xFFF05A50 ),
-    FIRE( "fire", "Fire", 0xFFFF8A42 ),
-    FLYING( "flying", "Flying", 0xFFB8A8FF ),
-    GHOST( "ghost", "Ghost", 0xFF9B7DDB ),
-    GRASS( "grass", "Grass", 0xFF7EE35C ),
-    GROUND( "ground", "Ground", 0xFFF1D27A ),
-    ICE( "ice", "Ice", 0xFFB7F4FF ),
-    NORMAL( "normal", "Normal", 0xFFD4D4AF ),
-    POISON( "poison", "Poison", 0xFFD968D9 ),
-    PSYCHIC( "psychic", "Psychic", 0xFFFF74AA ),
-    ROCK( "rock", "Rock", 0xFFD9BF59 ),
-    STEEL( "steel", "Steel", 0xFFDADAF2 ),
-    WATER( "water", "Water", 0xFF66B5FF );
+    BUG( "bug", "Bug", 0xFFA8B820 ),
+    DARK( "dark", "Dark", 0xFF705848 ),
+    DRAGON( "dragon", "Dragon", 0xFF7038F8 ),
+    ELECTRIC( "electric", "Electric", 0xFFF8D030 ),
+    FAIRY( "fairy", "Fairy", 0xFFEE99AC ),
+    FIGHTING( "fighting", "Fighting", 0xFFC03028 ),
+    FIRE( "fire", "Fire", 0xFFF08030 ),
+    FLYING( "flying", "Flying", 0xFFA890F0 ),
+    GHOST( "ghost", "Ghost", 0xFF705898 ),
+    GRASS( "grass", "Grass", 0xFF78C850 ),
+    GROUND( "ground", "Ground", 0xFFE0C068 ),
+    ICE( "ice", "Ice", 0xFF98D8D8 ),
+    NORMAL( "normal", "Normal", 0xFFA8A878 ),
+    POISON( "poison", "Poison", 0xFFA040A0 ),
+    PSYCHIC( "psychic", "Psychic", 0xFFF85888 ),
+    ROCK( "rock", "Rock", 0xFFB8A038 ),
+    STEEL( "steel", "Steel", 0xFFB8B8D0 ),
+    WATER( "water", "Water", 0xFF6890F0 );
     // THEME DATA
     private final String id;
     private final String displayName;
