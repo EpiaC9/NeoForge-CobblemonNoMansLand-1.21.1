@@ -2,7 +2,6 @@ package net.epiac9.cobblemonnml.dimension.timer;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.epiac9.cobblemonnml.CobblemonNML;
-import net.epiac9.cobblemonnml.dimension.timer.DungeonTimer;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
