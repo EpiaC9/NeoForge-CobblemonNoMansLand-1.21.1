@@ -18,9 +18,10 @@ import java.util.Map;
 public final class DungeonTrainerPresets {
     // RESOURCE PATHS
     private static final String NAMESPACE = "cobblemonnml";
-    private static final String BASE_DIRECTORY = "easy_npc/preset/humanoid/trainers/";
+    private static final String BASE_DIRECTORY = "easy_npc/preset/humanoid/trainers";
+    private static final String BASE_PREFIX = BASE_DIRECTORY + "/";
     private static final String NPC_FILE_SUFFIX = ".npc.nbt";
-    // THEME + TIER CACHE KEY
+    // ACTIVE DUNGEON TYPE + TIER CACHE KEY
     private record TrainerCacheKey(DungeonTheme theme, DungeonTier tier) {
     }
     // RESOURCE DISCOVERY CACHE
@@ -51,19 +52,23 @@ public final class DungeonTrainerPresets {
         List<ResourceLocation> cached = NORMAL_PRESET_CACHE.get(cacheKey);
 
         if (cached == null) {
-            String directory = BASE_DIRECTORY + theme.getId() + "/" + getTierFolder(tier);
-            cached = List.copyOf(findNpcPresets(resourceManager, directory));
+            cached = List.copyOf(
+                    findNpcPresets(
+                            resourceManager,
+                            theme.getId(),
+                            getTierFolder(tier)
+                    )
+            );
+
             NORMAL_PRESET_CACHE.put(cacheKey, cached);
 
             DebugLog.log(
                     "[CobblemonNML] Cached "
                             + cached.size()
-                            + " normal trainer preset(s) for "
+                            + " normal trainer preset(s) compatible with "
                             + theme.getDisplayName()
                             + " "
                             + tier.getDisplayName()
-                            + " from "
-                            + directory
             );
         }
 
@@ -79,23 +84,157 @@ public final class DungeonTrainerPresets {
         return resourceManager;
     }
     // GENERIC NPC RESOURCE SEARCH
-    private static List<ResourceLocation> findNpcPresets(ResourceManager resourceManager, String directory) {
-        if (resourceManager == null || directory == null || directory.isBlank()) {
+    private static List<ResourceLocation> findNpcPresets(
+            ResourceManager resourceManager,
+            String activeType,
+            String tierFolder
+    ) {
+        if (resourceManager == null
+                || activeType == null
+                || activeType.isBlank()
+                || tierFolder == null
+                || tierFolder.isBlank()) {
             return new ArrayList<>();
         }
 
         Map<ResourceLocation, Resource> resources =
                 resourceManager.listResources(
-                        directory,
+                        BASE_DIRECTORY,
                         resourceLocation ->
                                 resourceLocation.getNamespace().equals(NAMESPACE)
                                         && resourceLocation.getPath().endsWith(NPC_FILE_SUFFIX)
                 );
 
-        List<ResourceLocation> trainers = new ArrayList<>(resources.keySet());
+        List<ResourceLocation> trainers = new ArrayList<>();
+
+        for (ResourceLocation resourceLocation : resources.keySet()) {
+            String path = resourceLocation.getPath();
+
+            if (!path.startsWith(BASE_PREFIX)) {
+                continue;
+            }
+
+            String relativePath =
+                    path.substring(BASE_PREFIX.length());
+
+            String[] parts = relativePath.split("/");
+
+            if (parts.length != 3) {
+                continue;
+            }
+
+            String typePool = parts[0];
+            String resourceTier = parts[1];
+
+            if (!resourceTier.equals(tierFolder)) {
+                continue;
+            }
+
+            if (!typePoolContains(typePool, activeType)) {
+                continue;
+            }
+
+            trainers.add(resourceLocation);
+        }
+
         trainers.sort(Comparator.naturalOrder());
         return trainers;
     }
+
+    private static boolean typePoolContains(
+            String typePool,
+            String wantedType
+    ) {
+        if (typePool == null
+                || typePool.isBlank()
+                || wantedType == null
+                || wantedType.isBlank()) {
+            return false;
+        }
+
+        String[] types = typePool.split("_");
+
+        if (types.length < 1 || types.length > 2) {
+            return false;
+        }
+
+        for (String type : types) {
+            if (type.equalsIgnoreCase(wantedType)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static List<String> getTrainerTypes(
+            ResourceLocation preset
+    ) {
+        if (preset == null) {
+            return List.of();
+        }
+
+        String path = preset.getPath();
+
+        if (!path.startsWith(BASE_PREFIX)) {
+            return List.of();
+        }
+
+        String relativePath =
+                path.substring(BASE_PREFIX.length());
+
+        String[] parts = relativePath.split("/");
+
+        if (parts.length != 3) {
+            return List.of();
+        }
+
+        String[] types = parts[0].split("_");
+
+        if (types.length < 1 || types.length > 2) {
+            return List.of();
+        }
+
+        List<String> result = new ArrayList<>();
+
+        for (String type : types) {
+            if (type != null && !type.isBlank()) {
+                result.add(type.toLowerCase());
+            }
+        }
+
+        return List.copyOf(result);
+    }
+
+    public static String getTrainerTypePoolId(
+            ResourceLocation preset
+    ) {
+        if (preset == null) {
+            return null;
+        }
+
+        String path = preset.getPath();
+
+        if (!path.startsWith(BASE_PREFIX)) {
+            return null;
+        }
+
+        String relativePath =
+                path.substring(BASE_PREFIX.length());
+
+        String[] parts = relativePath.split("/");
+
+        if (parts.length != 3) {
+            return null;
+        }
+
+        String typePool = parts[0];
+
+        return typePool.isBlank()
+                ? null
+                : typePool.toLowerCase();
+    }
+
     // GET TIER FOLDER
     private static String getTierFolder(DungeonTier tier) {
         return switch (tier) {

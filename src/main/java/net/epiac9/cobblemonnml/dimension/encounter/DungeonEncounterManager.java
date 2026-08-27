@@ -9,7 +9,6 @@ import com.cobblemon.mod.common.pokemon.Gender;
 import com.cobblemon.mod.common.pokemon.Species;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.dimension.level.DungeonPokemonLevelManager;
-import net.epiac9.cobblemonnml.dimension.theme.DungeonTheme;
 import net.epiac9.cobblemonnml.dimension.tier.DungeonTier;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -370,21 +369,42 @@ public final class DungeonEncounterManager {
             return null;
         }
         // SINGLE TEAM TEMPLATE
-        DungeonTheme activeTheme = DungeonSession.getTheme();
-        if (activeTheme == null) {
-            DebugLog.log( "Cannot attach TBCS trainer to " + npcBaseName + ": no active dungeon theme." );
-            return null;
-        }
         DungeonTier activeTier = DungeonSession.getTier();
-
         if (activeTier == null) {
             DebugLog.log( "Cannot attach TBCS trainer to " + npcBaseName + ": no active dungeon tier." );
             return null;
         }
 
-        String selectedTrainerId = getSelectedTrainerId(activeTier, activeTheme, npcBaseName);
+        String typePoolId = DungeonTrainerPresets.getTrainerTypePoolId( preset );
+        if (typePoolId == null || typePoolId.isBlank()) {
+            DebugLog.log(
+                    "Cannot attach TBCS trainer to "
+                            + npcBaseName
+                            + ": could not determine trainer type pool from "
+                            + preset
+            );
+            return null;
+        }
 
-        DebugLog.log( "Using TBCS trainer template: " + selectedTrainerId );
+        List<String> trainerTypes = DungeonTrainerPresets.getTrainerTypes( preset );
+        if (trainerTypes.isEmpty()) {
+            DebugLog.log(
+                    "Cannot attach TBCS trainer to "
+                            + npcBaseName
+                            + ": trainer type pool contained no valid types: "
+                            + typePoolId
+            );
+            return null;
+        }
+
+        String selectedTrainerId = getSelectedTrainerId( activeTier, typePoolId, npcBaseName );
+
+        DebugLog.log(
+                "Using TBCS trainer template: "
+                        + selectedTrainerId
+                        + " with Pokemon type pool "
+                        + trainerTypes
+        );
         // GET TRAINER TEMPLATE
         TrainerNPC template;
         try {
@@ -410,7 +430,7 @@ public final class DungeonEncounterManager {
         // COPY TRAINER TEMPLATE
         TrainerNPC runtimeTrainer = new TrainerNPC( template );
         // RANDOMIZE TRAINER POKEMON LEVELS
-        randomizeTrainerPokemon( level, runtimeTrainer );
+        randomizeTrainerPokemon( level, runtimeTrainer, trainerTypes );
         // ATTACH EASY NPC ENTITY
         runtimeTrainer.setEntity( livingEntity );
         // UNIQUE RUNTIME TRAINER ID
@@ -443,7 +463,11 @@ public final class DungeonEncounterManager {
         return runtimeTrainerId;
     }
 
-    private static @NotNull String getSelectedTrainerId(DungeonTier activeTier, DungeonTheme activeTheme, String npcBaseName) {
+    private static @NotNull String getSelectedTrainerId(
+            DungeonTier activeTier,
+            String typePoolId,
+            String npcBaseName
+    ) {
         String tierId =
                 switch (activeTier) {
                     case TIER_1 -> "tier_1";
@@ -452,51 +476,46 @@ public final class DungeonEncounterManager {
                     case TIER_4 -> "tier_4";
                 };
 
-        String selectedTrainerId =
-                "tbcs:"
-                        + activeTheme.getId()
-                        + "_"
-                        + tierId
-                        + "_"
-                        + npcBaseName
-                        + "__team_1";
-        return selectedTrainerId;
+        return "tbcs:"
+                + typePoolId
+                + "_"
+                + tierId
+                + "_"
+                + npcBaseName
+                + "__team_1";
     }
     // RANDOMIZE TRAINER POKEMON LEVELS
-    private static void randomizeTrainerPokemon( ServerLevel level, TrainerNPC trainer ) {
-        if (level == null || trainer == null) {
+    private static void randomizeTrainerPokemon(
+            ServerLevel level,
+            TrainerNPC trainer,
+            List<String> trainerTypes
+    ) {
+        if (level == null || trainer == null || trainerTypes == null || trainerTypes.isEmpty()) {
             return;
         }
+
         DungeonTier tier = DungeonSession.getTier();
-        DungeonTheme theme = DungeonSession.getTheme();
-        if (tier == null || theme == null) {
+        if (tier == null) {
             return;
         }
-        List<Species> speciesPool = getEligibleTrainerSpecies( theme );
+
+        List<Species> speciesPool = getEligibleTrainerSpecies( trainerTypes );
         if (speciesPool.isEmpty()) {
             DebugLog.log(
-                    "[CobblemonNML] No eligible trainer Pokemon found for dungeon theme "
-                            + theme.getDisplayName()
+                    "[CobblemonNML] No eligible trainer Pokemon found for type pool "
+                            + trainerTypes
             );
             return;
         }
+
         for (var pokemon : trainer.getTeam()) {
-            // RANDOM SPECIES
-            Species selectedSpecies = speciesPool.get( level.getRandom() .nextInt( speciesPool.size() ) );
-            pokemon.setSpecies(selectedSpecies);
-            // RANDOM LEVEL
-            DungeonPokemonLevelManager.applyLevel(
-                    pokemon,
-                    tier,
-                    level.getRandom()
-            );
-            // RANDOM ABILITY
+            Species selectedSpecies = speciesPool.get( level.getRandom().nextInt( speciesPool.size() ) );
+            pokemon.setSpecies( selectedSpecies );
+            DungeonPokemonLevelManager.applyLevel( pokemon, tier, level.getRandom() );
             pokemon.rollAbility();
-            // RANDOM NATURE
-            pokemon.setNature(Natures.getRandomNature());
-            // RANDOM GENDER
-            float maleRatio = pokemon.getForm()
-                    .getMaleRatio();
+            pokemon.setNature( Natures.getRandomNature() );
+
+            float maleRatio = pokemon.getForm().getMaleRatio();
             Gender randomGender;
             if (maleRatio < 0.0F) {
                 randomGender = Gender.GENDERLESS;
@@ -505,50 +524,53 @@ public final class DungeonEncounterManager {
             } else if (maleRatio == 1.0F) {
                 randomGender = Gender.MALE;
             } else {
-                randomGender =
-                        level.getRandom()
-                                .nextFloat()
-                                < maleRatio
-                                ? Gender.MALE
-                                : Gender.FEMALE;
+                randomGender = level.getRandom().nextFloat() < maleRatio ? Gender.MALE : Gender.FEMALE;
             }
             pokemon.setGender( randomGender );
-            // RANDOM SHINY
-            boolean shiny =
-                    level.getRandom()
-                            .nextInt(100) == 0;
-            pokemon.setShiny( shiny );
-            // RANDOM IVS
+            pokemon.setShiny( level.getRandom().nextInt( 100 ) == 0 );
+
             for (Stat stat : Stats.Companion.getPERMANENT()) {
-                pokemon.setIV( stat, level.getRandom() .nextInt( 32 ) );
+                pokemon.setIV( stat, level.getRandom().nextInt( 32 ) );
             }
-            // RANDOM EVS
+
             applyRandomTrainerEVs( level, pokemon );
-            // REFRESH MOVESET FOR NEW SPECIES / LEVEL
             pokemon.initializeMoveset( true );
-            // RANDOM HELD ITEM
             applyRandomTrainerHeldItem( level, pokemon );
+
             DebugLog.log(
                     "[CobblemonNML] Randomized trainer Pokemon: "
                             + selectedSpecies.getName()
                             + " Lv."
                             + pokemon.getLevel()
+                            + " from type pool "
+                            + trainerTypes
             );
         }
     }
-    private static List<Species> getEligibleTrainerSpecies(DungeonTheme theme) {
-        if (theme == null) {
+
+    private static List<Species> getEligibleTrainerSpecies( List<String> trainerTypes ) {
+        if (trainerTypes == null || trainerTypes.isEmpty()) {
             return List.of();
         }
-        String requiredType =
-                theme.getId()
-                        .toLowerCase( Locale.ROOT );
+
+        Set<String> requiredTypes = new LinkedHashSet<>();
+        for (String trainerType : trainerTypes) {
+            if (trainerType == null || trainerType.isBlank()) {
+                continue;
+            }
+            requiredTypes.add( trainerType.trim().toLowerCase( Locale.ROOT ) );
+        }
+
+        if (requiredTypes.isEmpty()) {
+            return List.of();
+        }
+
         List<Species> eligible = new ArrayList<>();
         for (Species species : PokemonSpecies.getImplemented()) {
             if (species == null) {
                 continue;
             }
-            // EXCLUDE SPECIAL POKEMON CATEGORIES
+
             Set<String> labels = species.getLabels();
             if (containsLabel( labels, CobblemonPokemonLabels.LEGENDARY )) {
                 continue;
@@ -562,24 +584,27 @@ public final class DungeonEncounterManager {
             if (containsLabel( labels, CobblemonPokemonLabels.PARADOX )) {
                 continue;
             }
-            // TYPE MATCH
-            String primaryType =
-                    species.getPrimaryType()
-                            .getName()
-                            .toLowerCase( Locale.ROOT );
-            boolean matchesPrimary = primaryType.equals( requiredType );
-            boolean matchesSecondary =
+
+            String primaryType = species.getPrimaryType().getName().toLowerCase( Locale.ROOT );
+            String secondaryType =
                     species.getSecondaryType() != null
-                            && species
-                            .getSecondaryType()
-                            .getName()
-                            .equalsIgnoreCase( requiredType );
-            if (!matchesPrimary && !matchesSecondary) {
+                            ? species.getSecondaryType().getName().toLowerCase( Locale.ROOT )
+                            : null;
+
+            if (!requiredTypes.contains( primaryType )
+                    && (secondaryType == null || !requiredTypes.contains( secondaryType ))) {
                 continue;
             }
+
             eligible.add( species );
         }
-        DebugLog.log( "[CobblemonNML] Eligible " + theme.getDisplayName() + " trainer species: " + eligible.size() );
+
+        DebugLog.log(
+                "[CobblemonNML] Eligible trainer species for type pool "
+                        + requiredTypes
+                        + ": "
+                        + eligible.size()
+        );
         return List.copyOf( eligible );
     }
     private static void applyRandomTrainerEVs( ServerLevel level, com.cobblemon.mod.common.pokemon.Pokemon pokemon ) {

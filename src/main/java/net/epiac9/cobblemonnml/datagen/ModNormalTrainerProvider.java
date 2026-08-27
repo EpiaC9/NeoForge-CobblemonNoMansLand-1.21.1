@@ -2,114 +2,133 @@ package net.epiac9.cobblemonnml.datagen;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-
 import net.epiac9.cobblemonnml.CobblemonNML;
 import net.epiac9.cobblemonnml.util.DebugLog;
-
 import net.minecraft.data.CachedOutput;
 import net.minecraft.data.DataProvider;
 import net.minecraft.data.PackOutput;
-
-import net.neoforged.fml.loading.FMLPaths;
-
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-
 import java.util.concurrent.CompletableFuture;
-
 import java.util.stream.Stream;
 
 public final class ModNormalTrainerProvider implements DataProvider {
-    // EASY NPC PRESET ROOT
-    private static final Path NPC_ROOT =
-            FMLPaths.GAMEDIR.get()
-                    .getParent()
-                    .resolve(
-                            "src"
-                    ).resolve(
-                            "main"
-                    ).resolve(
-                            "resources"
-                    ).resolve(
-                            "data"
-                    ).resolve(
-                            CobblemonNML.MOD_ID
-                    ).resolve(
-                            "easy_npc"
-                    ).resolve(
-                            "preset"
-                    ).resolve(
-                            "humanoid"
-                    ).resolve(
-                            "trainers"
-                    ).normalize();
-    // MANUAL TRAINER DATA ROOT
-    /*
-     * If a trainer file already exists under src/main/resources,
-     * datagen will leave it completely untouched.
-     */
-    private static final Path MANUAL_TRAINER_ROOT =
-            FMLPaths.GAMEDIR.get()
-                    .getParent()
-                    .resolve(
-                            "src"
-                    ).resolve(
-                            "main"
-                    ).resolve(
-                            "resources"
-                    ).resolve(
-                            "data"
-                    ).resolve(
-                            CobblemonNML.MOD_ID
-                    ).resolve(
-                            "trainers"
-                    ).normalize();
-    // OUTPUT
+    private static final String NPC_SUFFIX = ".npc.nbt";
+
     private final PackOutput output;
+    private final Path npcRoot;
+    private final Path manualTrainerRoot;
+
     public ModNormalTrainerProvider(PackOutput output) {
         this.output = output;
+
+        Path generatedResourcesRoot =
+                output.getOutputFolder()
+                        .toAbsolutePath()
+                        .normalize();
+
+        Path srcRoot =
+                generatedResourcesRoot
+                        .getParent()
+                        .getParent();
+
+        Path mainResourcesRoot =
+                srcRoot
+                        .resolve("main")
+                        .resolve("resources")
+                        .normalize();
+
+        this.npcRoot =
+                mainResourcesRoot
+                        .resolve("data")
+                        .resolve(CobblemonNML.MOD_ID)
+                        .resolve("easy_npc")
+                        .resolve("preset")
+                        .resolve("humanoid")
+                        .resolve("trainers")
+                        .normalize();
+
+        this.manualTrainerRoot =
+                mainResourcesRoot
+                        .resolve("data")
+                        .resolve(CobblemonNML.MOD_ID)
+                        .resolve("trainers")
+                        .normalize();
     }
-    // RUN
+
     @Override
-    public @NotNull CompletableFuture<?> run( @NotNull CachedOutput cachedOutput ) {
-        DebugLog.log( "[CobblemonNML] Normal trainer datagen scanning: " + NPC_ROOT.toAbsolutePath() );
-        if (!Files.isDirectory(NPC_ROOT)) {
+    public @NotNull CompletableFuture<?> run(
+            @NotNull CachedOutput cachedOutput
+    ) {
+        System.out.println(
+                "[CobblemonNML] Normal trainer datagen scanning: "
+                        + npcRoot
+        );
+
+        DebugLog.log(
+                "[CobblemonNML] Normal trainer datagen scanning: "
+                        + npcRoot
+        );
+
+        if (!Files.isDirectory(npcRoot)) {
+            System.out.println(
+                    "[CobblemonNML] Normal trainer datagen skipped because "
+                            + "the trainer preset directory does not exist: "
+                            + npcRoot
+            );
+
             DebugLog.log(
                     "[CobblemonNML] Normal trainer datagen skipped because "
-                            + "the Easy NPC preset directory does not exist."
+                            + "the trainer preset directory does not exist: "
+                            + npcRoot
             );
-            return CompletableFuture.completedFuture( null );
-        }
-        List<CompletableFuture<?>> futures = new ArrayList<>();
-        int[] counts =
-                new int[]{
-                        0, // discovered
-                        0, // generated
-                        0, // existing
-                        0  // skipped / invalid
-                };
-        try (Stream<Path> paths = Files.walk( NPC_ROOT )) {
 
-            paths.filter( Files::isRegularFile )
-                    .filter( path -> path .getFileName() .toString() .endsWith( ".npc.nbt" ) )
-                    .forEach( npcPath -> processNpc( cachedOutput, npcPath, futures, counts ) );
+            return CompletableFuture.completedFuture(null);
+        }
+
+        List<CompletableFuture<?>> futures = new ArrayList<>();
+
+        int[] counts = new int[]{
+                0,
+                0,
+                0,
+                0
+        };
+
+        try (Stream<Path> paths = Files.walk(npcRoot)) {
+            paths.filter(Files::isRegularFile)
+                    .filter(path ->
+                            path.getFileName()
+                                    .toString()
+                                    .endsWith(NPC_SUFFIX)
+                    )
+                    .forEach(path ->
+                            processNpc(
+                                    cachedOutput,
+                                    path,
+                                    futures,
+                                    counts
+                            )
+                    );
+
         } catch (IOException exception) {
             DebugLog.log(
-                    "[CobblemonNML] Failed to scan normal Easy NPC trainer "
-                            + "presets during trainer datagen."
+                    "[CobblemonNML] Failed to scan normal trainer "
+                            + "presets during datagen."
             );
+
             exception.printStackTrace();
-            return CompletableFuture.failedFuture( exception );
+
+            return CompletableFuture.failedFuture(exception);
         }
-        DebugLog.log(
+
+        String summary =
                 "[CobblemonNML] Normal trainer datagen complete. "
                         + "Discovered="
                         + counts[0]
@@ -118,88 +137,155 @@ public final class ModNormalTrainerProvider implements DataProvider {
                         + ", existing="
                         + counts[2]
                         + ", skipped="
-                        + counts[3]
+                        + counts[3];
+
+        System.out.println(summary);
+        DebugLog.log(summary);
+
+        return CompletableFuture.allOf(
+                futures.toArray(CompletableFuture[]::new)
         );
-        return CompletableFuture.allOf( futures.toArray( CompletableFuture[]::new ) );
     }
-    // PROCESS NPC
+
     private void processNpc(
             CachedOutput cachedOutput,
             Path npcPath,
             List<CompletableFuture<?>> futures,
             int[] counts
     ) {
-        Path relative = NPC_ROOT.relativize( npcPath );
+        Path relative = npcRoot.relativize(npcPath);
 
         /*
-         * Only this layout is supported beneath the trainers root:
-         * <theme>/<tier>/<name>.npc.nbt
-         * Example: bug/tier_1/bug_catcher_amy.npc.nbt
+         * Required layout:
+         *
+         * trainers/<type_pool>/<tier>/<name>.npc.nbt
+         *
+         * Because npcRoot already points at "trainers",
+         * the relative path must be:
+         *
+         * <type_pool>/<tier>/<name>.npc.nbt
+         *
+         * Examples:
+         * water/tier_1/fisherman.npc.nbt
+         * water_grass/tier_1/parasol_lady.npc.nbt
          */
         if (relative.getNameCount() != 3) {
             counts[3]++;
+
+            DebugLog.log(
+                    "[CobblemonNML] Normal trainer datagen skipped "
+                            + "unexpected path: "
+                            + relative
+            );
+
             return;
         }
 
-        String theme =
-                relative.getName( 0 ).toString()
+        String typePool =
+                relative.getName(0)
+                        .toString()
                         .trim()
-                        .toLowerCase( Locale.ROOT );
+                        .toLowerCase(Locale.ROOT);
 
         String tier =
-                relative.getName( 1 ).toString()
+                relative.getName(1)
+                        .toString()
                         .trim()
-                        .toLowerCase( Locale.ROOT );
+                        .toLowerCase(Locale.ROOT);
 
         String fileName =
-                relative.getName( 2 ).toString()
+                relative.getName(2)
+                        .toString()
                         .trim();
-        if (!fileName.endsWith(".npc.nbt")) {
+
+        if (!fileName.endsWith(NPC_SUFFIX)) {
             counts[3]++;
             return;
         }
-        int teamSize = getTeamSize( tier );
+
+        int teamSize = getTeamSize(tier);
+
         if (teamSize <= 0) {
-            DebugLog.log( "[CobblemonNML] Normal trainer datagen skipped unsupported tier: " + relative );
+            DebugLog.log(
+                    "[CobblemonNML] Normal trainer datagen skipped "
+                            + "unsupported tier: "
+                            + relative
+            );
+
             counts[3]++;
             return;
         }
+
         String npcName =
-                fileName.substring( 0, fileName.length() - ".npc.nbt".length() ).trim()
-                        .toLowerCase( Locale.ROOT );
-        if (theme.isBlank() || npcName.isBlank()) {
+                fileName.substring(
+                                0,
+                                fileName.length() - NPC_SUFFIX.length()
+                        )
+                        .trim()
+                        .toLowerCase(Locale.ROOT);
+
+        if (!isValidTypePool(typePool) || npcName.isBlank()) {
             counts[3]++;
+
+            DebugLog.log(
+                    "[CobblemonNML] Normal trainer datagen skipped invalid type pool: "
+                            + relative
+            );
+
             return;
         }
+
         counts[0]++;
-        // OUTPUT PATHS
-        Path relativeTrainerPath = Path.of( theme, tier, npcName, "team_1.json" );
-        Path manualTrainerPath = MANUAL_TRAINER_ROOT.resolve( relativeTrainerPath ).normalize();
+
+        Path relativeTrainerPath =
+                Path.of(
+                        typePool,
+                        tier,
+                        npcName,
+                        "team_1.json"
+                );
+
+        Path manualTrainerPath =
+                manualTrainerRoot
+                        .resolve(relativeTrainerPath)
+                        .normalize();
+
         Path generatedTrainerPath =
                 output.getOutputFolder()
-                        .resolve(
-                                "data"
-                        ).resolve(
-                                CobblemonNML.MOD_ID
-                        ).resolve(
-                                "trainers"
-                        ).resolve(
-                                relativeTrainerPath
-                        ).normalize();
-        // NEVER OVERWRITE EXISTING TRAINER DATA
-        /*
-         * A hand-authored file under src/main/resources wins.
-         * We also leave an already-generated team_1.json alone so adding another NPC does not rewrite older trainer files.
-         */
-        if (Files.isRegularFile(manualTrainerPath) || Files.isRegularFile(generatedTrainerPath)) {
+                        .resolve("data")
+                        .resolve(CobblemonNML.MOD_ID)
+                        .resolve("trainers")
+                        .resolve(relativeTrainerPath)
+                        .normalize();
+
+        if (Files.isRegularFile(manualTrainerPath)) {
             counts[2]++;
-            DebugLog.log( "[CobblemonNML] Normal trainer datagen kept existing file: " + relativeTrainerPath );
+
+            DebugLog.log(
+                    "[CobblemonNML] Normal trainer datagen kept manual file: "
+                            + relativeTrainerPath
+            );
+
             return;
         }
-        // CREATE TRAINER JSON
-        JsonObject root = createTrainerJson( npcName, tier, teamSize );
-        futures.add( DataProvider.saveStable( cachedOutput, root, generatedTrainerPath ) );
+
+        JsonObject root =
+                createTrainerJson(
+                        npcName,
+                        tier,
+                        teamSize
+                );
+
+        futures.add(
+                DataProvider.saveStable(
+                        cachedOutput,
+                        root,
+                        generatedTrainerPath
+                )
+        );
+
         counts[1]++;
+
         DebugLog.log(
                 "[CobblemonNML] Normal trainer datagen created: "
                         + relativeTrainerPath
@@ -208,7 +294,36 @@ public final class ModNormalTrainerProvider implements DataProvider {
                         + " Pokemon."
         );
     }
-    // TEAM SIZE
+
+    private static boolean isValidTypePool(String typePool) {
+        if (typePool == null || typePool.isBlank()) {
+            return false;
+        }
+
+        String[] types = typePool.split("_");
+
+        if (types.length < 1 || types.length > 2) {
+            return false;
+        }
+
+        for (String type : types) {
+            if (!isPokemonType(type)) {
+                return false;
+            }
+        }
+
+        return types.length == 1 || !types[0].equals(types[1]);
+    }
+
+    private static boolean isPokemonType(String type) {
+        return switch (type) {
+            case "normal", "fighting", "flying", "poison", "ground", "rock",
+                 "bug", "ghost", "steel", "fire", "water", "grass",
+                 "electric", "psychic", "ice", "dragon", "dark", "fairy" -> true;
+            default -> false;
+        };
+    }
+
     private static int getTeamSize(String tier) {
         return switch (tier) {
             case "tier_1" -> 3;
@@ -218,121 +333,157 @@ public final class ModNormalTrainerProvider implements DataProvider {
             default -> -1;
         };
     }
-    // CREATE TRAINER JSON
-    private static JsonObject createTrainerJson( String npcName, String tier, int teamSize ) {
+
+    private static JsonObject createTrainerJson(
+            String npcName,
+            String tier,
+            int teamSize
+    ) {
         JsonObject root = new JsonObject();
-        root.addProperty( "name", makeTrainerDisplayName( npcName ) );
-        // AI
+
+        root.addProperty(
+                "name",
+                makeTrainerDisplayName(npcName)
+        );
+
         JsonObject ai = new JsonObject();
-        ai.addProperty( "type", "rct" );
-        ai.add( "data", new JsonObject() );
-        root.add( "ai", ai );
-        // BAG
-        root.add( "bag", new JsonArray() );
-        // TEAM
+        ai.addProperty("type", "rct");
+        ai.add("data", new JsonObject());
+
+        root.add("ai", ai);
+        root.add("bag", new JsonArray());
+
         JsonArray team = new JsonArray();
+
         for (int slot = 0; slot < teamSize; slot++) {
-            team.add( createPlaceholderPokemon( tier, slot ) );
+            team.add(
+                    createPlaceholderPokemon(
+                            tier,
+                            slot
+                    )
+            );
         }
-        root.add( "team", team );
-        // BATTLE THEME
-        root.addProperty( "battleTheme", "" );
+
+        root.add("team", team);
+        root.addProperty("battleTheme", "");
+
         return root;
     }
-    // PLACEHOLDER POKEMON
-    /*
-     * These values only need to form a valid TBCS trainer template.
-     *
-     * CobblemonNML replaces the template Pokemon with the randomized
-     * dungeon team at runtime.
-     */
-    private static JsonObject createPlaceholderPokemon( String tier, int slot ) {
+
+    private static JsonObject createPlaceholderPokemon(
+            String tier,
+            int slot
+    ) {
         JsonObject pokemon = new JsonObject();
-        pokemon.addProperty( "species", getPlaceholderSpecies( tier, slot ) );
-        pokemon.addProperty( "nickname", "" );
-        pokemon.addProperty( "gender", "MALE" );
-        pokemon.addProperty( "level", 30 );
-        pokemon.addProperty( "nature", "cobblemon:jolly" );
-        pokemon.addProperty( "ability", "static" );
-        // MOVESET
+
+        pokemon.addProperty(
+                "species",
+                getPlaceholderSpecies(
+                        tier,
+                        slot
+                )
+        );
+
+        pokemon.addProperty("gender", "MALE");
+        pokemon.addProperty("level", 30);
+        pokemon.addProperty("nature", "cobblemon:jolly");
+        pokemon.addProperty("ability", "static");
+
         JsonArray moveset = new JsonArray();
-        moveset.add( "thunderbolt" );
-        moveset.add( "quickattack" );
-        moveset.add( "irontail" );
-        moveset.add( "voltswitch" );
-        pokemon.add( "moveset", moveset );
-        // IVS
+        moveset.add("thunderbolt");
+        moveset.add("quickattack");
+        moveset.add("irontail");
+        moveset.add("voltswitch");
+
+        pokemon.add("moveset", moveset);
+
         JsonObject ivs = new JsonObject();
-        ivs.addProperty( "hp", 31 );
-        ivs.addProperty( "atk", 31 );
-        ivs.addProperty( "def", 31 );
-        ivs.addProperty( "spa", 31 );
-        ivs.addProperty( "spd", 31 );
-        ivs.addProperty( "spe", 31 );
-        pokemon.add( "ivs", ivs );
-        // EVS
+        ivs.addProperty("hp", 31);
+        ivs.addProperty("atk", 31);
+        ivs.addProperty("def", 31);
+        ivs.addProperty("spa", 31);
+        ivs.addProperty("spd", 31);
+        ivs.addProperty("spe", 31);
+
+        pokemon.add("ivs", ivs);
+
         JsonObject evs = new JsonObject();
-        evs.addProperty( "hp", 0 );
-        evs.addProperty( "atk", 252 );
-        evs.addProperty( "def", 0 );
-        evs.addProperty( "spa", 0 );
-        evs.addProperty( "spd", 4 );
-        evs.addProperty( "spe", 252 );
-        pokemon.add( "evs", evs );
-        pokemon.addProperty( "shiny", false );
-        pokemon.addProperty( "heldItem", "" );
-        pokemon.add( "aspects", new JsonArray() );
-        // GIMMICKS
+        evs.addProperty("hp", 0);
+        evs.addProperty("atk", 252);
+        evs.addProperty("def", 0);
+        evs.addProperty("spa", 0);
+        evs.addProperty("spd", 4);
+        evs.addProperty("spe", 252);
+
+        pokemon.add("evs", evs);
+
+        pokemon.addProperty("shiny", false);
+        pokemon.addProperty("heldItem", "");
+        pokemon.add("aspects", new JsonArray());
+
         JsonObject gimmicks = new JsonObject();
-        gimmicks.add( "tera", null );
-        gimmicks.addProperty( "dynamax", false );
-        gimmicks.addProperty( "gmax", false );
-        pokemon.add( "gimmicks", gimmicks );
+        gimmicks.add("tera", null);
+        gimmicks.addProperty("dynamax", false);
+        gimmicks.addProperty("gmax", false);
+
+        pokemon.add("gimmicks", gimmicks);
+
         return pokemon;
     }
-    // PLACEHOLDER SPECIES
-    private static String getPlaceholderSpecies( String tier, int slot ) {
-        /*
-         * Mirrors the existing working templates:
-         * Tier 1 = Pichu
-         * Tier 2 = Bulbasaur
-         * Tier 3 = Squirtle
-         * Tier 4 = Charmander
-         * The runtime randomizer replaces these anyway.
-         */
+
+    private static String getPlaceholderSpecies(
+            String tier,
+            int slot
+    ) {
         return switch (tier) {
             case "tier_1" -> "cobblemon:pichu";
             case "tier_2" -> "cobblemon:bulbasaur";
             case "tier_3" -> "cobblemon:squirtle";
-            case "tier_4" -> "cobblemon:charmander";
+            case "tier_4" ->
+                    slot == 0
+                            ? "cobblemon:charmander"
+                            : "cobblemon:cyndaquil";
             default -> "cobblemon:pichu";
         };
     }
-    // DISPLAY NAME
-    private static String makeTrainerDisplayName(String npcName) {
+
+    private static String makeTrainerDisplayName(
+            String npcName
+    ) {
         if (npcName == null || npcName.isBlank()) {
             return "Dungeon Trainer";
         }
-        String[] parts = npcName.split( "_" );
+
+        String[] parts = npcName.split("_");
         StringBuilder result = new StringBuilder();
+
         for (String part : parts) {
             if (part.isBlank()) {
                 continue;
             }
+
             if (!result.isEmpty()) {
-                result.append( " " );
+                result.append(" ");
             }
-            result.append( Character.toUpperCase( part.charAt( 0 ) ) );
+
+            result.append(
+                    Character.toUpperCase(
+                            part.charAt(0)
+                    )
+            );
+
             if (part.length() > 1) {
-                result.append( part.substring( 1 ) );
+                result.append(
+                        part.substring(1)
+                );
             }
         }
-        if (result.isEmpty()) {
-            return "Dungeon Trainer";
-        }
-        return result.toString();
+
+        return result.isEmpty()
+                ? "Dungeon Trainer"
+                : result.toString();
     }
-    // NAME
+
     @Override
     public @NotNull String getName() {
         return "CobblemonNML Normal Trainer Templates";

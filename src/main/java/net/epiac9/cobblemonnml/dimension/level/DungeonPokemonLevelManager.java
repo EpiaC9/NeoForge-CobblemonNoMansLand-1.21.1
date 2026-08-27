@@ -75,6 +75,7 @@ public final class DungeonPokemonLevelManager {
         DungeonTier tier = DungeonSession.getTier();
         if (tier == null
                 || !pokemonEntity.getPokemon().isWild()
+                || pokemonEntity.isBattling()
                 || pokemonEntity.getPersistentData().getBoolean(SKIP_SCALING_TAG)
                 || pokemonEntity.getPersistentData().getBoolean(SCALED_TAG)
                 || isQuestGimmighoul(pokemonEntity.getPokemon())) {
