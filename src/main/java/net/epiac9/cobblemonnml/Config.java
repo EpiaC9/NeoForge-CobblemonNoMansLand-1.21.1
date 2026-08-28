@@ -1,5 +1,6 @@
 package net.epiac9.cobblemonnml;
 
+import net.epiac9.cobblemonnml.battle.action.DungeonTrainerBattleMode;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 public final class Config {
@@ -9,6 +10,8 @@ public final class Config {
     public static final ModConfigSpec.IntValue OVERWORLD_PORTAL_MAX_DISTANCE;
     // DEBUG
     public static final ModConfigSpec.BooleanValue DEBUG_LOGGING;
+    // DUNGEON TRAINER BATTLE MODE
+    public static final ModConfigSpec.EnumValue<DungeonTrainerBattleMode> DUNGEON_TRAINER_BATTLE_MODE;
     // DUNGEON TIERS
     public static final TierConfig TIER_1;
     public static final TierConfig TIER_2;
@@ -29,6 +32,20 @@ public final class Config {
                 ).define(
                         "debugLogging",
                         false
+                );
+        // TEMPORARY DUNGEON TRAINER BATTLE ROUTER
+        DUNGEON_TRAINER_BATTLE_MODE =
+                builder.comment(
+                        "Temporary development router for normal dungeon trainer battles.",
+                        "",
+                        "ACTION = use the new real-time dungeon action battle system",
+                        "TURN_BASED = use the existing TBCS dungeon trainer battle flow",
+                        "",
+                        "This option will be removed after action battles are fully validated.",
+                        "Default: ACTION"
+                ).defineEnum(
+                        "dungeonTrainerBattleMode",
+                        DungeonTrainerBattleMode.ACTION
                 );
         // OVERWORLD PORTAL
         builder.push( "overworld_portal" );

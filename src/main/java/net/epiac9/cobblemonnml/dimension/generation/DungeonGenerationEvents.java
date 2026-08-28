@@ -5,6 +5,7 @@ import com.gitlab.srcmc.tbcs.api.TBCS;
 import de.markusbordihn.easynpc.api.handler.EasyNPCEntityHandler;
 import de.markusbordihn.easynpc.data.npc.NPCRemovalReason;
 
+import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.dimension.*;
 import net.epiac9.cobblemonnml.dimension.encounter.DungeonEncounterManager;
 import net.epiac9.cobblemonnml.dimension.reset.DungeonResetQueue;
@@ -197,6 +198,7 @@ public final class DungeonGenerationEvents {
          * Pause in-memory jobs so they can resume cleanly next time the world starts.
          */
         DungeonEncounterManager.clearPendingRetries();
+        ActionBattleManager.clearAll();
         DungeonTrainerBattleEvents.clear();
         QuestNpcTracker.clear();
         DungeonQuestItemMarkerManager.clearAll();
@@ -211,6 +213,7 @@ public final class DungeonGenerationEvents {
     }
     // CLEANUP TRAINERS
     private static void cleanupDungeonTrainers( ServerLevel dungeonLevel ) {
+        ActionBattleManager.clearAll();
         int trackedCount =
                 DungeonTrainerTracker
                         .size();
