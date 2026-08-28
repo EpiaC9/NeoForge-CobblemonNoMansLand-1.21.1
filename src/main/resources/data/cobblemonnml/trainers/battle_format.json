@@ -1,0 +1,31 @@
+{
+  "doubles": [
+    "family",
+    "pokemon_trainer",
+    "ace_trainer_bug",
+    "ace_trainer_dark",
+    "ace_trainer_dragon",
+    "ace_trainer_electric",
+    "ace_trainer_fairy",
+    "ace_trainer_fighting",
+    "ace_trainer_fire",
+    "ace_trainer_flying",
+    "ace_trainer_ghost",
+    "ace_trainer_grass",
+    "ace_trainer_ground",
+    "ace_trainer_ice",
+    "ace_trainer_normal",
+    "ace_trainer_poison",
+    "ace_trainer_psychic",
+    "ace_trainer_rock",
+    "ace_trainer_steel",
+    "ace_trainer_water"
+  ],
+  "pairs": {
+    "twins_left": "twins_right",
+    "young_couple_left": "young_couple_right",
+    "young_couple_male": "young_couple_female",
+    "sis": "bro",
+    "couple_male": "couple_female"
+  }
+}

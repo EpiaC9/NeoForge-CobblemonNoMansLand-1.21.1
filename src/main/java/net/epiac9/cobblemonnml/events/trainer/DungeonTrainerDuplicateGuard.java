@@ -112,9 +112,26 @@ public final class DungeonTrainerDuplicateGuard {
             }
 
             // Keep the authoritative trainer.
-            if (candidate.getUUID().equals( intendedUUID )) {
+            if (candidate.getUUID().equals(intendedUUID)) {
                 continue;
             }
+
+            // KEEP INTENTIONAL PAIRED TRAINER MEMBER
+            /*
+             * Paired dungeon trainers are two physical EasyNPC entities that
+             * intentionally share one runtime TBCS/RCT trainer ID.
+             * They are not duplicates and must never be removed here.
+             */
+            String intendedRuntimeTrainerId =
+                    DungeonTrainerTracker.getRCTTrainerId(intendedUUID);
+            String candidateRuntimeTrainerId =
+                    DungeonTrainerTracker.getRCTTrainerId(candidate.getUUID());
+
+            if (intendedRuntimeTrainerId != null
+                    && intendedRuntimeTrainerId.equals(candidateRuntimeTrainerId)) {
+                continue;
+            }
+
             // CONFIRM THIS IS AN EASY NPC
             boolean isEasyNpc = false;
             try {
