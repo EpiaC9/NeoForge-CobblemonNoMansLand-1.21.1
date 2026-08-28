@@ -25,7 +25,6 @@ import de.markusbordihn.easynpc.entity.easynpc.EasyNPC;
 
 import net.epiac9.cobblemonnml.events.quest.npc.QuestNpcSpawnManager;
 import net.epiac9.cobblemonnml.events.raid.DungeonRaidManager;
-import net.epiac9.cobblemonnml.events.trainer.DungeonTrainerBattleFormats;
 import net.epiac9.cobblemonnml.events.trainer.DungeonTrainerDuplicateGuard;
 import net.epiac9.cobblemonnml.events.trainer.DungeonTrainerPresets;
 import net.epiac9.cobblemonnml.events.trainer.DungeonTrainerTracker;
@@ -266,183 +265,62 @@ public final class DungeonEncounterManager {
         return spawnTrainer( level, markerPos, selectedPreset );
     }
     // SPAWN TRAINER
-    private static boolean spawnTrainer(ServerLevel level, BlockPos markerPos, ResourceLocation preset) {
+    private static boolean spawnTrainer( ServerLevel level, BlockPos markerPos, ResourceLocation preset ) {
+        // SPAWN POSITION
         BlockPos spawnPos = markerPos.above();
-        Vec3 position = new Vec3(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D);
-
-        UUID existingTrainer = findTrackedTrainerNear(level, position);
+        Vec3 position = new Vec3( spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D );
+        // PRE-SPAWN DUPLICATE FAILSAFE
+        /*
+         * If marker processing somehow fires twice, don't create another trainer on top of an already tracked one.
+         */
+        UUID existingTrainer = findTrackedTrainerNear( level, position );
         if (existingTrainer != null) {
-            DebugLog.log("[CobblemonNML] Skipping duplicate trainer spawn.");
-            DebugLog.log("[CobblemonNML] Marker: " + markerPos);
-            DebugLog.log("[CobblemonNML] Existing trainer UUID: " + existingTrainer);
+            DebugLog.log( "[CobblemonNML] Skipping duplicate trainer spawn." );
+            DebugLog.log( "[CobblemonNML] Marker: " + markerPos );
+            DebugLog.log( "[CobblemonNML] Existing trainer UUID: " + existingTrainer );
             return true;
         }
-
-        UUID primaryUUID = UUID.randomUUID();
-        DebugLog.log("Attempting to spawn trainer " + preset + " at " + position);
-
-        Optional<EasyNPC<?>> primarySpawned =
-                EasyNPCEntityHandler.spawnFromPreset(
-                        PresetType.DATA,
-                        preset,
-                        level,
-                        position,
-                        primaryUUID,
-                        null
-                );
-
-        if (primarySpawned.isEmpty()) {
-            DebugLog.log("FAILED to spawn trainer from preset " + preset);
+        // UNIQUE NPC UUID
+        UUID npcUUID = UUID.randomUUID();
+        DebugLog.log( "Attempting to spawn trainer " + preset + " at " + position );
+        // SPAWN BUNDLED EASY NPC PRESET
+        Optional<EasyNPC<?>> spawned =
+                EasyNPCEntityHandler
+                        .spawnFromPreset( PresetType.DATA, preset, level, position, npcUUID, null );
+        // RESULT
+        if (spawned.isEmpty()) {
+            DebugLog.log( "FAILED to spawn trainer from preset " + preset );
             return false;
         }
-
-        EasyNPC<?> primaryNpc = primarySpawned.get();
-        EasyNPC<?> partnerNpc = null;
-        ResourceLocation partnerPreset = null;
-
-        String partnerName =
-                DungeonTrainerBattleFormats.getPartnerTrainerName(
-                        level,
-                        preset
-                );
-
-        if (partnerName != null && !partnerName.isBlank()) {
-            partnerPreset = getPartnerPreset(preset, partnerName);
-
-            if (partnerPreset == null) {
-                DebugLog.log(
-                        "[CobblemonNML] Paired trainer "
-                                + preset
-                                + " could not resolve partner preset for "
-                                + partnerName
-                );
-                primaryNpc.getEntity().discard();
-                return false;
-            }
-
-            Vec3 partnerPosition =
-                    new Vec3(
-                            position.x + 1.0D,
-                            position.y,
-                            position.z
-                    );
-
-            UUID partnerUUID = UUID.randomUUID();
-
-            DebugLog.log(
-                    "[CobblemonNML] Attempting to spawn paired trainer member "
-                            + partnerPreset
-                            + " at "
-                            + partnerPosition
-            );
-
-            Optional<EasyNPC<?>> partnerSpawned =
-                    EasyNPCEntityHandler.spawnFromPreset(
-                            PresetType.DATA,
-                            partnerPreset,
-                            level,
-                            partnerPosition,
-                            partnerUUID,
-                            null
-                    );
-
-            if (partnerSpawned.isEmpty()) {
-                DebugLog.log(
-                        "[CobblemonNML] FAILED to spawn paired trainer member "
-                                + partnerPreset
-                );
-                primaryNpc.getEntity().discard();
-                return false;
-            }
-
-            partnerNpc = partnerSpawned.get();
-        }
-
-        String runtimeTrainerId = attachTrainerTeam(level, primaryNpc, preset);
+        EasyNPC<?> npc = spawned.get();
+        // ATTACH RANDOM TBCS TRAINER TEAM
+        String runtimeTrainerId = attachTrainerTeam( level, npc, preset );
         if (runtimeTrainerId == null) {
             DebugLog.log(
-                    "[CobblemonNML] ENCOUNTER FAIL-SAFE: Trainer NPC spawned, "
-                            + "but TBCS team attachment failed."
+                    "[CobblemonNML] ENCOUNTER FAIL-SAFE: "
+                            + "Trainer NPC spawned, but TBCS team attachment failed."
             );
-            primaryNpc.getEntity().discard();
-            if (partnerNpc != null) {
-                partnerNpc.getEntity().discard();
-            }
+            DebugLog.log( "[CobblemonNML] Removing incomplete trainer NPC: " + npc.getEntityUUID() );
+            npc.getEntity().discard();
             return false;
         }
-
-        DungeonTrainerTracker.track(primaryNpc.getEntityUUID(), runtimeTrainerId, preset);
-
-        if (partnerNpc != null && partnerPreset != null) {
-            DungeonTrainerTracker.track(
-                    partnerNpc.getEntityUUID(),
-                    runtimeTrainerId,
-                    partnerPreset
-            );
-
-            DebugLog.log(
-                    "[CobblemonNML] Paired dungeon trainer created. "
-                            + "Primary="
-                            + primaryNpc.getEntityUUID()
-                            + ", partner="
-                            + partnerNpc.getEntityUUID()
-                            + ", sharedTrainer="
-                            + runtimeTrainerId
-            );
-        }
-
-        DungeonTrainerDuplicateGuard.scheduleCheck(
-                level,
-                primaryNpc.getEntityUUID(),
-                primaryNpc.getEntity().position()
-        );
-
-        if (partnerNpc != null) {
-            DungeonTrainerDuplicateGuard.scheduleCheck(
-                    level,
-                    partnerNpc.getEntityUUID(),
-                    partnerNpc.getEntity().position()
-            );
-        }
-
-        DebugLog.log("Trainer spawned successfully.");
-        DebugLog.log("Preset: " + preset);
-        DebugLog.log("Position: " + primaryNpc.getEntity().position());
-        DebugLog.log("NPC UUID: " + primaryNpc.getEntityUUID());
-        DebugLog.log("RCT/TBCS trainer ID: " + runtimeTrainerId);
-        DebugLog.log("Tracked dungeon trainers: " + DungeonTrainerTracker.size());
+        // TRACK THIS DUNGEON TRAINER
+        DungeonTrainerTracker.track( npc.getEntityUUID(), runtimeTrainerId, preset );
+        // SCHEDULE POST-SPAWN DUPLICATE GUARD
+        /*
+         * EasyNPC has previously produced an additional NPC with another UUID shortly after the intended entity spawned.
+         * Keep npc.getEntityUUID() as authoritative and remove any nearby EasyNPC clones appearing shortly afterward.
+         */
+        DungeonTrainerDuplicateGuard.scheduleCheck( level, npc.getEntityUUID(), npc.getEntity().position() );
+        // DEBUG
+        DebugLog.log( "Trainer spawned successfully." );
+        DebugLog.log( "Preset: " + preset );
+        DebugLog.log( "Position: " + npc.getEntity().position());
+        DebugLog.log( "NPC UUID: " + npc.getEntityUUID());
+        DebugLog.log( "RCT/TBCS trainer ID: " + runtimeTrainerId );
+        DebugLog.log( "Tracked dungeon trainers: " + DungeonTrainerTracker.size());
         return true;
     }
-
-    // PAIRED TRAINER PRESET
-    private static ResourceLocation getPartnerPreset(
-            ResourceLocation primaryPreset,
-            String partnerName
-    ) {
-        if (primaryPreset == null
-                || partnerName == null
-                || partnerName.isBlank()) {
-            return null;
-        }
-
-        String path = primaryPreset.getPath();
-        int lastSlash = path.lastIndexOf('/');
-
-        if (lastSlash < 0) {
-            return null;
-        }
-
-        String partnerFile =
-                partnerName.trim()
-                        .toLowerCase(Locale.ROOT)
-                        + ".npc.nbt";
-
-        return ResourceLocation.fromNamespaceAndPath(
-                primaryPreset.getNamespace(),
-                path.substring(0, lastSlash + 1) + partnerFile
-        );
-    }
-
     // FIND EXISTING TRACKED TRAINER NEAR POSITION
     private static UUID findTrackedTrainerNear( ServerLevel level, Vec3 position ) {
         if (level == null || position == null) {
@@ -497,29 +375,35 @@ public final class DungeonEncounterManager {
             return null;
         }
 
-        String typePoolId = DungeonTrainerPresets.getTrainerTypePoolId( preset );
-        if (typePoolId == null || typePoolId.isBlank()) {
+        String trainerThemeId = DungeonTrainerPresets.getTrainerThemeId( preset );
+        if (trainerThemeId == null || trainerThemeId.isBlank()) {
             DebugLog.log(
                     "Cannot attach TBCS trainer to "
                             + npcBaseName
-                            + ": could not determine trainer type pool from "
+                            + ": could not determine trainer theme from "
                             + preset
             );
             return null;
         }
 
-        List<String> trainerTypes = DungeonTrainerPresets.getTrainerTypes( preset );
+        List<String> trainerTypes =
+                DungeonTrainerPresets.getTrainerTypes(
+                        level,
+                        preset,
+                        activeTier
+                );
+
         if (trainerTypes.isEmpty()) {
             DebugLog.log(
                     "Cannot attach TBCS trainer to "
                             + npcBaseName
-                            + ": trainer type pool contained no valid types: "
-                            + typePoolId
+                            + ": no trainer type folders were found for "
+                            + preset
             );
             return null;
         }
 
-        String selectedTrainerId = getSelectedTrainerId( activeTier, typePoolId, npcBaseName );
+        String selectedTrainerId = getSelectedTrainerId( activeTier, trainerThemeId, npcBaseName );
 
         DebugLog.log(
                 "Using TBCS trainer template: "
@@ -587,7 +471,7 @@ public final class DungeonEncounterManager {
 
     private static @NotNull String getSelectedTrainerId(
             DungeonTier activeTier,
-            String typePoolId,
+            String trainerThemeId,
             String npcBaseName
     ) {
         String tierId =
@@ -599,7 +483,7 @@ public final class DungeonEncounterManager {
                 };
 
         return "tbcs:"
-                + typePoolId
+                + trainerThemeId
                 + "_"
                 + tierId
                 + "_"

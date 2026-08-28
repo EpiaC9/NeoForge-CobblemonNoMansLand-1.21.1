@@ -17,9 +17,9 @@ public final class DungeonTimerCommand {
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(
                 Commands.literal("cobblemonnml")
-                        .requires(source -> source.hasPermission(2))
                         .then(
                                 Commands.literal("timer")
+                                        .requires(source -> source.hasPermission(2))
                                         .then(Commands.literal("pause").executes(context -> pause(context.getSource())))
                                         .then(Commands.literal("unpause").executes(context -> unpause(context.getSource())))
                                         .then(

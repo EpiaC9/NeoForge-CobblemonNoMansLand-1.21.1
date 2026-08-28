@@ -94,7 +94,15 @@ public final class Config {
                 // Battle life transfer
                 false, // Disabled
                 4.0,   // Damage per fainted Pokemon
-                5      // Revive health percentage
+                5,     // Revive health percentage
+
+                // Trainer battle mechanics
+                false, // Extra mechanics disabled
+                0,     // 0% chance
+                false, // Mega Evolution
+                false, // Terastallization
+                false, // Z-Moves
+                false  // Dynamax
         );
         // TIER 2
         TIER_2 = createTier(
@@ -130,7 +138,15 @@ public final class Config {
                 // Battle life transfer
                 false, // Disabled
                 5.0,   // Damage per fainted Pokemon
-                5      // Revive health percentage
+                5,     // Revive health percentage
+
+                // Trainer battle mechanics
+                false, // Extra mechanics disabled
+                0,     // 0% chance
+                false, // Mega Evolution
+                false, // Terastallization
+                false, // Z-Moves
+                false  // Dynamax
         );
         // TIER 3
         TIER_3 = createTier(
@@ -166,7 +182,15 @@ public final class Config {
                 // Battle life transfer
                 true, // Enabled
                 6.0,  // Damage per fainted Pokemon
-                5     // Revive health percentage
+                5,    // Revive health percentage
+
+                // Trainer battle mechanics
+                true, // Extra mechanics enabled
+                25,   // 25% chance
+                true, // Mega Evolution
+                true, // Terastallization
+                true, // Z-Moves
+                true  // Dynamax
         );
         // TIER 4
         TIER_4 = createTier(
@@ -202,7 +226,15 @@ public final class Config {
                 // Battle life transfer
                 true, // Enabled
                 10.0, // Damage per fainted Pokemon
-                5     // Revive health percentage
+                5,    // Revive health percentage
+
+                // Trainer battle mechanics
+                true, // Extra mechanics enabled
+                100,  // 100% chance
+                true, // Mega Evolution
+                true, // Terastallization
+                true, // Z-Moves
+                true  // Dynamax
         );
         // BUILD CONFIG
         SPEC = builder.build();
@@ -230,7 +262,13 @@ public final class Config {
             int defaultMaximumPokemonLevel,
             boolean defaultLifeTransferEnabled,
             double defaultLifeTransferDamagePerPokemon,
-            int defaultLifeTransferRevivePercent
+            int defaultLifeTransferRevivePercent,
+            boolean defaultTrainerMechanicsEnabled,
+            int defaultTrainerMechanicChance,
+            boolean defaultMegaEnabled,
+            boolean defaultTerastallizationEnabled,
+            boolean defaultZMovesEnabled,
+            boolean defaultDynamaxEnabled
     ) {
         builder.push( name );
         // TIMER
@@ -581,6 +619,97 @@ public final class Config {
                 );
 
         builder.pop();
+        // TRAINER BATTLE MECHANICS
+        builder.push( "trainer_mechanics" );
+
+        ModConfigSpec.BooleanValue trainerMechanicsEnabled =
+                builder.comment(
+                        "Whether normal dungeon trainers in this tier",
+                        "can use an extra battle mechanic.",
+                        "",
+                        "When enabled, the mechanic chance is rolled",
+                        "when a supported trainer battle begins.",
+                        "",
+                        "Default: "
+                                + defaultTrainerMechanicsEnabled
+                ).define(
+                        "enabled",
+                        defaultTrainerMechanicsEnabled
+                );
+
+        ModConfigSpec.IntValue trainerMechanicChance =
+                builder.comment(
+                        "Chance for a normal dungeon trainer battle",
+                        "to receive one extra battle mechanic.",
+                        "",
+                        "This is a real percentage.",
+                        "",
+                        "0 = never",
+                        "25 = 25% chance",
+                        "100 = guaranteed",
+                        "",
+                        "If the roll succeeds, one enabled mechanic",
+                        "is chosen at random.",
+                        "",
+                        "Default: "
+                                + defaultTrainerMechanicChance
+                                + "%"
+                ).defineInRange(
+                        "chance",
+                        defaultTrainerMechanicChance,
+                        0,
+                        100
+                );
+
+        ModConfigSpec.BooleanValue megaEnabled =
+                builder.comment(
+                        "Allows Mega Evolution to be selected",
+                        "for normal dungeon trainer battles in this tier.",
+                        "",
+                        "Default: "
+                                + defaultMegaEnabled
+                ).define(
+                        "megaEvolution",
+                        defaultMegaEnabled
+                );
+
+        ModConfigSpec.BooleanValue terastallizationEnabled =
+                builder.comment(
+                        "Allows Terastallization to be selected",
+                        "for normal dungeon trainer battles in this tier.",
+                        "",
+                        "Default: "
+                                + defaultTerastallizationEnabled
+                ).define(
+                        "terastallization",
+                        defaultTerastallizationEnabled
+                );
+
+        ModConfigSpec.BooleanValue zMovesEnabled =
+                builder.comment(
+                        "Allows Z-Moves to be selected",
+                        "for normal dungeon trainer battles in this tier.",
+                        "",
+                        "Default: "
+                                + defaultZMovesEnabled
+                ).define(
+                        "zMoves",
+                        defaultZMovesEnabled
+                );
+
+        ModConfigSpec.BooleanValue dynamaxEnabled =
+                builder.comment(
+                        "Allows Dynamax to be selected",
+                        "for normal dungeon trainer battles in this tier.",
+                        "",
+                        "Default: "
+                                + defaultDynamaxEnabled
+                ).define(
+                        "dynamax",
+                        defaultDynamaxEnabled
+                );
+
+        builder.pop();
         // END TIER
         builder.pop();
         // RETURN TIER CONFIG
@@ -601,7 +730,13 @@ public final class Config {
                 maximumPokemonLevel,
                 lifeTransferEnabled,
                 lifeTransferDamagePerPokemon,
-                lifeTransferRevivePercent
+                lifeTransferRevivePercent,
+                trainerMechanicsEnabled,
+                trainerMechanicChance,
+                megaEnabled,
+                terastallizationEnabled,
+                zMovesEnabled,
+                dynamaxEnabled
         );
     }
     // TIER CONFIG DATA
@@ -622,7 +757,13 @@ public final class Config {
             ModConfigSpec.IntValue maximumPokemonLevel,
             ModConfigSpec.BooleanValue lifeTransferEnabled,
             ModConfigSpec.DoubleValue lifeTransferDamagePerPokemon,
-            ModConfigSpec.IntValue lifeTransferRevivePercent
+            ModConfigSpec.IntValue lifeTransferRevivePercent,
+            ModConfigSpec.BooleanValue trainerMechanicsEnabled,
+            ModConfigSpec.IntValue trainerMechanicChance,
+            ModConfigSpec.BooleanValue megaEnabled,
+            ModConfigSpec.BooleanValue terastallizationEnabled,
+            ModConfigSpec.BooleanValue zMovesEnabled,
+            ModConfigSpec.BooleanValue dynamaxEnabled
 
     ) {
     }

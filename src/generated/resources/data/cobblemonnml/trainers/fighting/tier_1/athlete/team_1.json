@@ -1,0 +1,119 @@
+{
+  "ai": {
+    "type": "rct",
+    "data": {}
+  },
+  "bag": [],
+  "battleTheme": "",
+  "name": "Athlete",
+  "team": [
+    {
+      "ability": "static",
+      "aspects": [],
+      "evs": {
+        "atk": 252,
+        "def": 0,
+        "hp": 0,
+        "spa": 0,
+        "spd": 4,
+        "spe": 252
+      },
+      "gender": "MALE",
+      "gimmicks": {
+        "dynamax": false,
+        "gmax": false
+      },
+      "heldItem": "",
+      "ivs": {
+        "atk": 31,
+        "def": 31,
+        "hp": 31,
+        "spa": 31,
+        "spd": 31,
+        "spe": 31
+      },
+      "level": 30,
+      "moveset": [
+        "thunderbolt",
+        "quickattack",
+        "irontail",
+        "voltswitch"
+      ],
+      "nature": "cobblemon:jolly",
+      "shiny": false,
+      "species": "cobblemon:pichu"
+    },
+    {
+      "ability": "static",
+      "aspects": [],
+      "evs": {
+        "atk": 252,
+        "def": 0,
+        "hp": 0,
+        "spa": 0,
+        "spd": 4,
+        "spe": 252
+      },
+      "gender": "MALE",
+      "gimmicks": {
+        "dynamax": false,
+        "gmax": false
+      },
+      "heldItem": "",
+      "ivs": {
+        "atk": 31,
+        "def": 31,
+        "hp": 31,
+        "spa": 31,
+        "spd": 31,
+        "spe": 31
+      },
+      "level": 30,
+      "moveset": [
+        "thunderbolt",
+        "quickattack",
+        "irontail",
+        "voltswitch"
+      ],
+      "nature": "cobblemon:jolly",
+      "shiny": false,
+      "species": "cobblemon:pichu"
+    },
+    {
+      "ability": "static",
+      "aspects": [],
+      "evs": {
+        "atk": 252,
+        "def": 0,
+        "hp": 0,
+        "spa": 0,
+        "spd": 4,
+        "spe": 252
+      },
+      "gender": "MALE",
+      "gimmicks": {
+        "dynamax": false,
+        "gmax": false
+      },
+      "heldItem": "",
+      "ivs": {
+        "atk": 31,
+        "def": 31,
+        "hp": 31,
+        "spa": 31,
+        "spd": 31,
+        "spe": 31
+      },
+      "level": 30,
+      "moveset": [
+        "thunderbolt",
+        "quickattack",
+        "irontail",
+        "voltswitch"
+      ],
+      "nature": "cobblemon:jolly",
+      "shiny": false,
+      "species": "cobblemon:pichu"
+    }
+  ]
+}

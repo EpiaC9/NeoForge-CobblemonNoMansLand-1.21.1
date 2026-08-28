@@ -27,9 +27,12 @@ public final class DungeonTravelCommand {
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(
                 Commands.literal("cobblemonnml")
-                        .requires(source -> source.hasPermission(2))
-                        .then(Commands.literal("enter").executes(context -> enter(context.getSource())))
-                        .then(Commands.literal("leave").executes(context -> leave(context.getSource())))
+                        .then(Commands.literal("enter")
+                                .requires(source -> source.hasPermission(2))
+                                .executes(context -> enter(context.getSource())))
+                        .then(Commands.literal("leave")
+                                .requires(source -> source.hasPermission(2))
+                                .executes(context -> leave(context.getSource())))
         );
     }
 

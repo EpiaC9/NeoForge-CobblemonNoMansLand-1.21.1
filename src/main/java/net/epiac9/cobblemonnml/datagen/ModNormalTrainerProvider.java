@@ -158,16 +158,20 @@ public final class ModNormalTrainerProvider implements DataProvider {
         /*
          * Required layout:
          *
-         * trainers/<type_pool>/<tier>/<name>.npc.nbt
+         * trainers/<theme>/<tier>/<name>.npc.nbt
          *
          * Because npcRoot already points at "trainers",
          * the relative path must be:
          *
-         * <type_pool>/<tier>/<name>.npc.nbt
+         * <theme>/<tier>/<name>.npc.nbt
          *
          * Examples:
          * water/tier_1/fisherman.npc.nbt
-         * water_grass/tier_1/parasol_lady.npc.nbt
+         * normal/tier_1/athlete.npc.nbt
+         * fighting/tier_1/athlete.npc.nbt
+         *
+         * A trainer may intentionally exist in multiple theme folders.
+         * Runtime code combines those folders into that trainer's Pokemon type pool.
          */
         if (relative.getNameCount() != 3) {
             counts[3]++;
@@ -181,7 +185,7 @@ public final class ModNormalTrainerProvider implements DataProvider {
             return;
         }
 
-        String typePool =
+        String theme =
                 relative.getName(0)
                         .toString()
                         .trim()
@@ -224,11 +228,11 @@ public final class ModNormalTrainerProvider implements DataProvider {
                         .trim()
                         .toLowerCase(Locale.ROOT);
 
-        if (!isValidTypePool(typePool) || npcName.isBlank()) {
+        if (!isPokemonType(theme) || npcName.isBlank()) {
             counts[3]++;
 
             DebugLog.log(
-                    "[CobblemonNML] Normal trainer datagen skipped invalid type pool: "
+                    "[CobblemonNML] Normal trainer datagen skipped invalid theme: "
                             + relative
             );
 
@@ -239,7 +243,7 @@ public final class ModNormalTrainerProvider implements DataProvider {
 
         Path relativeTrainerPath =
                 Path.of(
-                        typePool,
+                        theme,
                         tier,
                         npcName,
                         "team_1.json"
@@ -293,26 +297,6 @@ public final class ModNormalTrainerProvider implements DataProvider {
                         + teamSize
                         + " Pokemon."
         );
-    }
-
-    private static boolean isValidTypePool(String typePool) {
-        if (typePool == null || typePool.isBlank()) {
-            return false;
-        }
-
-        String[] types = typePool.split("_");
-
-        if (types.length < 1 || types.length > 2) {
-            return false;
-        }
-
-        for (String type : types) {
-            if (!isPokemonType(type)) {
-                return false;
-            }
-        }
-
-        return types.length == 1 || !types[0].equals(types[1]);
     }
 
     private static boolean isPokemonType(String type) {
