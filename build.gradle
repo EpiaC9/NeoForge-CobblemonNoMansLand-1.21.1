@@ -54,6 +54,11 @@ repositories {
         }
     }
 
+    maven {
+        name = "CurseMaven"
+        url = "https://www.cursemaven.com"
+    }
+
     flatDir {
         dirs 'libs'
     }
@@ -121,6 +126,7 @@ dependencies {
     implementation 'maven.modrinth:lhGA9TYQ:1IiqEQGl'
     implementation 'maven.modrinth:CBfM2yw7:zpphgptV'
     implementation 'maven.modrinth:NApIzVVy:IIauGpPZ'
+    implementation "curse.maven:cobblemon-fight-or-flight-reborn-1168140:8404745"
 
     // No Man's Land 1.5.12 (Minecraft 1.21.1 NeoForge)
     implementation 'maven.modrinth:kjZCvAn6:bcszfrVc'

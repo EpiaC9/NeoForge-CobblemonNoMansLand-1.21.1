@@ -5,10 +5,10 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "GravestoneEventMixin",
-    "GravestoneBlockEntityMixin"
+    "GravestoneBlockEntityMixin",
+    "ActionBattleSendOutPokemonHandlerMixin"
   ],
-  "client": [
-  ],
+  "client": [],
   "injectors": {
     "defaultRequire": 1
   }

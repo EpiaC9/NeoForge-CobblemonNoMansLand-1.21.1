@@ -1,6 +1,7 @@
 package net.epiac9.cobblemonnml.battle.action;
 
 import com.cobblemon.mod.common.Cobblemon;
+import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.api.storage.party.PlayerPartyStore;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.cobblemon.mod.common.pokemon.Pokemon;
@@ -8,21 +9,32 @@ import com.gitlab.srcmc.rctapi.api.trainer.TrainerNPC;
 import com.gitlab.srcmc.rctapi.api.trainer.TrainerRegistry;
 import com.gitlab.srcmc.tbcs.api.TBCS;
 import kotlin.Unit;
+import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
+import net.epiac9.cobblemonnml.dimension.DungeonDimension;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.events.trainer.DungeonTrainerBattleResultHandler;
 import net.epiac9.cobblemonnml.util.DebugLog;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.CompletableFuture;
 
 public final class ActionBattleManager {
+    private static final double ACTION_MOVEMENT_SPEED = 0.6D;
+    private static final long SWAP_COOLDOWN_TICKS = 20L;
+    private static final long HUD_SYNC_INTERVAL_TICKS = 2L;
     private static final Map<UUID, ActionBattleSession> BY_PLAYER = new HashMap<>();
     private static final Map<UUID, ActionBattleSession> BY_TRAINER = new HashMap<>();
     private static final Map<UUID, BattlePokemonRefs> POKEMON_BY_BATTLE = new HashMap<>();
@@ -92,6 +104,7 @@ public final class ActionBattleManager {
         if (player == null || result == null) return false;
         ActionBattleSession session = BY_PLAYER.get(player.getUUID());
         if (session == null || !session.end(result)) return false;
+        ActionBattleHudSync.hide(player);
         cleanupBattlePokemon(session);
         removeSession(session);
         routeResult(player, session, result);
@@ -103,6 +116,8 @@ public final class ActionBattleManager {
         if (playerUUID == null) return;
         ActionBattleSession session = BY_PLAYER.get(playerUUID);
         if (session == null || !session.end(ActionBattleResult.INVALID)) return;
+        ServerPlayer player = findServerPlayer(session);
+        if (player != null) ActionBattleHudSync.hide(player);
         cleanupBattlePokemon(session);
         removeSession(session);
         DebugLog.log("[CobblemonNML] Action battle session invalidated. Battle=" + session.battleId());
@@ -120,6 +135,373 @@ public final class ActionBattleManager {
 
     public static int size() {
         return BY_PLAYER.size();
+    }
+
+    public static boolean requestPlayerMoveHere(ServerPlayer player, double x, double y, double z) {
+        if (player == null || !Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) return false;
+        ActionBattleSession session = BY_PLAYER.get(player.getUUID());
+        if (session == null || session.state() != ActionBattleState.ACTIVE) return false;
+        if (!DungeonSession.isActive() || !session.dungeonSessionId().equals(DungeonSession.getSessionId())) return false;
+        if (!player.level().dimension().equals(DungeonDimension.DUNGEON_DIMENSION)) return false;
+        if (!(player.level() instanceof ServerLevel level)) return false;
+        UUID activeEntityId = session.playerActiveEntityUUID();
+        if (activeEntityId == null) return false;
+        Entity rawEntity = level.getEntity(activeEntityId);
+        if (!(rawEntity instanceof PokemonEntity pokemonEntity) || pokemonEntity.isRemoved()) return false;
+        pokemonEntity.getNavigation().stop();
+        session.clearPlayerMoveCommand();
+        BlockPos targetPos = BlockPos.containing(x, y, z);
+        if (targetPos.getY() < level.getMinBuildHeight() || targetPos.getY() >= level.getMaxBuildHeight()) return false;
+        if (!level.hasChunkAt(targetPos) || !level.getWorldBorder().isWithinBounds(targetPos)) return false;
+        Path path = pokemonEntity.getNavigation().createPath(x, y, z, 0);
+        if (path == null || !path.canReach()) {
+            session.clearPlayerMoveTarget();
+            DebugLog.log("[CobblemonNML] Move Here rejected as unreachable. Battle=" + session.battleId() + ", target=" + new Vec3(x, y, z));
+            return false;
+        }
+        if (!pokemonEntity.getNavigation().moveTo(path, ACTION_MOVEMENT_SPEED)) {
+            session.clearPlayerMoveTarget();
+            return false;
+        }
+        long revision = session.replacePlayerMoveTarget(x, y, z);
+        DebugLog.log("[CobblemonNML] Move Here accepted. Battle=" + session.battleId() + ", revision=" + revision + ", target=" + new Vec3(x, y, z));
+        return true;
+    }
+
+    public static boolean requestPlayerMove(ServerPlayer player, int moveSlot) {
+        if (player == null || moveSlot < 0 || moveSlot > 3) return false;
+        ActionBattleSession session = BY_PLAYER.get(player.getUUID());
+        if (session == null || session.state() != ActionBattleState.ACTIVE) return false;
+        if (!DungeonSession.isActive() || !session.dungeonSessionId().equals(DungeonSession.getSessionId())) return rejectMove(session, moveSlot, "inactive_dungeon_session");
+        if (!(player.level() instanceof ServerLevel level) || !player.level().dimension().equals(DungeonDimension.DUNGEON_DIMENSION)) return rejectMove(session, moveSlot, "wrong_dimension");
+        BattlePokemonRefs refs = POKEMON_BY_BATTLE.get(session.battleId());
+        if (refs == null || refs.playerPokemon() == null) return rejectMove(session, moveSlot, "missing_player_pokemon_ref");
+        Move move = refs.playerPokemon().getMoveSet().get(moveSlot);
+        if (move == null) return rejectMove(session, moveSlot, "missing_move");
+        if (!FightOrFlightAdapter.supports(move)) return rejectMove(session, moveSlot, "unsupported_move");
+        if (!FightOrFlightAdapter.hasPp(move)) return rejectMove(session, moveSlot, "no_pp");
+        long currentTick = level.getGameTime();
+        if (session.isPokemonMoveOnCooldown(refs.playerPokemon().getUuid(), currentTick)) return rejectMove(session, moveSlot, "cooldown");
+        UUID playerEntityId = session.playerActiveEntityUUID();
+        UUID targetEntityId = session.trainerActiveEntityUUID();
+        if (playerEntityId == null) return rejectMove(session, moveSlot, "missing_player_entity_id");
+        if (targetEntityId == null) return rejectMove(session, moveSlot, "missing_target_entity_id");
+        Entity rawPlayerPokemon = level.getEntity(playerEntityId);
+        Entity rawTargetPokemon = level.getEntity(targetEntityId);
+        if (!(rawPlayerPokemon instanceof PokemonEntity pokemonEntity) || pokemonEntity.isRemoved()) return rejectMove(session, moveSlot, "missing_player_entity");
+        if (!(rawTargetPokemon instanceof PokemonEntity targetEntity) || targetEntity.isRemoved()) return rejectMove(session, moveSlot, "missing_target_entity");
+        pokemonEntity.getNavigation().stop();
+        session.clearPlayerMoveTarget();
+        long revision = session.replacePlayerMoveCommand(moveSlot, targetEntityId);
+        pursuePendingMove(session, pokemonEntity, targetEntity);
+        DebugLog.log("[CobblemonNML] Move " + (moveSlot + 1) + " queued. Battle=" + session.battleId() + ", revision=" + revision + ", target=" + targetEntityId);
+        return true;
+    }
+
+    private static boolean rejectMove(ActionBattleSession session, int moveSlot, String reason) {
+        DebugLog.log("[CobblemonNML] Action move rejected. Battle=" + session.battleId() + ", slot=" + (moveSlot + 1) + ", reason=" + reason);
+        return false;
+    }
+
+    public static boolean requestPlayerSwap(ServerPlayer player) {
+        if (player == null) return false;
+        ActionBattleSession session = BY_PLAYER.get(player.getUUID());
+        if (session == null || session.state() != ActionBattleState.ACTIVE) return false;
+        if (!DungeonSession.isActive() || !session.dungeonSessionId().equals(DungeonSession.getSessionId())) return rejectSwap(session, "inactive_dungeon_session");
+        if (!(player.level() instanceof ServerLevel level) || !player.level().dimension().equals(DungeonDimension.DUNGEON_DIMENSION)) return rejectSwap(session, "wrong_dimension");
+        long currentTick = level.getGameTime();
+        if (session.isPlayerSwapOnCooldown(currentTick)) return rejectSwap(session, "cooldown");
+        if (session.isPlayerSendOutPending()) return rejectSwap(session, "sendout_pending");
+        BattlePokemonRefs refs = POKEMON_BY_BATTLE.get(session.battleId());
+        if (refs == null || refs.playerPokemon() == null) return rejectSwap(session, "missing_player_pokemon_ref");
+        int previousSlot = session.playerActivePartyIndex();
+        SelectedPokemon next = findNextUsablePlayerPokemon(player, previousSlot);
+        if (next == null) return rejectSwap(session, "no_available_replacement");
+        Entity rawTrainer = level.getEntity(session.trainerUUID());
+        if (!(rawTrainer instanceof LivingEntity trainerEntity) || trainerEntity.isRemoved()) return rejectSwap(session, "missing_trainer_entity");
+        Entity rawPlayerPokemon = session.playerActiveEntityUUID() != null ? level.getEntity(session.playerActiveEntityUUID()) : null;
+        if (rawPlayerPokemon instanceof PokemonEntity pokemonEntity && !pokemonEntity.isRemoved()) pokemonEntity.getNavigation().stop();
+        session.cancelPlayerOrders();
+        session.startPlayerSwapCooldown(currentTick, SWAP_COOLDOWN_TICKS);
+        session.setPlayerSendOutPending(true);
+        Pokemon previous = refs.playerPokemon();
+        recallPokemon(previous);
+        session.clearPlayerActivePokemon();
+        refs.setPlayerPokemon(next.pokemon());
+        sendOutPokemon(session, true, player, trainerEntity, next);
+        DebugLog.log("[CobblemonNML] Player Swap Out accepted. Battle=" + session.battleId() + ", fromSlot=" + previousSlot + ", toSlot=" + next.slot() + ", cooldownTicks=" + SWAP_COOLDOWN_TICKS);
+        return true;
+    }
+
+    private static boolean rejectSwap(ActionBattleSession session, String reason) {
+        DebugLog.log("[CobblemonNML] Player Swap Out rejected. Battle=" + session.battleId() + ", reason=" + reason);
+        return false;
+    }
+
+    public static void tickPlayerMovement(ServerPlayer player) {
+        if (player == null) return;
+        ActionBattleSession session = BY_PLAYER.get(player.getUUID());
+        if (session == null || session.state() != ActionBattleState.ACTIVE) return;
+        if (!(player.level() instanceof ServerLevel level)) {
+            session.cancelPlayerOrders();
+            return;
+        }
+        if (handleFaintState(player, session, level)) return;
+        if (level.getGameTime() % HUD_SYNC_INTERVAL_TICKS == 0L) syncHud(player, session);
+        tickTrainerAi(session, level);
+        if (session.state() != ActionBattleState.ACTIVE) return;
+        UUID activeEntityId = session.playerActiveEntityUUID();
+        Entity rawEntity = activeEntityId != null ? level.getEntity(activeEntityId) : null;
+        if (!(rawEntity instanceof PokemonEntity pokemonEntity) || pokemonEntity.isRemoved()) {
+            session.clearPlayerMoveTarget();
+            session.clearPlayerMoveCommand();
+            return;
+        }
+        if (session.hasPlayerMoveCommand()) {
+            Entity rawTarget = level.getEntity(session.playerMoveTargetEntityUUID());
+            if (!(rawTarget instanceof PokemonEntity targetEntity) || targetEntity.isRemoved()) {
+                pokemonEntity.getNavigation().stop();
+                session.clearPlayerMoveCommand();
+                DebugLog.log("[CobblemonNML] Action move rejected. Battle=" + session.battleId() + ", slot=" + (session.playerMoveSlot() + 1) + ", reason=missing_target_entity");
+                return;
+            }
+            BattlePokemonRefs refs = POKEMON_BY_BATTLE.get(session.battleId());
+            Move move = refs != null && refs.playerPokemon() != null ? refs.playerPokemon().getMoveSet().get(session.playerMoveSlot()) : null;
+            if (move == null || !FightOrFlightAdapter.supports(move) || !FightOrFlightAdapter.hasPp(move)) {
+                pokemonEntity.getNavigation().stop();
+                session.clearPlayerMoveCommand();
+                String reason = move == null ? "missing_move" : !FightOrFlightAdapter.supports(move) ? "unsupported_move" : "no_pp";
+                DebugLog.log("[CobblemonNML] Action move rejected. Battle=" + session.battleId() + ", slot=" + (session.playerMoveSlot() + 1) + ", reason=" + reason);
+                return;
+            }
+            long currentTick = level.getGameTime();
+            UUID pokemonUUID = refs.playerPokemon().getUuid();
+            if (session.isPokemonMoveOnCooldown(pokemonUUID, currentTick)) {
+                pokemonEntity.getNavigation().stop();
+                session.clearPlayerMoveCommand();
+                DebugLog.log("[CobblemonNML] Action move rejected. Battle=" + session.battleId() + ", slot=" + (session.playerMoveSlot() + 1) + ", reason=cooldown");
+                return;
+            }
+            if (FightOrFlightAdapter.canCommit(pokemonEntity, targetEntity, move)) {
+                pokemonEntity.getNavigation().stop();
+                if (!FightOrFlightAdapter.consumeOnePp(move)) {
+                    session.clearPlayerMoveCommand();
+                    DebugLog.log("[CobblemonNML] Action move cancelled because PP could not be consumed. Battle=" + session.battleId() + ", move=" + move.getName());
+                    return;
+                }
+                if (FightOrFlightAdapter.execute(pokemonEntity, targetEntity, move)) {
+                    long cooldownTicks = FightOrFlightAdapter.cooldownTicks(move);
+                    session.startPokemonMoveCooldown(pokemonUUID, currentTick, cooldownTicks);
+                    session.clearPlayerMoveCommand();
+                    DebugLog.log("[CobblemonNML] Action move committed through Fight or Flight. Battle=" + session.battleId() + ", move=" + move.getName() + ", cooldownTicks=" + cooldownTicks);
+                } else {
+                    FightOrFlightAdapter.refundOnePp(move);
+                    session.clearPlayerMoveCommand();
+                }
+                return;
+            }
+            pursuePendingMove(session, pokemonEntity, targetEntity);
+            return;
+        }
+        if (!session.hasPlayerMoveTarget()) return;
+        Vec3 target = new Vec3(session.playerMoveTargetX(), session.playerMoveTargetY(), session.playerMoveTargetZ());
+        double tolerance = Math.max(0.75D, pokemonEntity.getBbWidth() * 0.75D);
+        if (pokemonEntity.position().distanceToSqr(target) <= tolerance * tolerance) {
+            pokemonEntity.getNavigation().stop();
+            session.clearPlayerMoveTarget();
+            return;
+        }
+        if (pokemonEntity.getNavigation().isDone()) {
+            session.clearPlayerMoveTarget();
+            DebugLog.log("[CobblemonNML] Move Here cancelled after navigation stopped before reaching target. Battle=" + session.battleId());
+        }
+    }
+
+    private static boolean handleFaintState(ServerPlayer player, ActionBattleSession session, ServerLevel level) {
+        BattlePokemonRefs refs = POKEMON_BY_BATTLE.get(session.battleId());
+        if (refs == null) return false;
+        Pokemon playerPokemon = refs.playerPokemon();
+        Pokemon trainerPokemon = refs.trainerPokemon();
+        boolean playerFainted = playerPokemon != null && playerPokemon.isFainted() && !session.isPlayerSendOutPending();
+        boolean trainerFainted = trainerPokemon != null && trainerPokemon.isFainted() && !session.isTrainerSendOutPending();
+        if (!playerFainted && !trainerFainted) return false;
+
+        Entity rawTrainer = level.getEntity(session.trainerUUID());
+        if (!(rawTrainer instanceof LivingEntity trainerEntity) || trainerEntity.isRemoved()) {
+            DebugLog.log("[CobblemonNML] Action battle faint transition failed: trainer entity is missing. Battle=" + session.battleId());
+            invalidateBattle(player.getUUID());
+            return true;
+        }
+        TrainerNPC runtimeTrainer = resolveRuntimeTrainer(session.runtimeTrainerId(), trainerEntity);
+        if (runtimeTrainer == null) {
+            invalidateBattle(player.getUUID());
+            return true;
+        }
+
+        SelectedPokemon playerReplacement = playerFainted ? findNextUsablePlayerPokemon(player, session.playerActivePartyIndex()) : null;
+        SelectedPokemon trainerReplacement = trainerFainted ? findNextUsableTrainerPokemon(runtimeTrainer, session.trainerActivePartyIndex()) : null;
+
+        if (playerFainted && playerReplacement == null) {
+            DebugLog.log("[CobblemonNML] Player has no usable Pokemon remaining. Battle=" + session.battleId());
+            endBattle(player, ActionBattleResult.PLAYER_LOSS);
+            return true;
+        }
+        if (trainerFainted && trainerReplacement == null) {
+            DebugLog.log("[CobblemonNML] Trainer has no usable Pokemon remaining. Battle=" + session.battleId());
+            endBattle(player, ActionBattleResult.PLAYER_WIN);
+            return true;
+        }
+
+        session.cancelPlayerOrders();
+        session.cancelTrainerOrders();
+        stopActivePlayerNavigation(session, level);
+        stopActiveTrainerNavigation(session, level);
+        if (playerFainted) {
+            int previousSlot = session.playerActivePartyIndex();
+            session.setPlayerSendOutPending(true);
+            recallPokemon(playerPokemon);
+            session.clearPlayerActivePokemon();
+            refs.setPlayerPokemon(playerReplacement.pokemon());
+            sendOutPokemon(session, true, player, trainerEntity, playerReplacement);
+            DebugLog.log("[CobblemonNML] Player faint replacement started. Battle=" + session.battleId() + ", fromSlot=" + previousSlot + ", toSlot=" + playerReplacement.slot());
+        }
+        if (trainerFainted) {
+            int previousSlot = session.trainerActivePartyIndex();
+            session.setTrainerSendOutPending(true);
+            recallPokemon(trainerPokemon);
+            session.clearTrainerActivePokemon();
+            refs.setTrainerPokemon(trainerReplacement.pokemon());
+            sendOutPokemon(session, false, trainerEntity, player, trainerReplacement);
+            DebugLog.log("[CobblemonNML] Trainer faint replacement started. Battle=" + session.battleId() + ", fromSlot=" + previousSlot + ", toSlot=" + trainerReplacement.slot());
+        }
+        return true;
+    }
+
+    private static void stopActivePlayerNavigation(ActionBattleSession session, ServerLevel level) {
+        UUID entityId = session.playerActiveEntityUUID();
+        Entity raw = entityId != null ? level.getEntity(entityId) : null;
+        if (raw instanceof PokemonEntity pokemonEntity && !pokemonEntity.isRemoved()) pokemonEntity.getNavigation().stop();
+    }
+
+    private static void stopActiveTrainerNavigation(ActionBattleSession session, ServerLevel level) {
+        UUID entityId = session.trainerActiveEntityUUID();
+        Entity raw = entityId != null ? level.getEntity(entityId) : null;
+        if (raw instanceof PokemonEntity pokemonEntity && !pokemonEntity.isRemoved()) pokemonEntity.getNavigation().stop();
+    }
+
+    private static void tickTrainerAi(ActionBattleSession session, ServerLevel level) {
+        if (session == null || level == null || session.state() != ActionBattleState.ACTIVE) return;
+        if (session.isTrainerSendOutPending() || session.isPlayerSendOutPending()) return;
+        BattlePokemonRefs refs = POKEMON_BY_BATTLE.get(session.battleId());
+        if (refs == null || refs.trainerPokemon() == null || refs.playerPokemon() == null) return;
+        Pokemon trainerPokemon = refs.trainerPokemon();
+        if (trainerPokemon.isFainted() || refs.playerPokemon().isFainted()) return;
+        UUID trainerEntityId = session.trainerActiveEntityUUID();
+        UUID playerEntityId = session.playerActiveEntityUUID();
+        if (trainerEntityId == null || playerEntityId == null) return;
+        Entity rawTrainerPokemon = level.getEntity(trainerEntityId);
+        Entity rawPlayerPokemon = level.getEntity(playerEntityId);
+        if (!(rawTrainerPokemon instanceof PokemonEntity trainerPokemonEntity) || trainerPokemonEntity.isRemoved()) return;
+        if (!(rawPlayerPokemon instanceof PokemonEntity playerPokemonEntity) || playerPokemonEntity.isRemoved()) {
+            trainerPokemonEntity.getNavigation().stop();
+            session.clearTrainerMoveCommand();
+            return;
+        }
+
+        long currentTick = level.getGameTime();
+        if (!session.hasTrainerMoveCommand()) {
+            if (session.isPokemonMoveOnCooldown(trainerPokemon.getUuid(), currentTick)) return;
+            int moveSlot = selectTrainerMoveSlot(trainerPokemon);
+            if (moveSlot < 0) return;
+            long revision = session.replaceTrainerMoveCommand(moveSlot, playerEntityId);
+            DebugLog.log("[CobblemonNML] Trainer AI move " + (moveSlot + 1) + " queued. Battle=" + session.battleId() + ", revision=" + revision + ", target=" + playerEntityId);
+        }
+
+        if (!playerEntityId.equals(session.trainerMoveTargetEntityUUID())) {
+            trainerPokemonEntity.getNavigation().stop();
+            session.clearTrainerMoveCommand();
+            return;
+        }
+        Move move = trainerPokemon.getMoveSet().get(session.trainerMoveSlot());
+        if (move == null || !FightOrFlightAdapter.supports(move) || !FightOrFlightAdapter.hasPp(move)) {
+            trainerPokemonEntity.getNavigation().stop();
+            session.clearTrainerMoveCommand();
+            return;
+        }
+        if (session.isPokemonMoveOnCooldown(trainerPokemon.getUuid(), currentTick)) {
+            trainerPokemonEntity.getNavigation().stop();
+            return;
+        }
+        if (FightOrFlightAdapter.canCommit(trainerPokemonEntity, playerPokemonEntity, move)) {
+            trainerPokemonEntity.getNavigation().stop();
+            if (!FightOrFlightAdapter.consumeOnePp(move)) {
+                session.clearTrainerMoveCommand();
+                return;
+            }
+            if (FightOrFlightAdapter.execute(trainerPokemonEntity, playerPokemonEntity, move)) {
+                long cooldownTicks = FightOrFlightAdapter.cooldownTicks(move);
+                session.startPokemonMoveCooldown(trainerPokemon.getUuid(), currentTick, cooldownTicks);
+                session.clearTrainerMoveCommand();
+                DebugLog.log("[CobblemonNML] Trainer AI move committed through Fight or Flight. Battle=" + session.battleId() + ", move=" + move.getName() + ", cooldownTicks=" + cooldownTicks);
+            } else {
+                FightOrFlightAdapter.refundOnePp(move);
+                session.clearTrainerMoveCommand();
+            }
+            return;
+        }
+        pursueTrainerPendingMove(session, trainerPokemonEntity, playerPokemonEntity);
+    }
+
+    private static int selectTrainerMoveSlot(Pokemon trainerPokemon) {
+        if (trainerPokemon == null) return -1;
+        List<Integer> usableSlots = new ArrayList<>(4);
+        for (int slot = 0; slot < 4; slot++) {
+            Move move = trainerPokemon.getMoveSet().get(slot);
+            if (move != null && FightOrFlightAdapter.supports(move) && FightOrFlightAdapter.hasPp(move)) usableSlots.add(slot);
+        }
+        if (usableSlots.isEmpty()) return -1;
+        return usableSlots.get(ThreadLocalRandom.current().nextInt(usableSlots.size()));
+    }
+
+    private static void pursueTrainerPendingMove(ActionBattleSession session, PokemonEntity trainerPokemonEntity, PokemonEntity playerPokemonEntity) {
+        Path path = trainerPokemonEntity.getNavigation().createPath(playerPokemonEntity, 0);
+        if (path == null || !path.canReach()) {
+            trainerPokemonEntity.getNavigation().stop();
+            session.clearTrainerMoveCommand();
+            DebugLog.log("[CobblemonNML] Trainer AI move cancelled because player Pokemon is unreachable. Battle=" + session.battleId());
+            return;
+        }
+        trainerPokemonEntity.getNavigation().moveTo(path, ACTION_MOVEMENT_SPEED);
+    }
+
+    private static void pursuePendingMove(ActionBattleSession session, PokemonEntity pokemonEntity, PokemonEntity targetEntity) {
+        BattlePokemonRefs refs = POKEMON_BY_BATTLE.get(session.battleId());
+        Move move = refs != null && refs.playerPokemon() != null && session.playerMoveSlot() >= 0
+                ? refs.playerPokemon().getMoveSet().get(session.playerMoveSlot()) : null;
+        if (move != null && FightOrFlightAdapter.canCommit(pokemonEntity, targetEntity, move)) {
+            pokemonEntity.getNavigation().stop();
+            return;
+        }
+        Path path = pokemonEntity.getNavigation().createPath(targetEntity, 0);
+        if (path == null || !path.canReach()) {
+            pokemonEntity.getNavigation().stop();
+            session.clearPlayerMoveCommand();
+            DebugLog.log("[CobblemonNML] Pending move cancelled because opponent is unreachable. Battle=" + session.battleId());
+            return;
+        }
+        pokemonEntity.getNavigation().moveTo(path, ACTION_MOVEMENT_SPEED);
+    }
+
+    private static void syncHud(ServerPlayer player, ActionBattleSession session) {
+        BattlePokemonRefs refs = POKEMON_BY_BATTLE.get(session.battleId());
+        if (refs == null || refs.playerPokemon() == null || refs.trainerPokemon() == null) return;
+        ActionBattleHudSync.send(player, session, refs.playerPokemon(), refs.trainerPokemon());
+    }
+
+    private static ServerPlayer findServerPlayer(ActionBattleSession session) {
+        if (session == null) return null;
+        var server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        return server != null ? server.getPlayerList().getPlayer(session.playerUUID()) : null;
     }
 
     private static TrainerNPC resolveRuntimeTrainer(String runtimeTrainerId, LivingEntity trainerEntity) {
@@ -148,6 +530,19 @@ public final class ActionBattleManager {
         return null;
     }
 
+    private static SelectedPokemon findNextUsablePlayerPokemon(ServerPlayer player, int currentIndex) {
+        PlayerPartyStore party = Cobblemon.INSTANCE.getStorage().getParty(player);
+        boolean[] usable = new boolean[party.size()];
+        for (int slot = 0; slot < party.size(); slot++) {
+            Pokemon pokemon = party.get(slot);
+            usable[slot] = pokemon != null && !pokemon.isFainted();
+        }
+        int nextIndex = ActionPartyCycle.nextUsableIndex(currentIndex, usable);
+        if (nextIndex < 0) return null;
+        Pokemon pokemon = party.get(nextIndex);
+        return pokemon != null ? new SelectedPokemon(nextIndex, pokemon) : null;
+    }
+
     private static SelectedPokemon findFirstUsableTrainerPokemon(TrainerNPC trainer) {
         Pokemon[] team = trainer.getTeam();
         for (int slot = 0; slot < team.length; slot++) {
@@ -155,6 +550,19 @@ public final class ActionBattleManager {
             if (pokemon != null && !pokemon.isFainted()) return new SelectedPokemon(slot, pokemon);
         }
         return null;
+    }
+
+    private static SelectedPokemon findNextUsableTrainerPokemon(TrainerNPC trainer, int currentIndex) {
+        Pokemon[] team = trainer.getTeam();
+        boolean[] usable = new boolean[team.length];
+        for (int slot = 0; slot < team.length; slot++) {
+            Pokemon pokemon = team[slot];
+            usable[slot] = pokemon != null && !pokemon.isFainted();
+        }
+        int nextIndex = ActionPartyCycle.nextUsableIndex(currentIndex, usable);
+        if (nextIndex < 0) return null;
+        Pokemon pokemon = team[nextIndex];
+        return pokemon != null ? new SelectedPokemon(nextIndex, pokemon) : null;
     }
 
     private static void sendOutPokemon(ActionBattleSession session, boolean playerSide, LivingEntity source, LivingEntity opponent, SelectedPokemon selected) {
@@ -165,11 +573,11 @@ public final class ActionBattleManager {
             bindActivePokemon(session, playerSide, selected.slot(), pokemon, existing);
             return;
         }
-        if (existing != null) pokemon.recall();
+        if (existing != null) recallPokemon(pokemon);
         Vec3 sendOutPosition = calculateSendOutPosition(source, opponent);
-        CompletableFuture<PokemonEntity> future = pokemon.sendOutWithAnimation(
+        CompletableFuture<PokemonEntity> future = ActionBattlePokemonControlGuard.callInternal(() -> pokemon.sendOutWithAnimation(
                 source, level, sendOutPosition, null, true, null, entity -> Unit.INSTANCE
-        );
+        ));
         future.whenComplete((entity, throwable) -> {
             if (throwable != null || entity == null) {
                 DebugLog.log("[CobblemonNML] Action battle Pokemon send-out failed for battle " + session.battleId());
@@ -178,11 +586,11 @@ public final class ActionBattleManager {
                 return;
             }
             if (!isCurrentSession(session) || session.state() != ActionBattleState.ACTIVE) {
-                pokemon.recall();
+                recallPokemon(pokemon);
                 return;
             }
             if (!bindActivePokemon(session, playerSide, selected.slot(), pokemon, entity)) {
-                pokemon.recall();
+                recallPokemon(pokemon);
             }
         });
     }
@@ -192,6 +600,8 @@ public final class ActionBattleManager {
                 ? session.bindPlayerActivePokemon(partyIndex, pokemon.getUuid(), entity.getUUID())
                 : session.bindTrainerActivePokemon(partyIndex, pokemon.getUuid(), entity.getUUID());
         if (bound) {
+            if (playerSide) session.setPlayerSendOutPending(false);
+            else session.setTrainerSendOutPending(false);
             DebugLog.log("[CobblemonNML] Action battle " + (playerSide ? "player" : "trainer") + " Pokemon active. Battle=" + session.battleId() + ", slot=" + partyIndex + ", pokemon=" + pokemon.getUuid() + ", entity=" + entity.getUUID());
             if (session.playerActiveEntityUUID() != null && session.trainerActiveEntityUUID() != null) {
                 DebugLog.log("[CobblemonNML] Action battle combatants ready. Battle=" + session.battleId());
@@ -221,6 +631,10 @@ public final class ActionBattleManager {
             recallPokemon(refs.playerPokemon());
             recallPokemon(refs.trainerPokemon());
         }
+        session.cancelPlayerOrders();
+        session.cancelTrainerOrders();
+        session.setPlayerSendOutPending(false);
+        session.setTrainerSendOutPending(false);
         session.clearPlayerActivePokemon();
         session.clearTrainerActivePokemon();
     }
@@ -228,7 +642,7 @@ public final class ActionBattleManager {
     private static void recallPokemon(Pokemon pokemon) {
         if (pokemon == null) return;
         try {
-            pokemon.recall();
+            ActionBattlePokemonControlGuard.runInternal(pokemon::recall);
         } catch (Exception exception) {
             DebugLog.log("[CobblemonNML] Failed to recall action battle Pokemon " + pokemon.getUuid());
             exception.printStackTrace();
@@ -252,5 +666,19 @@ public final class ActionBattleManager {
     }
 
     private record SelectedPokemon(int slot, Pokemon pokemon) {}
-    private record BattlePokemonRefs(Pokemon playerPokemon, Pokemon trainerPokemon) {}
+
+    private static final class BattlePokemonRefs {
+        private Pokemon playerPokemon;
+        private Pokemon trainerPokemon;
+
+        private BattlePokemonRefs(Pokemon playerPokemon, Pokemon trainerPokemon) {
+            this.playerPokemon = playerPokemon;
+            this.trainerPokemon = trainerPokemon;
+        }
+
+        private Pokemon playerPokemon() { return playerPokemon; }
+        private Pokemon trainerPokemon() { return trainerPokemon; }
+        private void setPlayerPokemon(Pokemon pokemon) { playerPokemon = pokemon; }
+        private void setTrainerPokemon(Pokemon pokemon) { trainerPokemon = pokemon; }
+    }
 }

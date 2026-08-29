@@ -1,10 +1,12 @@
 package net.epiac9.cobblemonnml;
 
+import net.epiac9.cobblemonnml.battle.action.ActionBattlePokemonControlGuard;
 import net.epiac9.cobblemonnml.dimension.gameplay.DungeonBattleLifeTransfer;
 import net.epiac9.cobblemonnml.registry.ModAttachments;
 import net.epiac9.cobblemonnml.registry.ModBlocks;
 import net.epiac9.cobblemonnml.registry.ModChunkGenerators;
 import net.epiac9.cobblemonnml.registry.ModCreativeTabs;
+import net.epiac9.cobblemonnml.registry.ModEntities;
 import net.epiac9.cobblemonnml.registry.ModItems;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -24,6 +26,9 @@ public class CobblemonNML {
         // Items
         ModItems.ITEMS.register( modEventBus );
 
+        // Entities
+        ModEntities.ENTITIES.register( modEventBus );
+
         // Creative tabs
         ModCreativeTabs.CREATIVE_MODE_TABS.register( modEventBus );
 
@@ -38,5 +43,8 @@ public class CobblemonNML {
 
         // Damage Event
         DungeonBattleLifeTransfer.register();
+
+        // Action battle Pokemon controls
+        ActionBattlePokemonControlGuard.register();
     }
 }

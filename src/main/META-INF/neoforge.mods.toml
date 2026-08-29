@@ -16,106 +16,115 @@ trial spawners, vaults, tiered dungeon portals, and custom encounters.
 [[mixins]]
 config = "cobblemonnml.mixins.json"
 requiredMods = ["yagm"]
+
 [[dependencies.${mod_id}]]
 modId = "minecraft"
 type = "required"
 versionRange = "${minecraft_version_range}"
 ordering = "NONE"
 side = "BOTH"
+
 [[dependencies.${mod_id}]]
 modId = "neoforge"
 type = "required"
 versionRange = "[${neo_version},)"
 ordering = "NONE"
 side = "BOTH"
+
 [[dependencies.${mod_id}]]
 modId = "cobblemon"
 type = "required"
 versionRange = "[1.7.3,2.0.0)"
 ordering = "AFTER"
 side = "BOTH"
-reason = "Cobblemon No Man's Land requires Cobblemon."
+
 [[dependencies.${mod_id}]]
 modId = "kotlinforforge"
 type = "required"
 versionRange = "[5.12.0,)"
 ordering = "NONE"
 side = "BOTH"
-reason = "Required by the Cobblemon environment."
+
 [[dependencies.${mod_id}]]
 modId = "geckolib"
 type = "required"
 versionRange = "[4.9.2,)"
 ordering = "NONE"
 side = "BOTH"
-reason = "Required by Cobblemon integrations."
+
 [[dependencies.${mod_id}]]
 modId = "cobblemonraiddens"
 type = "required"
 versionRange = "[0.11.6,0.12.0)"
 ordering = "AFTER"
 side = "BOTH"
-reason = "Cobblemon No Man's Land uses Cobblemon Raid Dens for dungeon raid encounters."
+
 [[dependencies.${mod_id}]]
 modId = "architectury"
 type = "required"
 versionRange = "[13.0.11,)"
 ordering = "NONE"
 side = "BOTH"
-reason = "Required by integrated Cobblemon trainer systems."
+
 [[dependencies.${mod_id}]]
 modId = "rctapi"
 type = "required"
 versionRange = "[0.15.2-beta,)"
 ordering = "AFTER"
 side = "BOTH"
-reason = "Cobblemon No Man's Land uses RCT API for dungeon trainer teams."
+
 [[dependencies.${mod_id}]]
 modId = "tbcs"
 type = "required"
 versionRange = "[0.14.1-beta,)"
 ordering = "AFTER"
 side = "BOTH"
-reason = "Cobblemon No Man's Land uses TBCS for dungeon trainer battles."
+
 [[dependencies.${mod_id}]]
 modId = "easy_npc"
 type = "required"
 versionRange = ""
 ordering = "AFTER"
 side = "BOTH"
-reason = "Cobblemon No Man's Land uses Easy NPC for dungeon trainers."
+
 [[dependencies.${mod_id}]]
 modId = "easy_npc_bundle"
 type = "required"
 versionRange = "[7.6.0,)"
 ordering = "NONE"
 side = "BOTH"
-reason = "Required Easy NPC content bundle."
+
 [[dependencies.${mod_id}]]
 modId = "easy_npc_config_ui"
 type = "required"
 versionRange = "[7.6.0,)"
 ordering = "NONE"
 side = "CLIENT"
-reason = "Required Easy NPC configuration interface."
+
 [[dependencies.${mod_id}]]
 modId = "cobblemontrialsedition"
 type = "required"
 versionRange = "[2.1.0,3.0.0)"
 ordering = "AFTER"
 side = "BOTH"
-reason = "Cobblemon No Man's Land uses Cobblemon Trials Edition for dungeon spawners."
+
 [[dependencies.${mod_id}]]
 modId = "yagm"
 type = "required"
 versionRange = "[0.1,)"
 ordering = "AFTER"
 side = "BOTH"
-reason = "Required gravestone system."
+
 [[dependencies.${mod_id}]]
 modId = "octolib"
 type = "required"
 versionRange = "[0.6.2,1.0.0)"
 ordering = "NONE"
 side = "BOTH"
-reason = "Required by Yet Another Gravestone Mod."
+
+[[dependencies.cobblemonnml]]
+modId="fightorflight"
+type="required"
+versionRange="[0.10.9,)"
+ordering="AFTER"
+side="BOTH"
