@@ -36,8 +36,8 @@ public final class ActionBattleHud {
         ActionBattleHudLayout layout = ActionBattleHudLayout.forScreen(graphics.guiWidth(), graphics.guiHeight());
         renderPokemonPanel(graphics, font, layout.enemyPanel(), false, state.trainerPokemonName(), state.trainerPokemonLevel(), state.trainerCurrentHp(), state.trainerMaxHp());
         renderPokemonPanel(graphics, font, layout.allyPanel(), true, state.playerPokemonName(), state.playerPokemonLevel(), state.playerCurrentHp(), state.playerMaxHp());
-        renderCommand(graphics, font, layout.commandButton(0), "Swap", "G");
-        renderCommand(graphics, font, layout.commandButton(1), "Move Here", "V");
+        renderCommand(graphics, font, layout.commandButton(0), "Swap", "G", state.playerSwapCooldownRemainingTicks(), state.playerSwapCooldownDurationTicks());
+        renderCommand(graphics, font, layout.commandButton(1), "Move Here", "V", state.playerMoveHereCooldownRemainingTicks(), state.playerMoveHereCooldownDurationTicks());
         for (int slot = 0; slot < 4; slot++) renderMove(graphics, font, layout.moveButton(slot), slot, state.move(slot));
     }
 
@@ -63,7 +63,7 @@ public final class ActionBattleHud {
         drawScaledCentered(graphics, font, hpText, centerX, y + 22, 0.50F, TEXT);
     }
 
-    private static void renderCommand(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect, String label, String key) {
+    private static void renderCommand(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect, String label, String key, long cooldownRemainingTicks, long cooldownDurationTicks) {
         int x = rect.x();
         int y = rect.y();
         RenderSystem.setShaderColor(0.68F, 0.68F, 0.68F, 1.0F);
@@ -74,6 +74,10 @@ public final class ActionBattleHud {
         graphics.blit(BATTLE_MOVE_OVERLAY, 0, 0, 0.0F, 0.0F, 92, 24, 92, 24);
         graphics.pose().popPose();
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        if (cooldownRemainingTicks > 0L && cooldownDurationTicks > 0L) {
+            double elapsedFraction = 1.0D - Math.clamp((double) cooldownRemainingTicks / cooldownDurationTicks, 0.0D, 1.0D);
+            renderCommandCooldownFill(graphics, rect, elapsedFraction);
+        }
         if (label.contains(" ")) {
             String[] parts = label.split(" ", 2);
             drawScaledCentered(graphics, font, parts[0], x + rect.width() / 2, y + 2, 0.38F, TEXT);
@@ -83,6 +87,24 @@ public final class ActionBattleHud {
             drawScaledCentered(graphics, font, label, x + rect.width() / 2, y + 4, 0.42F, TEXT);
             drawScaledCentered(graphics, font, key, x + rect.width() / 2, y + 13, 0.50F, TEXT);
         }
+    }
+
+    private static void renderCommandCooldownFill(GuiGraphics graphics, ActionBattleHudLayout.Rect rect, double fraction) {
+        int filledHeight = (int) Math.ceil(rect.height() * fraction);
+        if (filledHeight <= 0) return;
+        int sourceY = rect.height() - filledHeight;
+        float alpha = ((COOLDOWN >>> 24) & 255) / 255.0F;
+        float gray = 128.0F / 255.0F;
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.setShaderColor(gray, gray, gray, alpha);
+        graphics.pose().pushPose();
+        graphics.pose().translate(rect.x(), rect.y() + sourceY, 0.0F);
+        graphics.pose().scale(rect.width() / 92.0F, rect.height() / 24.0F, 1.0F);
+        graphics.blit(BATTLE_MOVE, 0, 0, 0.0F, (float) sourceY * 24.0F / rect.height(), 92, (int) Math.ceil(filledHeight * 24.0F / rect.height()), 92, 48);
+        graphics.pose().popPose();
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderSystem.disableBlend();
     }
 
     private static void renderMove(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect, int slot, ActionBattleHudPayload.MoveState move) {

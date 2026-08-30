@@ -18,6 +18,10 @@ public final class FightOrFlightAdapter {
         return move != null && (PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move));
     }
 
+    public static boolean isRangedMove(Move move) {
+        return move != null && PokemonUtils.isRangeAttackMove(move);
+    }
+
     public static boolean hasPp(Move move) {
         return currentPp(move) > 0;
     }
@@ -67,7 +71,7 @@ public final class FightOrFlightAdapter {
     }
 
     public static long cooldownTicks(Move move) {
-        int priority = priority(move);
+        int priority = movePriority(move);
         if (priority > 0) return 40L;
         if (priority < 0) return 80L;
         return 60L;
@@ -99,7 +103,21 @@ public final class FightOrFlightAdapter {
         return false;
     }
 
-    private static int priority(Move move) {
+
+    public static int movePower(Move move) {
+        if (move == null) return 0;
+        Integer direct = invokeIntGetter(move, "getPower");
+        if (direct != null) return Math.max(0, direct);
+        try {
+            Object template = move.getClass().getMethod("getTemplate").invoke(move);
+            Integer templatePower = invokeIntGetter(template, "getPower");
+            return templatePower != null ? Math.max(0, templatePower) : 0;
+        } catch (ReflectiveOperationException exception) {
+            return 0;
+        }
+    }
+
+    public static int movePriority(Move move) {
         if (move == null) return 0;
         Integer direct = invokeIntGetter(move, "getPriority");
         if (direct != null) return direct;

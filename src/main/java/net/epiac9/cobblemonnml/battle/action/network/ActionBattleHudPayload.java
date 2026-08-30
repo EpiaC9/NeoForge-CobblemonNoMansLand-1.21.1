@@ -20,6 +20,10 @@ public record ActionBattleHudPayload(
         int trainerCurrentHp,
         int trainerMaxHp,
         int trainerPartySlot,
+        long playerSwapCooldownRemainingTicks,
+        long playerSwapCooldownDurationTicks,
+        long playerMoveHereCooldownRemainingTicks,
+        long playerMoveHereCooldownDurationTicks,
         MoveState move1,
         MoveState move2,
         MoveState move3,
@@ -32,6 +36,7 @@ public record ActionBattleHudPayload(
             return new ActionBattleHudPayload(
                     buf.readBoolean(), readString(buf), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),
                     readString(buf), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),
+                    buf.readLong(), buf.readLong(), buf.readLong(), buf.readLong(),
                     readMove(buf), readMove(buf), readMove(buf), readMove(buf)
             );
         }
@@ -49,6 +54,10 @@ public record ActionBattleHudPayload(
             buf.writeInt(value.trainerCurrentHp());
             buf.writeInt(value.trainerMaxHp());
             buf.writeInt(value.trainerPartySlot());
+            buf.writeLong(value.playerSwapCooldownRemainingTicks());
+            buf.writeLong(value.playerSwapCooldownDurationTicks());
+            buf.writeLong(value.playerMoveHereCooldownRemainingTicks());
+            buf.writeLong(value.playerMoveHereCooldownDurationTicks());
             writeMove(buf, value.move1());
             writeMove(buf, value.move2());
             writeMove(buf, value.move3());
@@ -58,7 +67,7 @@ public record ActionBattleHudPayload(
 
     public static ActionBattleHudPayload hidden() {
         MoveState empty = MoveState.empty();
-        return new ActionBattleHudPayload(false, "", 0, 0, 1, -1, "", 0, 0, 1, -1, empty, empty, empty, empty);
+        return new ActionBattleHudPayload(false, "", 0, 0, 1, -1, "", 0, 0, 1, -1, 0L, 0L, 0L, 0L, empty, empty, empty, empty);
     }
 
     public MoveState move(int slot) {

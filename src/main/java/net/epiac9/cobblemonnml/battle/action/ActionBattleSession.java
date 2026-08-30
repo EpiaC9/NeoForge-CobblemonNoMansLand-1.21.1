@@ -11,6 +11,7 @@ public final class ActionBattleSession {
     private final UUID trainerUUID;
     private final String runtimeTrainerId;
     private final String trainerPreset;
+    private final ActionBattleZone battleZone;
     private ActionBattleState state = ActionBattleState.ACTIVE;
     private ActionBattleResult result = null;
     private int playerActivePartyIndex = -1;
@@ -31,15 +32,29 @@ public final class ActionBattleSession {
     private boolean trainerMoveCommandPending = false;
     private int trainerMoveSlot = -1;
     private UUID trainerMoveTargetEntityUUID;
+    private int trainerRepositionAttempt = 0;
+    private boolean trainerRepositionTargetPending = false;
+    private double trainerRepositionTargetX;
+    private double trainerRepositionTargetY;
+    private double trainerRepositionTargetZ;
     private final Map<UUID, Long> pokemonMoveCooldownEndTicks = new HashMap<>();
     private final Map<UUID, Long> pokemonMoveCooldownDurationTicks = new HashMap<>();
+    private final Map<UUID, Long> pokemonMovementCommandCooldownEndTicks = new HashMap<>();
+    private final Map<UUID, Long> pokemonMovementCommandCooldownDurationTicks = new HashMap<>();
     private long playerSwapCooldownEndTick = 0L;
+    private long playerSwapCooldownDurationTicks = 0L;
+    private long trainerSwapCooldownEndTick = 0L;
+    private long trainerSwapCooldownDurationTicks = 0L;
     private boolean playerSendOutPending = false;
     private boolean trainerSendOutPending = false;
 
     public ActionBattleSession(UUID battleId, UUID dungeonSessionId, UUID playerUUID, UUID trainerUUID, String runtimeTrainerId, String trainerPreset) {
-        if (battleId == null || dungeonSessionId == null || playerUUID == null || trainerUUID == null) {
-            throw new IllegalArgumentException("Action battle identity values cannot be null.");
+        this(battleId, dungeonSessionId, playerUUID, trainerUUID, runtimeTrainerId, trainerPreset, new ActionBattleZone(0.0D, 0.0D, 20.0D));
+    }
+
+    public ActionBattleSession(UUID battleId, UUID dungeonSessionId, UUID playerUUID, UUID trainerUUID, String runtimeTrainerId, String trainerPreset, ActionBattleZone battleZone) {
+        if (battleId == null || dungeonSessionId == null || playerUUID == null || trainerUUID == null || battleZone == null) {
+            throw new IllegalArgumentException("Action battle identity and zone values cannot be null.");
         }
         if (runtimeTrainerId == null || runtimeTrainerId.isBlank()) {
             throw new IllegalArgumentException("Action battle runtime trainer ID cannot be blank.");
@@ -50,6 +65,7 @@ public final class ActionBattleSession {
         this.trainerUUID = trainerUUID;
         this.runtimeTrainerId = runtimeTrainerId;
         this.trainerPreset = trainerPreset;
+        this.battleZone = battleZone;
     }
 
     public boolean bindPlayerActivePokemon(int partyIndex, UUID pokemonUUID, UUID entityUUID) {
@@ -128,6 +144,27 @@ public final class ActionBattleSession {
 
     public void cancelTrainerOrders() {
         clearTrainerMoveCommand();
+        resetTrainerRepositionState();
+    }
+
+    public void setTrainerRepositionTarget(double x, double y, double z) {
+        if (state != ActionBattleState.ACTIVE || !Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) return;
+        trainerRepositionTargetX = x;
+        trainerRepositionTargetY = y;
+        trainerRepositionTargetZ = z;
+        trainerRepositionTargetPending = true;
+    }
+
+    public void clearTrainerRepositionTarget() { trainerRepositionTargetPending = false; }
+
+    public int advanceTrainerRepositionAttempt() {
+        trainerRepositionTargetPending = false;
+        return ++trainerRepositionAttempt;
+    }
+
+    public void resetTrainerRepositionState() {
+        trainerRepositionAttempt = 0;
+        trainerRepositionTargetPending = false;
     }
 
     private void clearPlayerMoveCommandInternal() {
@@ -157,9 +194,30 @@ public final class ActionBattleSession {
         return pokemonUUID != null ? pokemonMoveCooldownDurationTicks.getOrDefault(pokemonUUID, 0L) : 0L;
     }
 
+    public boolean startPokemonMovementCommandCooldown(UUID pokemonUUID, long currentTick, long durationTicks) {
+        if (state != ActionBattleState.ACTIVE || pokemonUUID == null || currentTick < 0L || durationTicks <= 0L) return false;
+        pokemonMovementCommandCooldownEndTicks.put(pokemonUUID, currentTick + durationTicks);
+        pokemonMovementCommandCooldownDurationTicks.put(pokemonUUID, durationTicks);
+        return true;
+    }
+
+    public boolean isPokemonMovementCommandOnCooldown(UUID pokemonUUID, long currentTick) {
+        if (pokemonUUID == null || currentTick < 0L) return false;
+        return currentTick < pokemonMovementCommandCooldownEndTicks.getOrDefault(pokemonUUID, 0L);
+    }
+
+    public long pokemonMovementCommandCooldownEndTick(UUID pokemonUUID) {
+        return pokemonUUID != null ? pokemonMovementCommandCooldownEndTicks.getOrDefault(pokemonUUID, 0L) : 0L;
+    }
+
+    public long pokemonMovementCommandCooldownDurationTicks(UUID pokemonUUID) {
+        return pokemonUUID != null ? pokemonMovementCommandCooldownDurationTicks.getOrDefault(pokemonUUID, 0L) : 0L;
+    }
+
     public boolean startPlayerSwapCooldown(long currentTick, long durationTicks) {
         if (state != ActionBattleState.ACTIVE || currentTick < 0L || durationTicks <= 0L) return false;
         playerSwapCooldownEndTick = currentTick + durationTicks;
+        playerSwapCooldownDurationTicks = durationTicks;
         return true;
     }
 
@@ -168,6 +226,21 @@ public final class ActionBattleSession {
     }
 
     public long playerSwapCooldownEndTick() { return playerSwapCooldownEndTick; }
+    public long playerSwapCooldownDurationTicks() { return playerSwapCooldownDurationTicks; }
+
+    public boolean startTrainerSwapCooldown(long currentTick, long durationTicks) {
+        if (state != ActionBattleState.ACTIVE || currentTick < 0L || durationTicks <= 0L) return false;
+        trainerSwapCooldownEndTick = currentTick + durationTicks;
+        trainerSwapCooldownDurationTicks = durationTicks;
+        return true;
+    }
+
+    public boolean isTrainerSwapOnCooldown(long currentTick) {
+        return currentTick >= 0L && currentTick < trainerSwapCooldownEndTick;
+    }
+
+    public long trainerSwapCooldownEndTick() { return trainerSwapCooldownEndTick; }
+    public long trainerSwapCooldownDurationTicks() { return trainerSwapCooldownDurationTicks; }
     public boolean isPlayerSendOutPending() { return playerSendOutPending; }
     public boolean isTrainerSendOutPending() { return trainerSendOutPending; }
     public void setPlayerSendOutPending(boolean pending) { playerSendOutPending = pending; }
@@ -186,6 +259,7 @@ public final class ActionBattleSession {
     public UUID trainerUUID() { return trainerUUID; }
     public String runtimeTrainerId() { return runtimeTrainerId; }
     public String trainerPreset() { return trainerPreset; }
+    public ActionBattleZone battleZone() { return battleZone; }
     public ActionBattleState state() { return state; }
     public ActionBattleResult result() { return result; }
     public int playerActivePartyIndex() { return playerActivePartyIndex; }
@@ -207,4 +281,9 @@ public final class ActionBattleSession {
     public boolean hasTrainerMoveCommand() { return trainerMoveCommandPending; }
     public int trainerMoveSlot() { return trainerMoveSlot; }
     public UUID trainerMoveTargetEntityUUID() { return trainerMoveTargetEntityUUID; }
+    public int trainerRepositionAttempt() { return trainerRepositionAttempt; }
+    public boolean hasTrainerRepositionTarget() { return trainerRepositionTargetPending; }
+    public double trainerRepositionTargetX() { return trainerRepositionTargetX; }
+    public double trainerRepositionTargetY() { return trainerRepositionTargetY; }
+    public double trainerRepositionTargetZ() { return trainerRepositionTargetZ; }
 }

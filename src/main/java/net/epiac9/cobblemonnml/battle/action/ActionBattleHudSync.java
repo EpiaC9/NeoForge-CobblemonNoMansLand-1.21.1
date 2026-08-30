@@ -18,10 +18,16 @@ public final class ActionBattleHudSync {
         long cooldownEnd = session.pokemonMoveCooldownEndTick(playerPokemon.getUuid());
         long remaining = Math.max(0L, cooldownEnd - currentTick);
         long cooldownDuration = session.pokemonMoveCooldownDurationTicks(playerPokemon.getUuid());
+        long swapCooldownRemaining = Math.max(0L, session.playerSwapCooldownEndTick() - currentTick);
+        long swapCooldownDuration = session.playerSwapCooldownDurationTicks();
+        long moveHereCooldownRemaining = Math.max(0L, session.pokemonMovementCommandCooldownEndTick(playerPokemon.getUuid()) - currentTick);
+        long moveHereCooldownDuration = session.pokemonMovementCommandCooldownDurationTicks(playerPokemon.getUuid());
         ActionBattleHudPayload payload = new ActionBattleHudPayload(
                 true,
                 playerPokemon.getSpecies().getName(), playerPokemon.getLevel(), currentHealth(playerPokemon), maxHealth(playerPokemon), session.playerActivePartyIndex(),
                 trainerPokemon.getSpecies().getName(), trainerPokemon.getLevel(), currentHealth(trainerPokemon), maxHealth(trainerPokemon), session.trainerActivePartyIndex(),
+                swapCooldownRemaining, swapCooldownDuration,
+                moveHereCooldownRemaining, moveHereCooldownDuration,
                 moveState(playerPokemon, 0, remaining, cooldownDuration), moveState(playerPokemon, 1, remaining, cooldownDuration),
                 moveState(playerPokemon, 2, remaining, cooldownDuration), moveState(playerPokemon, 3, remaining, cooldownDuration)
         );
