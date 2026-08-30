@@ -5,16 +5,16 @@ public final class ActionBattleHudLayout {
     private static final int EDGE_MARGIN_Y = 10;
     private static final int POKEMON_PANEL_WIDTH = 140;
     private static final int POKEMON_PANEL_HEIGHT = 40;
-    private static final int COMMAND_ROOT_X = 20;
-    private static final int COMMAND_WIDTH = 92;
-    private static final int COMMAND_HEIGHT = 24;
-    private static final int COMMAND_TO_MOVE_GAP = 13;
-    private static final int MOVE_ROOT_X = COMMAND_ROOT_X + COMMAND_WIDTH + COMMAND_TO_MOVE_GAP;
+    private static final int COMMAND_SIZE = 22;
+    private static final int COMMAND_TO_MOVE_GAP = 7;
+    private static final int MOVE_ROOT_X = 49;
+    private static final int COMMAND_ROOT_X = MOVE_ROOT_X - COMMAND_SIZE - COMMAND_TO_MOVE_GAP;
     private static final int MOVE_WIDTH = 92;
     private static final int MOVE_HEIGHT = 24;
-    private static final int MOVE_HORIZONTAL_GAP = 13;
-    private static final int MOVE_VERTICAL_GAP = 5;
-    private static final int MOVE_BOTTOM_MARGIN = 104;
+    private static final int MOVE_HORIZONTAL_GAP = 7;
+    private static final int MOVE_VERTICAL_GAP = 3;
+    private static final int MOVE_BOTTOM_MARGIN = 82;
+    private static final int COMMAND_ROW_INSET = (MOVE_HEIGHT - COMMAND_SIZE) / 2;
 
     private final Rect enemyPanel;
     private final Rect allyPanel;
@@ -34,8 +34,8 @@ public final class ActionBattleHudLayout {
         int controlTop = Math.max(EDGE_MARGIN_Y + POKEMON_PANEL_HEIGHT + MOVE_VERTICAL_GAP,
                 screenHeight - MOVE_BOTTOM_MARGIN - (MOVE_HEIGHT * 2 + MOVE_VERTICAL_GAP));
         Rect[] commands = {
-                new Rect(COMMAND_ROOT_X, controlTop, COMMAND_WIDTH, COMMAND_HEIGHT),
-                new Rect(COMMAND_ROOT_X, controlTop + MOVE_HEIGHT + MOVE_VERTICAL_GAP, COMMAND_WIDTH, COMMAND_HEIGHT)
+                new Rect(COMMAND_ROOT_X, controlTop + COMMAND_ROW_INSET, COMMAND_SIZE, COMMAND_SIZE),
+                new Rect(COMMAND_ROOT_X, controlTop + MOVE_HEIGHT + MOVE_VERTICAL_GAP + COMMAND_ROW_INSET, COMMAND_SIZE, COMMAND_SIZE)
         };
         Rect[] moves = new Rect[4];
         for (int slot = 0; slot < moves.length; slot++) {

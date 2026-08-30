@@ -19,7 +19,7 @@ public final class ActionBattleHud {
     private static final int PP_LOW = 0xFFFFC85A;
     private static final int PP_EMPTY = 0xFFFF6666;
     private static final int DISABLED = 0x80606060;
-    private static final int COOLDOWN = 0xA0808080;
+    private static final int COOLDOWN = 0xB3808080;
     private static final int TYPE_ICON_SIZE = 36;
     private static final int TYPE_ATLAS_WIDTH = 648;
     private static final int TYPE_ATLAS_HEIGHT = 36;
@@ -66,12 +66,23 @@ public final class ActionBattleHud {
     private static void renderCommand(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect, String label, String key) {
         int x = rect.x();
         int y = rect.y();
-        RenderSystem.setShaderColor(0.72F, 0.72F, 0.72F, 1.0F);
-        graphics.blit(BATTLE_MOVE, x, y, 0.0F, 0.0F, rect.width(), rect.height(), rect.width(), rect.height() * 2);
+        RenderSystem.setShaderColor(0.68F, 0.68F, 0.68F, 1.0F);
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0.0F);
+        graphics.pose().scale(rect.width() / 92.0F, rect.height() / 24.0F, 1.0F);
+        graphics.blit(BATTLE_MOVE, 0, 0, 0.0F, 0.0F, 92, 24, 92, 48);
+        graphics.blit(BATTLE_MOVE_OVERLAY, 0, 0, 0.0F, 0.0F, 92, 24, 92, 24);
+        graphics.pose().popPose();
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        graphics.blit(BATTLE_MOVE_OVERLAY, x, y, 0.0F, 0.0F, rect.width(), rect.height(), rect.width(), rect.height());
-        drawScaled(graphics, font, label, x + 8, y + 7, 0.72F, TEXT, false);
-        drawScaledRight(graphics, font, key, x + 88, y + 7, 0.62F, TEXT);
+        if (label.contains(" ")) {
+            String[] parts = label.split(" ", 2);
+            drawScaledCentered(graphics, font, parts[0], x + rect.width() / 2, y + 2, 0.38F, TEXT);
+            drawScaledCentered(graphics, font, parts[1], x + rect.width() / 2, y + 7, 0.38F, TEXT);
+            drawScaledCentered(graphics, font, key, x + rect.width() / 2, y + 14, 0.48F, TEXT);
+        } else {
+            drawScaledCentered(graphics, font, label, x + rect.width() / 2, y + 4, 0.42F, TEXT);
+            drawScaledCentered(graphics, font, key, x + rect.width() / 2, y + 13, 0.50F, TEXT);
+        }
     }
 
     private static void renderMove(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect, int slot, ActionBattleHudPayload.MoveState move) {
@@ -84,7 +95,6 @@ public final class ActionBattleHud {
         graphics.blit(BATTLE_MOVE, x, y, 0.0F, 0.0F, rect.width(), rect.height(), rect.width(), rect.height() * 2);
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         graphics.blit(BATTLE_MOVE_OVERLAY, x, y, 0.0F, 0.0F, rect.width(), rect.height(), rect.width(), rect.height());
-        renderTypeIcon(graphics, x - 9, y + 2, move.type(), disabled ? 0.55F : 1.0F);
         String name = missing ? "---" : displayName(move.name());
         drawScaled(graphics, font, name, x + 17, y + 3, 0.72F, disabled ? MUTED : TEXT, false);
         int ppColor = move.currentPp() <= 0 ? PP_EMPTY : move.maxPp() > 0 && move.currentPp() * 2 <= move.maxPp() ? PP_LOW : TEXT;
@@ -93,9 +103,10 @@ public final class ActionBattleHud {
         drawScaledRight(graphics, font, KEYS[slot], x + 89, y + 3, 0.55F, disabled ? MUTED : TEXT);
         if (disabled) graphics.fill(x, y, x + rect.width(), y + rect.height(), DISABLED);
         if (move.cooldownRemainingTicks() > 0L && move.cooldownDurationTicks() > 0L) {
-            double fraction = Math.clamp((double) move.cooldownRemainingTicks() / move.cooldownDurationTicks(), 0.0D, 1.0D);
-            renderCooldownWipe(graphics, x, y, rect.width(), rect.height(), fraction);
+            double elapsedFraction = 1.0D - Math.clamp((double) move.cooldownRemainingTicks() / move.cooldownDurationTicks(), 0.0D, 1.0D);
+            renderCooldownFill(graphics, rect, elapsedFraction);
         }
+        renderTypeIcon(graphics, x - 9, y + 2, move.type(), disabled ? 0.55F : 1.0F);
     }
 
     private static void renderTypeIcon(GuiGraphics graphics, int x, int y, String type, float alpha) {
@@ -109,24 +120,22 @@ public final class ActionBattleHud {
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
-    private static void renderCooldownWipe(GuiGraphics graphics, int x, int y, int width, int height, double fraction) {
-        int segments = (int) Math.ceil(fraction * 8.0D);
-        int halfW = width / 2;
-        int halfH = height / 2;
-        int[][] rects = {
-                {x + halfW, y, x + width, y + halfH},
-                {x + halfW, y + halfH, x + width, y + height},
-                {x, y + halfH, x + halfW, y + height},
-                {x, y, x + halfW, y + halfH},
-                {x + width / 4, y, x + halfW, y + halfH},
-                {x + halfW, y + height / 4, x + width, y + halfH},
-                {x + halfW, y + halfH, x + width * 3 / 4, y + height},
-                {x, y + halfH, x + halfW, y + height * 3 / 4}
-        };
-        for (int i = 0; i < Math.min(segments, rects.length); i++) {
-            int[] r = rects[i];
-            graphics.fill(r[0], r[1], r[2], r[3], COOLDOWN);
-        }
+    private static void renderCooldownFill(GuiGraphics graphics, ActionBattleHudLayout.Rect rect, double fraction) {
+        int x = rect.x();
+        int y = rect.y();
+        int width = rect.width();
+        int height = rect.height();
+        int filledHeight = (int) Math.ceil(height * fraction);
+        if (filledHeight <= 0) return;
+        int sourceY = height - filledHeight;
+        float alpha = ((COOLDOWN >>> 24) & 255) / 255.0F;
+        float gray = 128.0F / 255.0F;
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.setShaderColor(gray, gray, gray, alpha);
+        graphics.blit(BATTLE_MOVE, x, y + sourceY, 0.0F, (float) sourceY, width, filledHeight, width, height * 2);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderSystem.disableBlend();
     }
 
     private static int hpColor(double ratio) {
