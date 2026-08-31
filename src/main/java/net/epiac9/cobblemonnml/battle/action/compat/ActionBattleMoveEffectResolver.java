@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Objects;
 
 public final class ActionBattleMoveEffectResolver {
+    private static final float TRI_ATTACK_EFFECT_CHANCE = 0.0667F;
+
     private ActionBattleMoveEffectResolver() {}
 
     public static boolean hasStatusMetadata(Move move) {
@@ -53,7 +55,7 @@ public final class ActionBattleMoveEffectResolver {
             for (MoveData entry : entries) {
                 if (!(entry instanceof StatusEffectMoveData status) || !status.isOnHit() || !Objects.equals(status.getTarget(), "target")) continue;
                 String name = status.getName();
-                if (burn ? isBurnName(name) || Objects.equals(name, "triattack") : isFreezeName(name)) return true;
+                if (burn ? isBurnName(name) || Objects.equals(name, "triattack") : isFreezeName(name) || Objects.equals(name, "triattack")) return true;
             }
         }
         ActionBattleMoveEffectData fallback = ActionBattleMoveEffectDataManager.get(move.getName());
@@ -82,14 +84,14 @@ public final class ActionBattleMoveEffectResolver {
             for (MoveData entry : entries) {
                 if (!(entry instanceof StatusEffectMoveData status) || !status.isOnHit() || !Objects.equals(status.getTarget(), "target")) continue;
                 String effectName = status.getName();
-                boolean matching = burn ? isBurnName(effectName) || Objects.equals(effectName, "triattack") : isFreezeName(effectName);
+                boolean matching = burn ? isBurnName(effectName) || Objects.equals(effectName, "triattack") : isFreezeName(effectName) || Objects.equals(effectName, "triattack");
                 if (!matching) continue;
                 foundOwnedMetadata = true;
                 if (status.canActivateSheerForce() && Objects.equals(attacker.getPokemon().getAbility().getName(), "sheerforce")) continue;
                 float chance = status.getChance();
+                if (Objects.equals(effectName, "triattack")) chance = TRI_ATTACK_EFFECT_CHANCE;
                 if (Objects.equals(attacker.getPokemon().getAbility().getName(), "serenegrace")) chance *= 2.0F;
                 if (!(chance > attacker.getRandom().nextFloat())) continue;
-                if (burn && Objects.equals(effectName, "triattack")) return attacker.getRandom().nextFloat() < (1.0F / 3.0F);
                 return true;
             }
         }
@@ -98,9 +100,9 @@ public final class ActionBattleMoveEffectResolver {
         if (fallback == null || !(burn ? fallback.isSupportedBurnOnHit() : fallback.isSupportedFreezeOnHit())) return false;
         if (fallback.secondary() && Objects.equals(attacker.getPokemon().getAbility().getName(), "sheerforce")) return false;
         float chance = fallback.chance();
+        if (fallback.isTriAttack()) chance = TRI_ATTACK_EFFECT_CHANCE;
         if (fallback.secondary() && Objects.equals(attacker.getPokemon().getAbility().getName(), "serenegrace")) chance *= 2.0F;
-        if (!(chance > attacker.getRandom().nextFloat())) return false;
-        return !burn || !fallback.isTriAttack() || attacker.getRandom().nextFloat() < (1.0F / 3.0F);
+        return chance > attacker.getRandom().nextFloat();
     }
 
     private static boolean isBurnName(String name) {

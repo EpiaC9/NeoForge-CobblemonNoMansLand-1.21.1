@@ -7,7 +7,8 @@ public record ActionBattleMoveEffectData(String effect, String trigger, String t
     }
 
     public boolean isSupportedFreezeOnHit() {
-        return "freeze".equals(effect) && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
+        return ("freeze".equals(effect) || "triattack".equals(effect))
+                && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
     }
 
     public boolean isTriAttack() { return "triattack".equals(effect); }
