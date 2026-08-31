@@ -23,6 +23,10 @@ public final class ActionBattleStatusParticleController {
     private static final int FREEZE_MOTES_PER_EMISSION = 1;
     private static final int FROSTBITE_MOTES_PER_EMISSION = 2;
     private static final int FROSTBITE_WISPS_PER_EMISSION = 1;
+    private static final int POISON_INTERVAL_TICKS = 5;
+    private static final int TOXIC_1_INTERVAL_TICKS = 5;
+    private static final int TOXIC_2_INTERVAL_TICKS = 4;
+    private static final int TOXIC_3_INTERVAL_TICKS = 3;
 
     private ActionBattleStatusParticleController() {}
 
@@ -42,6 +46,10 @@ public final class ActionBattleStatusParticleController {
         else if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.CINDERS, tick) && tick % CINDERS_INTERVAL_TICKS == 0L) emitCindersAmbient(level, entity);
         if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.FROSTBITE, tick) && tick % FROSTBITE_INTERVAL_TICKS == 0L) emitFrostbiteAmbient(level, entity);
         else if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.FREEZE, tick) && tick % FREEZE_INTERVAL_TICKS == 0L) emitFreezeAmbient(level, entity);
+        if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.TOXIC_3, tick) && tick % TOXIC_3_INTERVAL_TICKS == 0L) emitPoisonAmbient(level, entity, 3);
+        else if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.TOXIC_2, tick) && tick % TOXIC_2_INTERVAL_TICKS == 0L) emitPoisonAmbient(level, entity, 2);
+        else if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.TOXIC_1, tick) && tick % TOXIC_1_INTERVAL_TICKS == 0L) emitPoisonAmbient(level, entity, 1);
+        else if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.POISON, tick) && tick % POISON_INTERVAL_TICKS == 0L) emitPoisonAmbient(level, entity, 0);
     }
 
     private static void emitCindersAmbient(ServerLevel level, PokemonEntity entity) { emitAcrossBody(level, entity, CINDERS_EMBERS_PER_EMISSION, ParticleTypes.LAVA, 0.01D); }
@@ -55,12 +63,30 @@ public final class ActionBattleStatusParticleController {
         emitAcrossBody(level, entity, FROSTBITE_WISPS_PER_EMISSION, ParticleTypes.CLOUD, 0.005D);
     }
 
+    private static void emitPoisonAmbient(ServerLevel level, PokemonEntity entity, int toxicLevel) {
+        int greenMotes = switch (toxicLevel) { case 0 -> 2; case 1 -> 2; case 2 -> 1; default -> 0; };
+        int purpleMotes = switch (toxicLevel) { case 0 -> 1; case 1 -> 2; case 2 -> 3; default -> 5; };
+        if (greenMotes > 0) emitAcrossBody(level, entity, greenMotes, ParticleTypes.SPORE_BLOSSOM_AIR, 0.005D);
+        emitAcrossBody(level, entity, purpleMotes, ParticleTypes.WITCH, toxicLevel >= 2 ? 0.015D : 0.008D);
+        if (toxicLevel >= 2) emitAcrossBody(level, entity, toxicLevel, ParticleTypes.MYCELIUM, 0.005D);
+    }
+
     public static void emitBurnDotBurst(ServerLevel level, PokemonEntity entity) {
         if (level == null || entity == null || entity.isRemoved()) return;
         AABB box = entity.getBoundingBox();
         double cx = box.getCenter().x, cy = box.getCenter().y, cz = box.getCenter().z;
         level.sendParticles(ParticleTypes.LAVA, cx, cy, cz, 14, Math.max(0.25D, box.getXsize() * 0.55D), Math.max(0.35D, box.getYsize() * 0.45D), Math.max(0.25D, box.getZsize() * 0.55D), 0.12D);
         level.sendParticles(ParticleTypes.FLAME, cx, cy, cz, 10, Math.max(0.20D, box.getXsize() * 0.40D), Math.max(0.30D, box.getYsize() * 0.40D), Math.max(0.20D, box.getZsize() * 0.40D), 0.05D);
+    }
+
+    public static void emitPoisonDotBurst(ServerLevel level, PokemonEntity entity, int toxicLevel) {
+        if (level == null || entity == null || entity.isRemoved()) return;
+        AABB box = entity.getBoundingBox();
+        double cx = box.getCenter().x, cy = box.getCenter().y, cz = box.getCenter().z;
+        int purple = switch (Math.clamp(toxicLevel, 0, 3)) { case 0 -> 8; case 1 -> 11; case 2 -> 15; default -> 20; };
+        int green = switch (Math.clamp(toxicLevel, 0, 3)) { case 0 -> 8; case 1 -> 5; case 2 -> 2; default -> 0; };
+        if (green > 0) level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, cx, cy, cz, green, Math.max(0.25D, box.getXsize() * 0.50D), Math.max(0.35D, box.getYsize() * 0.45D), Math.max(0.25D, box.getZsize() * 0.50D), 0.03D);
+        level.sendParticles(ParticleTypes.WITCH, cx, cy, cz, purple, Math.max(0.25D, box.getXsize() * 0.55D), Math.max(0.35D, box.getYsize() * 0.50D), Math.max(0.25D, box.getZsize() * 0.55D), toxicLevel >= 2 ? 0.12D : 0.08D);
     }
 
     public static void emitFrostbiteDotBurst(ServerLevel level, PokemonEntity entity) {

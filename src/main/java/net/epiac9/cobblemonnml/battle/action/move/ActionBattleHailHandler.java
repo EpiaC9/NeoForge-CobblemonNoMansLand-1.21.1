@@ -13,7 +13,9 @@ import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelPreset;
 import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelState;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleHailVisuals;
+import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleChannelVisuals;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -32,10 +34,10 @@ public final class ActionBattleHailHandler {
     public static final String MOVE_ID = "hail";
     public static final int CHANNEL_TICKS = 40;
     public static final int FAILURE_COOLDOWN_TICKS = 20;
-    public static final int NORMAL_DURATION_TICKS = 60;
-    public static final int ICY_ROCK_DURATION_TICKS = 120;
+    public static final int NORMAL_DURATION_TICKS = 180;
+    public static final int ICY_ROCK_DURATION_TICKS = 240;
     public static final int PULSE_INTERVAL_TICKS = 20;
-    public static final double RADIUS = 3.0D;
+    public static final double RADIUS = 7.0D;
     public static final double HEIGHT = 6.0D;
 
     private static final ActionBattleChannelPreset HAIL_CHANNEL = new ActionBattleChannelPreset(CHANNEL_TICKS, true, true, true, true);
@@ -95,7 +97,7 @@ public final class ActionBattleHailHandler {
                 continue;
             }
             if (state.preset().immobilizeCaster()) caster.getNavigation().stop();
-            ActionBattleHailVisuals.emitChannel(level, caster);
+            ActionBattleChannelVisuals.emitAura(level, caster, "ice", state.progress());
             ActionBattleChannelController.global().observeHealth(state.casterPokemonUUID(), caster.getPokemon().getCurrentHealth());
         }
     }
@@ -148,6 +150,8 @@ public final class ActionBattleHailHandler {
             FightOrFlightAdapter.refundOnePp(context.move());
             context.session().setPokemonAllCommandCooldown(state.casterPokemonUUID(), context.level().getGameTime(), FAILURE_COOLDOWN_TICKS);
         }
+        PokemonEntity caster = activePokemonEntity(context.session(), context.level(), state.casterPokemonUUID());
+        if (caster != null) ActionBattleChannelVisuals.emitCancellationBurst(context.level(), caster, "ice");
         DebugLog.log("[CobblemonNML] Hail channel cancelled. Battle=" + state.battleId() + ", caster=" + state.casterPokemonUUID() + ", reason=" + reason);
     }
 
@@ -158,7 +162,12 @@ public final class ActionBattleHailHandler {
                 ? activePokemonEntity(context.session(), context.level(), context.session().trainerActivePokemonUUID())
                 : activePokemonEntity(context.session(), context.level(), context.session().playerActivePokemonUUID());
         if (enemy == null || enemy.isRemoved() || !area.contains(enemy.getX(), enemy.getY(), enemy.getZ())) return;
-        ActionBattleEffectController.global().applyFreezeCapableHit(area.battleId(), enemy.getPokemon().getUuid(), context.level().getGameTime());
+        long currentTick = context.level().getGameTime();
+        ActionBattleProtectController.EffectInterception interception = ActionBattleProtectController.global()
+                .interceptTimedEffect(area.battleId(), enemy.getPokemon().getUuid(), currentTick, "freeze", 120);
+        if (!interception.allowed()) return;
+        float durationMultiplier = interception.durationTicks() / 120.0F;
+        ActionBattleEffectController.global().applyFreezeCapableHit(area.battleId(), enemy.getPokemon().getUuid(), context.level().getGameTime(), durationMultiplier);
         DebugLog.log("[CobblemonNML] Hail pulse applied Freeze-capable effect. Battle=" + area.battleId() + ", area=" + area.areaId()
                 + ", target=" + enemy.getPokemon().getUuid());
     }

@@ -5,6 +5,7 @@ public final class ActionBattleDamageHudRenderer {
     private static final int LOST_HP = 0xFFD9534F;
     private static final int NORMAL_DAMAGE_RGB = 0xFF5A5A;
     private static final int DOT_DAMAGE_RGB = 0xFFA040;
+    private static final int POISON_DOT_DAMAGE_RGB = 0xA65AC7;
     private static final int HP_BAR_WIDTH = 97;
     private ActionBattleDamageHudRenderer() {}
     public static void renderTrailingHp(GuiGraphics graphics, ActionBattleHudLayout.Rect rect, boolean flipped, int currentHp, int maxHp, double trailingHp) {
@@ -33,7 +34,8 @@ public final class ActionBattleDamageHudRenderer {
             int y = rect.y() + 18 - upward + event.stackIndex() * 7;
             int alpha = progress <= 0.55D ? 255 : (int) Math.round(255.0D * (1.0D - (progress - 0.55D) / 0.45D));
             alpha = Math.max(0, Math.min(255, alpha));
-            int rgb = "DOT".equalsIgnoreCase(event.category()) ? DOT_DAMAGE_RGB : NORMAL_DAMAGE_RGB;
+            int rgb = "POISON_DOT".equalsIgnoreCase(event.category()) ? POISON_DOT_DAMAGE_RGB
+                    : "DOT".equalsIgnoreCase(event.category()) ? DOT_DAMAGE_RGB : NORMAL_DAMAGE_RGB;
             int color = (alpha << 24) | rgb;
             String text = "-" + event.damage();
             int anchorX = ally ? rect.x() - 4 - outward : rect.x() + rect.width() + 4 + outward;

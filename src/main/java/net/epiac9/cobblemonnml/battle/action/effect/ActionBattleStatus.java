@@ -4,5 +4,9 @@ public enum ActionBattleStatus {
     CINDERS,
     BURN,
     FREEZE,
-    FROSTBITE
+    FROSTBITE,
+    POISON,
+    TOXIC_1,
+    TOXIC_2,
+    TOXIC_3
 }

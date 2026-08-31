@@ -40,6 +40,7 @@ public final class ActionBattleStatusHudRenderer {
             ActionBattleStatusVisualRegistry.StatusVisual visual = ActionBattleStatusVisualRegistry.visualFor(state.statusId());
             if (visual != null) entries.add(new ActionBattleStatusHudEntry(state, visual));
         }
+        entries.sort(java.util.Comparator.comparingInt(entry -> priorityFor(entry.state().statusId())));
         for (int i = 0; i < entries.size(); i++) {
             ActionBattleStatusHudEntry entry = entries.get(i);
             int x = statusX(panel, i, ally);
@@ -50,6 +51,10 @@ public final class ActionBattleStatusHudRenderer {
             renderTimerRing(graphics, x + ICON_SIZE / 2, y + ICON_SIZE / 2, entry.progress(), entry.visual().ringArgb());
             RenderSystem.disableBlend();
         }
+    }
+
+    private static int priorityFor(String statusId) {
+        return statusId != null && statusId.startsWith("DETERIORATING_SHIELD_") ? 0 : 100;
     }
 
     private static void renderTimerRing(GuiGraphics graphics, int centerX, int centerY, float progress, int color) {

@@ -26,8 +26,27 @@ public final class ActionBattleEffectController {
     }
 
     public boolean applyHaze(UUID battleId, UUID pokemonUUID, long currentTick, long durationTicks) {
-        if (!validIds(battleId, pokemonUUID)) return false;
-        return state(battleId, pokemonUUID).applyHaze(currentTick, durationTicks);
+        if (!validIds(battleId, pokemonUUID) || currentTick < 0L || durationTicks <= 0L) return false;
+        ActionBattleEffectState state = state(battleId, pokemonUUID);
+        state.clearTemporaryStatChanges();
+        state.setHazeProtected(true);
+        return true;
+    }
+
+    public void clearTemporaryStatChanges(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        if (state == null || currentTick < 0L) return;
+        state.clearTemporaryStatChanges();
+        removeIfEmpty(state, currentTick);
+    }
+
+    public void setHazeProtected(UUID battleId, UUID pokemonUUID, boolean protectedByHaze, long currentTick) {
+        if (!validIds(battleId, pokemonUUID) || currentTick < 0L) return;
+        ActionBattleEffectState state = protectedByHaze ? state(battleId, pokemonUUID) : existingState(battleId, pokemonUUID);
+        if (state == null) return;
+        if (protectedByHaze && !state.hasHaze(currentTick)) state.clearTemporaryStatChanges();
+        state.setHazeProtected(protectedByHaze);
+        removeIfEmpty(state, currentTick);
     }
 
     public boolean hasHaze(UUID battleId, UUID pokemonUUID, long currentTick) {
@@ -39,13 +58,30 @@ public final class ActionBattleEffectController {
     }
 
     public ActionBattleStatusApplication applyBurnCapableHit(UUID battleId, UUID pokemonUUID, long currentTick) {
-        if (!validIds(battleId, pokemonUUID) || currentTick < 0L) return null;
-        return state(battleId, pokemonUUID).applyBurnCapableHit(currentTick);
+        return applyBurnCapableHit(battleId, pokemonUUID, currentTick, 1.0F);
+    }
+
+    public ActionBattleStatusApplication applyBurnCapableHit(UUID battleId, UUID pokemonUUID, long currentTick, float durationMultiplier) {
+        if (!validIds(battleId, pokemonUUID) || currentTick < 0L || !(durationMultiplier > 0.0F)) return null;
+        return state(battleId, pokemonUUID).applyBurnCapableHit(currentTick, durationMultiplier);
     }
 
     public ActionBattleStatusApplication applyFreezeCapableHit(UUID battleId, UUID pokemonUUID, long currentTick) {
-        if (!validIds(battleId, pokemonUUID) || currentTick < 0L) return null;
-        return state(battleId, pokemonUUID).applyFreezeCapableHit(currentTick);
+        return applyFreezeCapableHit(battleId, pokemonUUID, currentTick, 1.0F);
+    }
+
+    public ActionBattleStatusApplication applyFreezeCapableHit(UUID battleId, UUID pokemonUUID, long currentTick, float durationMultiplier) {
+        if (!validIds(battleId, pokemonUUID) || currentTick < 0L || !(durationMultiplier > 0.0F)) return null;
+        return state(battleId, pokemonUUID).applyFreezeCapableHit(currentTick, durationMultiplier);
+    }
+
+    public ActionBattleStatusApplication applyPoison(UUID battleId, UUID pokemonUUID, int strength, long currentTick) {
+        return applyPoison(battleId, pokemonUUID, strength, currentTick, 1.0F);
+    }
+
+    public ActionBattleStatusApplication applyPoison(UUID battleId, UUID pokemonUUID, int strength, long currentTick, float durationMultiplier) {
+        if (!validIds(battleId, pokemonUUID) || currentTick < 0L || (strength != 1 && strength != 2) || !(durationMultiplier > 0.0F)) return null;
+        return state(battleId, pokemonUUID).applyPoison(strength, currentTick, durationMultiplier);
     }
 
     public boolean hasStatus(UUID battleId, UUID pokemonUUID, ActionBattleStatus status, long currentTick) {
@@ -64,16 +100,49 @@ public final class ActionBattleEffectController {
         return remaining;
     }
 
+    public long poisonToxicRemainingTicks(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        if (state == null) return 0L;
+        long remaining = state.poisonToxicRemainingTicks(currentTick);
+        removeIfEmpty(state, currentTick);
+        return remaining;
+    }
+
+    public int poisonToxicReapplicationCount(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        if (state == null) return 0;
+        int count = state.poisonToxicReapplicationCount(currentTick);
+        removeIfEmpty(state, currentTick);
+        return count;
+    }
+
+    public long poisonToxicNextDotTick(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        if (state == null) return 0L;
+        long tick = state.poisonToxicNextDotTick(currentTick);
+        removeIfEmpty(state, currentTick);
+        return tick;
+    }
+
     public long statusDurationTicks(ActionBattleStatus status) {
-        return status == ActionBattleStatus.CINDERS || status == ActionBattleStatus.BURN
-                || status == ActionBattleStatus.FREEZE || status == ActionBattleStatus.FROSTBITE
-                ? ActionBattleEffectState.BASE_STATUS_DURATION_TICKS : 0L;
+        if (status == null) return 0L;
+        return switch (status) {
+            case CINDERS, BURN, FREEZE, FROSTBITE -> ActionBattleEffectState.BASE_STATUS_DURATION_TICKS;
+            case POISON, TOXIC_1, TOXIC_2, TOXIC_3 -> ActionBattlePoisonToxicState.BASE_DURATION_TICKS;
+        };
     }
 
     public void clearStatuses(UUID battleId, UUID pokemonUUID, long currentTick) {
         ActionBattleEffectState state = existingState(battleId, pokemonUUID);
         if (state == null) return;
         state.clearStatuses();
+        removeIfEmpty(state, currentTick);
+    }
+
+    public void onPokemonRecalled(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        if (state == null || currentTick < 0L) return;
+        state.onPokemonRecalled(currentTick);
         removeIfEmpty(state, currentTick);
     }
 

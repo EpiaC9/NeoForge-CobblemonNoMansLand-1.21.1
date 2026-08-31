@@ -47,6 +47,7 @@ public final class ActionBattleSession {
     private long trainerSwapCooldownDurationTicks = 0L;
     private boolean playerSendOutPending = false;
     private boolean trainerSendOutPending = false;
+    private long hazeExpiresAtTick = 0L;
 
     public ActionBattleSession(UUID battleId, UUID dungeonSessionId, UUID playerUUID, UUID trainerUUID, String runtimeTrainerId, String trainerPreset) {
         this(battleId, dungeonSessionId, playerUUID, trainerUUID, runtimeTrainerId, trainerPreset, new ActionBattleZone(0.0D, 0.0D, 20.0D));
@@ -307,6 +308,23 @@ public final class ActionBattleSession {
     public boolean isTrainerSendOutPending() { return trainerSendOutPending; }
     public void setPlayerSendOutPending(boolean pending) { playerSendOutPending = pending; }
     public void setTrainerSendOutPending(boolean pending) { trainerSendOutPending = pending; }
+
+
+    public boolean activateHaze(long currentTick, long durationTicks) {
+        if (state != ActionBattleState.ACTIVE || currentTick < 0L || durationTicks <= 0L) return false;
+        hazeExpiresAtTick = safeAdd(currentTick, durationTicks);
+        return true;
+    }
+
+    public boolean isHazeActive(long currentTick) {
+        return state == ActionBattleState.ACTIVE && currentTick >= 0L && currentTick < hazeExpiresAtTick;
+    }
+
+    public long hazeExpiresAtTick() { return hazeExpiresAtTick; }
+
+    public long hazeRemainingTicks(long currentTick) {
+        return isHazeActive(currentTick) ? Math.max(0L, hazeExpiresAtTick - currentTick) : 0L;
+    }
 
     public boolean end(ActionBattleResult result) {
         if (state == ActionBattleState.ENDED || result == null) return false;

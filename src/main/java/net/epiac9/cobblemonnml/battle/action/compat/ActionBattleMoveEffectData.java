@@ -11,5 +11,15 @@ public record ActionBattleMoveEffectData(String effect, String trigger, String t
                 && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
     }
 
+    public boolean isSupportedPoisonOnHit() {
+        return ("poison".equals(effect) || "toxic".equals(effect) || "badly_poison".equals(effect))
+                && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
+    }
+
+    public int poisonProgressionStrength() {
+        if (!isSupportedPoisonOnHit()) return 0;
+        return "toxic".equals(effect) || "badly_poison".equals(effect) ? 2 : 1;
+    }
+
     public boolean isTriAttack() { return "triattack".equals(effect); }
 }

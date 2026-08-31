@@ -1,0 +1,7 @@
+{
+  "effect": "poison",
+  "trigger": "on_hit",
+  "target": "target",
+  "chance": 0.5,
+  "secondary": true
+}

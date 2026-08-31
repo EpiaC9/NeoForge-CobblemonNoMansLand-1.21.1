@@ -8,6 +8,7 @@ import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackEv
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleHudPayload;
+import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -17,6 +18,8 @@ import java.util.List;
 import java.util.UUID;
 
 public final class ActionBattleHudSync {
+    private static final long POISON_TOXIC_HUD_DURATION_TICKS = 360L;
+
     private ActionBattleHudSync() {}
 
     public static void send(ServerPlayer player, ActionBattleSession session, Pokemon playerPokemon, Pokemon trainerPokemon) {
@@ -51,14 +54,25 @@ public final class ActionBattleHudSync {
 
     private static List<ActionBattleHudPayload.StatusState> statusStates(UUID battleId, UUID pokemonUUID, long currentTick) {
         ActionBattleEffectController controller = ActionBattleEffectController.global();
+        ActionBattleProtectController protect = ActionBattleProtectController.global();
         List<ActionBattleHudPayload.StatusState> states = new ArrayList<>();
+        int shieldLevel = protect.deterioratingShieldLevel(battleId, pokemonUUID);
+        long shieldRemaining = protect.deterioratingShieldRemainingTicks(battleId, pokemonUUID);
+        if (shieldLevel > 0 && shieldRemaining > 0L) {
+            long shieldDuration = shieldLevel * 200L;
+            states.add(new ActionBattleHudPayload.StatusState("DETERIORATING_SHIELD_" + shieldLevel, shieldRemaining, shieldDuration));
+        }
         for (ActionBattleStatus status : ActionBattleStatus.values()) {
             long remaining = controller.statusRemainingTicks(battleId, pokemonUUID, status, currentTick);
             if (remaining <= 0L) continue;
-            long duration = controller.statusDurationTicks(status);
+            long duration = isPoisonToxic(status) ? POISON_TOXIC_HUD_DURATION_TICKS : controller.statusDurationTicks(status);
             states.add(new ActionBattleHudPayload.StatusState(status.name(), remaining, duration));
         }
         return List.copyOf(states);
+    }
+
+    private static boolean isPoisonToxic(ActionBattleStatus status) {
+        return status == ActionBattleStatus.POISON || status == ActionBattleStatus.TOXIC_1 || status == ActionBattleStatus.TOXIC_2 || status == ActionBattleStatus.TOXIC_3;
     }
 
     private static List<ActionBattleHudPayload.DamageState> damageStates(List<ActionBattleDamageFeedbackEvent> events) {

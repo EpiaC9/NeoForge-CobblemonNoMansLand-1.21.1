@@ -40,6 +40,7 @@ public final class ActionBattleChannelState {
     public ActionBattleChannelPreset preset() { return preset; }
     public int elapsedTicks() { return elapsedTicks; }
     public int remainingTicks() { return Math.max(0, preset.durationTicks() - elapsedTicks); }
+    public float progress() { return preset.durationTicks() <= 0 ? 1.0F : Math.max(0.0F, Math.min(1.0F, elapsedTicks / (float) preset.durationTicks())); }
     public ActionBattlePosition lastTargetablePosition() { return lastTargetablePosition; }
     public int lastObservedHealth() { return lastObservedHealth; }
     public boolean completed() { return completed; }
