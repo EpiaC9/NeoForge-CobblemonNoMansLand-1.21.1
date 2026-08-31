@@ -64,7 +64,8 @@ public final class ActionBattleMoveEffectDataManager {
                 json.get("effect").getAsString(),
                 json.get("trigger").getAsString(),
                 json.get("target").getAsString(),
-                chance
+                chance,
+                json.has("secondary") && json.get("secondary").getAsBoolean()
         );
     }
 

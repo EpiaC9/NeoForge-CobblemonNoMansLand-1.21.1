@@ -214,6 +214,25 @@ public final class ActionBattleSession {
         return pokemonUUID != null ? pokemonMovementCommandCooldownDurationTicks.getOrDefault(pokemonUUID, 0L) : 0L;
     }
 
+    public boolean setPokemonAllCommandCooldown(UUID pokemonUUID, long currentTick, long durationTicks) {
+        if (state != ActionBattleState.ACTIVE || pokemonUUID == null || currentTick < 0L || durationTicks <= 0L) return false;
+        boolean playerPokemon = pokemonUUID.equals(playerActivePokemonUUID);
+        boolean trainerPokemon = pokemonUUID.equals(trainerActivePokemonUUID);
+        if (!playerPokemon && !trainerPokemon) return false;
+        pokemonMoveCooldownEndTicks.put(pokemonUUID, safeAdd(currentTick, durationTicks));
+        pokemonMoveCooldownDurationTicks.put(pokemonUUID, durationTicks);
+        pokemonMovementCommandCooldownEndTicks.put(pokemonUUID, safeAdd(currentTick, durationTicks));
+        pokemonMovementCommandCooldownDurationTicks.put(pokemonUUID, durationTicks);
+        if (playerPokemon) {
+            playerSwapCooldownEndTick = safeAdd(currentTick, durationTicks);
+            playerSwapCooldownDurationTicks = durationTicks;
+        } else {
+            trainerSwapCooldownEndTick = safeAdd(currentTick, durationTicks);
+            trainerSwapCooldownDurationTicks = durationTicks;
+        }
+        return true;
+    }
+
     public boolean addPokemonCommandCooldownPenalty(UUID pokemonUUID, long currentTick, long penaltyTicks) {
         if (state != ActionBattleState.ACTIVE || pokemonUUID == null || currentTick < 0L || penaltyTicks <= 0L) return false;
         boolean playerPokemon = pokemonUUID.equals(playerActivePokemonUUID);

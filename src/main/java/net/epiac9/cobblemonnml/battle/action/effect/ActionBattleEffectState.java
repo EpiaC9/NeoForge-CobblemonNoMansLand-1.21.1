@@ -1,6 +1,8 @@
 package net.epiac9.cobblemonnml.battle.action.effect;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -10,10 +12,13 @@ public final class ActionBattleEffectState {
     private final UUID battleId;
     private final UUID pokemonUUID;
     private final Map<ContributionKey, ActionBattleStatContribution> statContributions = new HashMap<>();
-    private long hazeEndTick = 0L;
-    private long cindersEndTick = 0L;
-    private long burnEndTick = 0L;
-    private long nextBurnDotTick = 0L;
+    private long hazeEndTick;
+    private long cindersEndTick;
+    private long burnEndTick;
+    private long nextBurnDotTick;
+    private long freezeEndTick;
+    private long frostbiteEndTick;
+    private long nextFrostbiteDotTick;
 
     ActionBattleEffectState(UUID battleId, UUID pokemonUUID) {
         if (battleId == null || pokemonUUID == null) throw new IllegalArgumentException("Battle and Pokemon IDs cannot be null.");
@@ -23,9 +28,7 @@ public final class ActionBattleEffectState {
 
     boolean applyStatContribution(ActionBattleStat stat, int stages, long currentTick, long durationTicks) {
         if (stat == null || stages == 0 || stages < -6 || stages > 6 || currentTick < 0L || durationTicks <= 0L) return false;
-        long endTick = safeAdd(currentTick, durationTicks);
-        ContributionKey key = new ContributionKey(stat, stages);
-        statContributions.put(key, new ActionBattleStatContribution(stat, stages, endTick));
+        statContributions.put(new ContributionKey(stat, stages), new ActionBattleStatContribution(stat, stages, safeAdd(currentTick, durationTicks)));
         return true;
     }
 
@@ -38,6 +41,10 @@ public final class ActionBattleEffectState {
             if (contribution.stat() == stat && contribution.isActive(currentTick)) total += contribution.stages();
         }
         if (stat == ActionBattleStat.ATTACK && hasStatus(ActionBattleStatus.BURN, currentTick)) total -= 1;
+        if (hasStatus(ActionBattleStatus.FROSTBITE, currentTick)) {
+            if (stat == ActionBattleStat.DEFENSE) total -= 1;
+            if (stat == ActionBattleStat.SPECIAL_DEFENSE) total -= 1;
+        }
         return Math.max(-6, Math.min(6, total));
     }
 
@@ -69,11 +76,31 @@ public final class ActionBattleEffectState {
         return ActionBattleStatusApplication.CINDERS_APPLIED;
     }
 
+    ActionBattleStatusApplication applyFreezeCapableHit(long currentTick) {
+        if (currentTick < 0L) return null;
+        pruneNonDot(currentTick);
+        if (hasStatus(ActionBattleStatus.FROSTBITE, currentTick)) {
+            frostbiteEndTick = safeAdd(currentTick, BASE_STATUS_DURATION_TICKS);
+            nextFrostbiteDotTick = safeAdd(currentTick, BASE_DOT_INTERVAL_TICKS);
+            return ActionBattleStatusApplication.FROSTBITE_REFRESHED;
+        }
+        if (hasStatus(ActionBattleStatus.FREEZE, currentTick)) {
+            freezeEndTick = 0L;
+            frostbiteEndTick = safeAdd(currentTick, BASE_STATUS_DURATION_TICKS);
+            nextFrostbiteDotTick = safeAdd(currentTick, BASE_DOT_INTERVAL_TICKS);
+            return ActionBattleStatusApplication.FROSTBITE_APPLIED;
+        }
+        freezeEndTick = safeAdd(currentTick, BASE_STATUS_DURATION_TICKS);
+        return ActionBattleStatusApplication.FREEZE_APPLIED;
+    }
+
     boolean hasStatus(ActionBattleStatus status, long currentTick) {
         if (status == null || currentTick < 0L) return false;
         return switch (status) {
             case CINDERS -> currentTick < cindersEndTick;
             case BURN -> currentTick < burnEndTick;
+            case FREEZE -> currentTick < freezeEndTick;
+            case FROSTBITE -> currentTick < frostbiteEndTick;
         };
     }
 
@@ -82,29 +109,42 @@ public final class ActionBattleEffectState {
         long endTick = switch (status) {
             case CINDERS -> cindersEndTick;
             case BURN -> burnEndTick;
+            case FREEZE -> freezeEndTick;
+            case FROSTBITE -> frostbiteEndTick;
         };
         return Math.max(0L, endTick - currentTick);
     }
 
-    ActionBattleDotEvent tick(long currentTick) {
-        if (currentTick < 0L) return null;
+    List<ActionBattleDotEvent> tick(long currentTick) {
+        if (currentTick < 0L) return List.of();
         pruneNonDot(currentTick);
-        ActionBattleDotEvent event = null;
+        List<ActionBattleDotEvent> events = new ArrayList<>(2);
         if (burnEndTick > 0L && nextBurnDotTick > 0L && currentTick >= nextBurnDotTick && nextBurnDotTick <= burnEndTick) {
-            event = new ActionBattleDotEvent(pokemonUUID, ActionBattleStatus.BURN, 0.03D, true);
+            events.add(new ActionBattleDotEvent(pokemonUUID, ActionBattleStatus.BURN, 0.03D, true));
             nextBurnDotTick = safeAdd(nextBurnDotTick, BASE_DOT_INTERVAL_TICKS);
+        }
+        if (frostbiteEndTick > 0L && nextFrostbiteDotTick > 0L && currentTick >= nextFrostbiteDotTick && nextFrostbiteDotTick <= frostbiteEndTick) {
+            events.add(new ActionBattleDotEvent(pokemonUUID, ActionBattleStatus.FROSTBITE, 0.03D, true));
+            nextFrostbiteDotTick = safeAdd(nextFrostbiteDotTick, BASE_DOT_INTERVAL_TICKS);
         }
         if (burnEndTick > 0L && currentTick >= burnEndTick) {
             burnEndTick = 0L;
             nextBurnDotTick = 0L;
         }
-        return event;
+        if (frostbiteEndTick > 0L && currentTick >= frostbiteEndTick) {
+            frostbiteEndTick = 0L;
+            nextFrostbiteDotTick = 0L;
+        }
+        return events;
     }
 
     void clearStatuses() {
         cindersEndTick = 0L;
         burnEndTick = 0L;
         nextBurnDotTick = 0L;
+        freezeEndTick = 0L;
+        frostbiteEndTick = 0L;
+        nextFrostbiteDotTick = 0L;
     }
 
     boolean prune(long currentTick) {
@@ -114,6 +154,10 @@ public final class ActionBattleEffectState {
             burnEndTick = 0L;
             nextBurnDotTick = 0L;
         }
+        if (frostbiteEndTick > 0L && currentTick > frostbiteEndTick) {
+            frostbiteEndTick = 0L;
+            nextFrostbiteDotTick = 0L;
+        }
         return isEmpty();
     }
 
@@ -121,18 +165,18 @@ public final class ActionBattleEffectState {
         statContributions.entrySet().removeIf(entry -> !entry.getValue().isActive(currentTick));
         if (hazeEndTick > 0L && currentTick >= hazeEndTick) hazeEndTick = 0L;
         if (cindersEndTick > 0L && currentTick >= cindersEndTick) cindersEndTick = 0L;
+        if (freezeEndTick > 0L && currentTick >= freezeEndTick) freezeEndTick = 0L;
     }
 
     private boolean isEmpty() {
-        return statContributions.isEmpty() && hazeEndTick == 0L && cindersEndTick == 0L && burnEndTick == 0L;
+        return statContributions.isEmpty() && hazeEndTick == 0L && cindersEndTick == 0L && burnEndTick == 0L && freezeEndTick == 0L && frostbiteEndTick == 0L;
     }
 
     UUID battleId() { return battleId; }
     UUID pokemonUUID() { return pokemonUUID; }
 
     private static long safeAdd(long left, long right) {
-        if (Long.MAX_VALUE - left < right) return Long.MAX_VALUE;
-        return left + right;
+        return Long.MAX_VALUE - left < right ? Long.MAX_VALUE : left + right;
     }
 
     private record ContributionKey(ActionBattleStat stat, int stages) {}

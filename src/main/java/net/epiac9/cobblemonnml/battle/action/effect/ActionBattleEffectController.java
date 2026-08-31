@@ -43,6 +43,11 @@ public final class ActionBattleEffectController {
         return state(battleId, pokemonUUID).applyBurnCapableHit(currentTick);
     }
 
+    public ActionBattleStatusApplication applyFreezeCapableHit(UUID battleId, UUID pokemonUUID, long currentTick) {
+        if (!validIds(battleId, pokemonUUID) || currentTick < 0L) return null;
+        return state(battleId, pokemonUUID).applyFreezeCapableHit(currentTick);
+    }
+
     public boolean hasStatus(UUID battleId, UUID pokemonUUID, ActionBattleStatus status, long currentTick) {
         ActionBattleEffectState state = existingState(battleId, pokemonUUID);
         if (state == null) return false;
@@ -61,6 +66,7 @@ public final class ActionBattleEffectController {
 
     public long statusDurationTicks(ActionBattleStatus status) {
         return status == ActionBattleStatus.CINDERS || status == ActionBattleStatus.BURN
+                || status == ActionBattleStatus.FREEZE || status == ActionBattleStatus.FROSTBITE
                 ? ActionBattleEffectState.BASE_STATUS_DURATION_TICKS : 0L;
     }
 
@@ -76,10 +82,7 @@ public final class ActionBattleEffectController {
         Map<UUID, ActionBattleEffectState> battleStates = statesByBattle.get(battleId);
         if (battleStates == null) return List.of();
         List<ActionBattleDotEvent> events = new ArrayList<>();
-        for (ActionBattleEffectState state : battleStates.values()) {
-            ActionBattleDotEvent event = state.tick(currentTick);
-            if (event != null) events.add(event);
-        }
+        for (ActionBattleEffectState state : battleStates.values()) events.addAll(state.tick(currentTick));
         battleStates.entrySet().removeIf(entry -> entry.getValue().prune(currentTick));
         if (battleStates.isEmpty()) statesByBattle.remove(battleId);
         return events;

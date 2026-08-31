@@ -8,6 +8,7 @@ import me.rufia.fightorflight.data.movedata.movedatas.StatusEffectMoveData;
 import me.rufia.fightorflight.entity.PokemonAttackEffect;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionBattleProjectileEntity;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionProjectileProfile;
@@ -23,11 +24,11 @@ public final class FightOrFlightAdapter {
     private FightOrFlightAdapter() {}
 
     public static boolean supports(Move move) {
-        return move != null && (PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move)));
+        return move != null && (ActionBattleHailHandler.isHail(move) || PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFreezeOnHitMetadata(move))));
     }
 
     public static boolean isRangedMove(Move move) {
-        return move != null && (PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move)));
+        return move != null && (ActionBattleHailHandler.isHail(move) || PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFreezeOnHitMetadata(move))));
     }
 
     public static boolean isNativeDamageMove(Move move) {
@@ -89,8 +90,16 @@ public final class FightOrFlightAdapter {
         return 60L;
     }
 
+    public static boolean canCommitHail(PokemonEntity attacker, LivingEntity target) {
+        if (attacker == null || target == null || !target.isAlive()) return false;
+        if (!attacker.getSensing().hasLineOfSight(target)) return false;
+        double range = ActionProjectileProfile.rangedCommitDistance();
+        return attacker.distanceToSqr(target) <= range * range;
+    }
+
     public static boolean canCommit(PokemonEntity attacker, LivingEntity target, Move move) {
         if (attacker == null || target == null || move == null || !target.isAlive() || !supports(move)) return false;
+        if (ActionBattleHailHandler.isHail(move)) return canCommitHail(attacker, target);
         if (!attacker.getSensing().hasLineOfSight(target)) return false;
         if (PokemonUtils.isMeleeAttackMove(move)) {
             if (attacker.isWithinMeleeAttackRange(target)) return true;
@@ -115,10 +124,11 @@ public final class FightOrFlightAdapter {
                 if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(pokemonTarget.getUUID());
                 if (battleId != null) ActionBattleDamageFeedbackController.global().recordDamage(battleId, pokemonTarget.getPokemon().getUuid(), beforeHp, pokemonTarget.getPokemon().getCurrentHealth(), ActionBattleDamageFeedbackCategory.NORMAL);
                 ActionBattleMoveEffectResolver.applyDeclaredBurnOnHit(attacker, pokemonTarget, move, success);
+                ActionBattleMoveEffectResolver.applyDeclaredFreezeOnHit(attacker, pokemonTarget, move, success);
             }
             return true;
         }
-        if (PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move))) {
+        if (PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFreezeOnHitMetadata(move)))) {
             PokemonUtils.sendAnimationPacket(attacker, "special");
             ActionBattleProjectileEntity projectile = new ActionBattleProjectileEntity(attacker.level(), attacker, target, move);
             attacker.level().addFreshEntity(projectile);
@@ -147,7 +157,10 @@ public final class FightOrFlightAdapter {
             List<MoveData> original = MoveData.moveData.get(move.getName());
             if (original == null || original.stream().noneMatch(StatusEffectMoveData.class::isInstance)) return operation.run();
             List<MoveData> filtered = new ArrayList<>(original.size());
-            for (MoveData entry : original) if (!(entry instanceof StatusEffectMoveData)) filtered.add(entry);
+            for (MoveData entry : original) {
+                if (entry instanceof StatusEffectMoveData status && ActionBattleMoveEffectResolver.isOwnedActionStatus(status)) continue;
+                filtered.add(entry);
+            }
             MoveData.moveData.put(move.getName(), filtered);
             try {
                 return operation.run();

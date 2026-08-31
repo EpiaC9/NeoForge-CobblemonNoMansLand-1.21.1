@@ -2,6 +2,6 @@
   "effect": "burn",
   "trigger": "on_hit",
   "target": "target",
-  "chance": 1.0,
-  "secondary": false
+  "chance": 0.2,
+  "secondary": true
 }

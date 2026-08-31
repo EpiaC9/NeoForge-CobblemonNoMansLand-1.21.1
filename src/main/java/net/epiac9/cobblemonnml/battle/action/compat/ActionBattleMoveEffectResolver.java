@@ -24,56 +24,90 @@ public final class ActionBattleMoveEffectResolver {
         return false;
     }
 
-
     public static boolean hasSupportedBurnOnHitMetadata(Move move) {
+        return hasSupportedOnHitMetadata(move, true);
+    }
+
+    public static boolean hasSupportedFreezeOnHitMetadata(Move move) {
+        return hasSupportedOnHitMetadata(move, false);
+    }
+
+    public static boolean isOwnedActionStatus(StatusEffectMoveData status) {
+        if (status == null || !status.isOnHit() || !Objects.equals(status.getTarget(), "target")) return false;
+        String name = status.getName();
+        return isBurnName(name) || isFreezeName(name) || Objects.equals(name, "triattack");
+    }
+
+    public static void applyDeclaredBurnOnHit(PokemonEntity attacker, PokemonEntity target, Move move, boolean hitSucceeded) {
+        applyDeclared(attacker, target, move, hitSucceeded, true);
+    }
+
+    public static void applyDeclaredFreezeOnHit(PokemonEntity attacker, PokemonEntity target, Move move, boolean hitSucceeded) {
+        applyDeclared(attacker, target, move, hitSucceeded, false);
+    }
+
+    private static boolean hasSupportedOnHitMetadata(Move move, boolean burn) {
         if (move == null) return false;
         List<MoveData> entries = MoveData.moveData.get(move.getName());
         if (entries != null) {
             for (MoveData entry : entries) {
-                if (!(entry instanceof StatusEffectMoveData status)) continue;
-                if (!status.isOnHit() || !Objects.equals(status.getTarget(), "target")) continue;
-                if (Objects.equals(status.getName(), "burn") || Objects.equals(status.getName(), "triattack")) return true;
+                if (!(entry instanceof StatusEffectMoveData status) || !status.isOnHit() || !Objects.equals(status.getTarget(), "target")) continue;
+                String name = status.getName();
+                if (burn ? isBurnName(name) || Objects.equals(name, "triattack") : isFreezeName(name)) return true;
             }
         }
         ActionBattleMoveEffectData fallback = ActionBattleMoveEffectDataManager.get(move.getName());
-        return fallback != null && fallback.isSupportedBurnOnHit();
+        return fallback != null && (burn ? fallback.isSupportedBurnOnHit() : fallback.isSupportedFreezeOnHit());
     }
 
-    public static void applyDeclaredBurnOnHit(PokemonEntity attacker, PokemonEntity target, Move move, boolean hitSucceeded) {
+    private static void applyDeclared(PokemonEntity attacker, PokemonEntity target, Move move, boolean hitSucceeded, boolean burn) {
         if (!hitSucceeded || attacker == null || target == null || move == null || attacker.level().isClientSide) return;
         ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(target.getUUID());
         if (session == null || !session.battleId().equals(ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))) return;
-        if (!rollBurnEffect(attacker, move)) return;
+        if (!rollEffect(attacker, move, burn)) return;
         long currentTick = attacker.level().getGameTime();
-        ActionBattleStatusApplication result = ActionBattleEffectController.global().applyBurnCapableHit(
-                session.battleId(), target.getPokemon().getUuid(), currentTick
-        );
+        ActionBattleStatusApplication result = burn
+                ? ActionBattleEffectController.global().applyBurnCapableHit(session.battleId(), target.getPokemon().getUuid(), currentTick)
+                : ActionBattleEffectController.global().applyFreezeCapableHit(session.battleId(), target.getPokemon().getUuid(), currentTick);
         if (result != null) {
-            DebugLog.log("[CobblemonNML] Action battle Burn effect resolved. Battle=" + session.battleId()
+            DebugLog.log("[CobblemonNML] Action battle " + (burn ? "Burn" : "Freeze") + " effect resolved. Battle=" + session.battleId()
                     + ", move=" + move.getName() + ", target=" + target.getPokemon().getUuid() + ", result=" + result);
         }
     }
 
-    private static boolean rollBurnEffect(PokemonEntity attacker, Move move) {
+    private static boolean rollEffect(PokemonEntity attacker, Move move, boolean burn) {
         List<MoveData> entries = MoveData.moveData.get(move.getName());
-        boolean foundFoFBurnMetadata = false;
+        boolean foundOwnedMetadata = false;
         if (entries != null) {
             for (MoveData entry : entries) {
-                if (!(entry instanceof StatusEffectMoveData status)) continue;
-                if (!status.isOnHit() || !Objects.equals(status.getTarget(), "target")) continue;
+                if (!(entry instanceof StatusEffectMoveData status) || !status.isOnHit() || !Objects.equals(status.getTarget(), "target")) continue;
                 String effectName = status.getName();
-                if (!Objects.equals(effectName, "burn") && !Objects.equals(effectName, "triattack")) continue;
-                foundFoFBurnMetadata = true;
+                boolean matching = burn ? isBurnName(effectName) || Objects.equals(effectName, "triattack") : isFreezeName(effectName);
+                if (!matching) continue;
+                foundOwnedMetadata = true;
                 if (status.canActivateSheerForce() && Objects.equals(attacker.getPokemon().getAbility().getName(), "sheerforce")) continue;
                 float chance = status.getChance();
                 if (Objects.equals(attacker.getPokemon().getAbility().getName(), "serenegrace")) chance *= 2.0F;
                 if (!(chance > attacker.getRandom().nextFloat())) continue;
-                if (Objects.equals(effectName, "triattack")) return attacker.getRandom().nextFloat() < (1.0F / 3.0F);
+                if (burn && Objects.equals(effectName, "triattack")) return attacker.getRandom().nextFloat() < (1.0F / 3.0F);
                 return true;
             }
         }
-        if (foundFoFBurnMetadata) return false;
+        if (foundOwnedMetadata) return false;
         ActionBattleMoveEffectData fallback = ActionBattleMoveEffectDataManager.get(move.getName());
-        return fallback != null && fallback.isSupportedBurnOnHit() && fallback.chance() > attacker.getRandom().nextFloat();
+        if (fallback == null || !(burn ? fallback.isSupportedBurnOnHit() : fallback.isSupportedFreezeOnHit())) return false;
+        if (fallback.secondary() && Objects.equals(attacker.getPokemon().getAbility().getName(), "sheerforce")) return false;
+        float chance = fallback.chance();
+        if (fallback.secondary() && Objects.equals(attacker.getPokemon().getAbility().getName(), "serenegrace")) chance *= 2.0F;
+        if (!(chance > attacker.getRandom().nextFloat())) return false;
+        return !burn || !fallback.isTriAttack() || attacker.getRandom().nextFloat() < (1.0F / 3.0F);
+    }
+
+    private static boolean isBurnName(String name) {
+        return Objects.equals(name, "burn") || Objects.equals(name, "brn");
+    }
+
+    private static boolean isFreezeName(String name) {
+        return Objects.equals(name, "freeze") || Objects.equals(name, "frozen") || Objects.equals(name, "frz");
     }
 }
