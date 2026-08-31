@@ -27,6 +27,7 @@ public final class ActionBattleStatusParticleController {
     private static final int TOXIC_1_INTERVAL_TICKS = 5;
     private static final int TOXIC_2_INTERVAL_TICKS = 4;
     private static final int TOXIC_3_INTERVAL_TICKS = 3;
+    private static final int PARALYSIS_INTERVAL_TICKS = 4;
 
     private ActionBattleStatusParticleController() {}
 
@@ -50,6 +51,7 @@ public final class ActionBattleStatusParticleController {
         else if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.TOXIC_2, tick) && tick % TOXIC_2_INTERVAL_TICKS == 0L) emitPoisonAmbient(level, entity, 2);
         else if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.TOXIC_1, tick) && tick % TOXIC_1_INTERVAL_TICKS == 0L) emitPoisonAmbient(level, entity, 1);
         else if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.POISON, tick) && tick % POISON_INTERVAL_TICKS == 0L) emitPoisonAmbient(level, entity, 0);
+        if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.PARALYSIS, tick) && tick % PARALYSIS_INTERVAL_TICKS == 0L) emitParalysisAmbient(level, entity);
     }
 
     private static void emitCindersAmbient(ServerLevel level, PokemonEntity entity) { emitAcrossBody(level, entity, CINDERS_EMBERS_PER_EMISSION, ParticleTypes.LAVA, 0.01D); }
@@ -87,6 +89,17 @@ public final class ActionBattleStatusParticleController {
         int green = switch (Math.clamp(toxicLevel, 0, 3)) { case 0 -> 8; case 1 -> 5; case 2 -> 2; default -> 0; };
         if (green > 0) level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, cx, cy, cz, green, Math.max(0.25D, box.getXsize() * 0.50D), Math.max(0.35D, box.getYsize() * 0.45D), Math.max(0.25D, box.getZsize() * 0.50D), 0.03D);
         level.sendParticles(ParticleTypes.WITCH, cx, cy, cz, purple, Math.max(0.25D, box.getXsize() * 0.55D), Math.max(0.35D, box.getYsize() * 0.50D), Math.max(0.25D, box.getZsize() * 0.55D), toxicLevel >= 2 ? 0.12D : 0.08D);
+    }
+
+    private static void emitParalysisAmbient(ServerLevel level, PokemonEntity entity) {
+        emitAcrossBody(level, entity, 2, ParticleTypes.ELECTRIC_SPARK, 0.015D);
+    }
+
+    public static void emitParalysisTriggerBurst(ServerLevel level, PokemonEntity entity) {
+        if (level == null || entity == null || entity.isRemoved()) return;
+        AABB box = entity.getBoundingBox();
+        double cx = box.getCenter().x, cy = box.getCenter().y, cz = box.getCenter().z;
+        level.sendParticles(ParticleTypes.ELECTRIC_SPARK, cx, cy, cz, 18, Math.max(0.25D, box.getXsize() * 0.55D), Math.max(0.35D, box.getYsize() * 0.50D), Math.max(0.25D, box.getZsize() * 0.55D), 0.10D);
     }
 
     public static void emitFrostbiteDotBurst(ServerLevel level, PokemonEntity entity) {

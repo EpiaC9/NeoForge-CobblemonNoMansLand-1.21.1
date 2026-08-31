@@ -16,7 +16,7 @@ import java.util.Map;
 
 public final class ActionBattleMoveEffectDataManager {
     private static final String DIRECTORY = "action_battle/move_effects";
-    private static volatile Map<String, ActionBattleMoveEffectData> definitions = Map.of();
+    private static volatile Map<String, List<ActionBattleMoveEffectData>> definitions = Map.of();
 
     private ActionBattleMoveEffectDataManager() {}
 
@@ -25,7 +25,7 @@ public final class ActionBattleMoveEffectDataManager {
             definitions = Map.of();
             return;
         }
-        Map<String, ActionBattleMoveEffectData> loaded = new HashMap<>();
+        Map<String, List<ActionBattleMoveEffectData>> loaded = new HashMap<>();
         List<Map.Entry<ResourceLocation, Resource>> resources = new ArrayList<>(resourceManager.listResources(
                 DIRECTORY, id -> id.getPath().endsWith(".json")
         ).entrySet());
@@ -37,15 +37,14 @@ public final class ActionBattleMoveEffectDataManager {
                 continue;
             }
             try (InputStreamReader reader = new InputStreamReader(entry.getValue().open(), StandardCharsets.UTF_8)) {
-                ActionBattleMoveEffectData definition = parse(JsonParser.parseReader(reader).getAsJsonObject());
-                if (definition == null) {
+                List<ActionBattleMoveEffectData> definition = parseAll(JsonParser.parseReader(reader).getAsJsonObject());
+                if (definition.isEmpty()) {
                     DebugLog.log("[CobblemonNML] Rejected invalid ACTION move-effect definition: " + entry.getKey());
                     continue;
                 }
                 loaded.put(moveName, definition);
             } catch (Exception exception) {
-                DebugLog.log("[CobblemonNML] Failed to load ACTION move-effect definition " + entry.getKey());
-                exception.printStackTrace();
+                DebugLog.log("[CobblemonNML] Failed to load ACTION move-effect definition " + entry.getKey(), exception);
             }
         }
         definitions = Map.copyOf(loaded);
@@ -53,7 +52,28 @@ public final class ActionBattleMoveEffectDataManager {
     }
 
     public static ActionBattleMoveEffectData get(String moveName) {
-        return moveName == null ? null : definitions.get(moveName);
+        List<ActionBattleMoveEffectData> entries = getAll(moveName);
+        return entries.isEmpty() ? null : entries.getFirst();
+    }
+
+    public static List<ActionBattleMoveEffectData> getAll(String moveName) {
+        return moveName == null ? List.of() : definitions.getOrDefault(moveName, List.of());
+    }
+
+    static List<ActionBattleMoveEffectData> parseAll(JsonObject json) {
+        if (json == null) return List.of();
+        List<ActionBattleMoveEffectData> parsed = new ArrayList<>();
+        if (json.has("effects") && json.get("effects").isJsonArray()) {
+            for (var element : json.getAsJsonArray("effects")) {
+                if (!element.isJsonObject()) return List.of();
+                ActionBattleMoveEffectData entry = parse(element.getAsJsonObject());
+                if (entry == null) return List.of();
+                parsed.add(entry);
+            }
+            return parsed.isEmpty() ? List.of() : List.copyOf(parsed);
+        }
+        ActionBattleMoveEffectData single = parse(json);
+        return single == null ? List.of() : List.of(single);
     }
 
     static ActionBattleMoveEffectData parse(JsonObject json) {

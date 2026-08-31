@@ -4,12 +4,12 @@ import java.util.List;
 import java.util.Locale;
 
 public final class ActionProjectileProfile {
-    public static final double BEAM_BOLT_SPEED = 0.75D;
-    public static final double NORMAL_PROJECTILE_SPEED = 0.35D;
-    public static final double WAVE_AREA_SPEED = 0.08D;
-    public static final double HOMING_GUIDED_SPEED = 0.15D;
-    public static final double ARCING_LOBBED_SPEED = 0.45D;
-    public static final double GROUNDED_SURFACE_SPEED = 0.10D;
+    public static final double BEAM_BOLT_SPEED = 0.8D;
+    public static final double NORMAL_PROJECTILE_SPEED = 0.2D;
+    public static final double WAVE_AREA_SPEED = 0.05D;
+    public static final double HOMING_GUIDED_SPEED = 0.1D;
+    public static final double ARCING_LOBBED_SPEED = 0.3D;
+    public static final double GROUNDED_SURFACE_SPEED = 0.8D;
     public static final double INSTANT_SPEED = 1.0D;
     public static final double TARGET_LOCKED_SPEED = 1.0D;
     public static final double DASH_RANGE_BONUS = 3.0D;

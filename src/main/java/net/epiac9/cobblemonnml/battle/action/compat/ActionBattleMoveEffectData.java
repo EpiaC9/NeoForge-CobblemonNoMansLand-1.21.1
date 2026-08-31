@@ -16,6 +16,17 @@ public record ActionBattleMoveEffectData(String effect, String trigger, String t
                 && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
     }
 
+
+    public boolean isSupportedFlinchOnHit() {
+        return "flinch".equals(effect)
+                && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
+    }
+
+    public boolean isSupportedParalysisOnHit() {
+        return ("paralysis".equals(effect) || "paralyze".equals(effect) || "paralyzed".equals(effect) || "par".equals(effect) || "triattack".equals(effect))
+                && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
+    }
+
     public int poisonProgressionStrength() {
         if (!isSupportedPoisonOnHit()) return 0;
         return "toxic".equals(effect) || "badly_poison".equals(effect) ? 2 : 1;

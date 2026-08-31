@@ -1,5 +1,7 @@
 package net.epiac9.cobblemonnml.battle.action.effect;
 
+import net.epiac9.cobblemonnml.battle.action.ActionBattleTiming;
+
 public final class ActionBattlePoisonToxicState {
     public static final long BASE_DURATION_TICKS = 360L;
     public static final long DOT_INTERVAL_TICKS = 20L;
@@ -29,17 +31,17 @@ public final class ActionBattlePoisonToxicState {
         if (isExpired(currentTick)) clear();
         if (stage == null) {
             stage = strength == 1 ? Stage.POISON : Stage.TOXIC_1;
-            expiresAtTick = safeAdd(currentTick, scaledTicks(BASE_DURATION_TICKS, durationMultiplier));
-            nextDotTick = safeAdd(currentTick, DOT_INTERVAL_TICKS);
+            expiresAtTick = ActionBattleTiming.safeAdd(currentTick, ActionBattleTiming.scaledTicks(BASE_DURATION_TICKS, durationMultiplier));
+            nextDotTick = ActionBattleTiming.safeAdd(currentTick, DOT_INTERVAL_TICKS);
             reapplicationCount = 0;
             return stage == Stage.POISON
                     ? ActionBattleStatusApplication.POISON_APPLIED
                     : ActionBattleStatusApplication.TOXIC_1_APPLIED;
         }
 
-        expiresAtTick = safeAdd(expiresAtTick, scaledTicks(extensionTicksForNextReapplication(), durationMultiplier));
+        expiresAtTick = ActionBattleTiming.safeAdd(expiresAtTick, ActionBattleTiming.scaledTicks(extensionTicksForNextReapplication(), durationMultiplier));
         reapplicationCount++;
-        nextDotTick = safeAdd(currentTick, DOT_INTERVAL_TICKS);
+        nextDotTick = ActionBattleTiming.safeAdd(currentTick, DOT_INTERVAL_TICKS);
 
         int currentIndex = stage.ordinal();
         int nextIndex = Math.min(Stage.TOXIC_3.ordinal(), currentIndex + strength);
@@ -61,11 +63,11 @@ public final class ActionBattlePoisonToxicState {
         if (currentTick < 0L) return null;
         if (isExpired(currentTick)) return null;
         if (stage == null || nextDotTick <= 0L || currentTick < nextDotTick) return null;
-        while (nextDotTick <= currentTick) nextDotTick = safeAdd(nextDotTick, DOT_INTERVAL_TICKS);
+        while (nextDotTick <= currentTick) nextDotTick = ActionBattleTiming.safeAdd(nextDotTick, DOT_INTERVAL_TICKS);
         return switch (stage) {
             case POISON -> new DotTick(0.03F, false);
-            case TOXIC_1 -> new DotTick(0.03F, true);
-            case TOXIC_2 -> new DotTick(0.06F, true);
+            case TOXIC_1 -> new DotTick(0.03F, false);
+            case TOXIC_2 -> new DotTick(0.06F, false);
             case TOXIC_3 -> new DotTick(0.09F, true);
         };
     }
@@ -74,7 +76,7 @@ public final class ActionBattlePoisonToxicState {
         if (currentTick < 0L) throw new IllegalArgumentException("currentTick cannot be negative");
         if (isExpired(currentTick) || stage == null) return;
         stage = Stage.POISON;
-        nextDotTick = safeAdd(currentTick, DOT_INTERVAL_TICKS);
+        nextDotTick = ActionBattleTiming.safeAdd(currentTick, DOT_INTERVAL_TICKS);
     }
 
     public boolean isExpired(long currentTick) {
@@ -110,13 +112,5 @@ public final class ActionBattlePoisonToxicState {
         };
     }
 
-    private static long scaledTicks(long ticks, float multiplier) {
-        return Math.max(1L, Math.round(ticks * multiplier));
-    }
 
-    private static long safeAdd(long a, long b) {
-        if (b > 0L && a > Long.MAX_VALUE - b) return Long.MAX_VALUE;
-        if (b < 0L && a < Long.MIN_VALUE - b) return Long.MIN_VALUE;
-        return a + b;
-    }
 }

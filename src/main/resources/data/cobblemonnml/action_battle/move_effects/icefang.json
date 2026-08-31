@@ -1,7 +1,18 @@
 {
-  "effect": "freeze",
-  "trigger": "on_hit",
-  "target": "target",
-  "chance": 0.1,
-  "secondary": true
+  "effects": [
+    {
+      "effect": "freeze",
+      "trigger": "on_hit",
+      "target": "target",
+      "chance": 0.1,
+      "secondary": true
+    },
+    {
+      "effect": "flinch",
+      "trigger": "on_hit",
+      "target": "target",
+      "chance": 0.1,
+      "secondary": true
+    }
+  ]
 }

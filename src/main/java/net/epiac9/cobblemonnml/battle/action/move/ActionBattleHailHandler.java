@@ -3,6 +3,7 @@ package net.epiac9.cobblemonnml.battle.action.move;
 import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.ActionBattlePosition;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleParalysisController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.area.ActionBattlePersistentAreaController;
 import net.epiac9.cobblemonnml.battle.action.area.ActionBattlePersistentAreaPreset;
@@ -103,6 +104,7 @@ public final class ActionBattleHailHandler {
     }
 
     public static void onCommand(UUID casterPokemonUUID) { ActionBattleChannelController.global().onCommand(casterPokemonUUID); }
+    public static void onControlEffect(UUID casterPokemonUUID) { ActionBattleChannelController.global().cancel(casterPokemonUUID, ActionBattleChannelCancelReason.CONTROL_EFFECT); }
     public static boolean isChanneling(UUID casterPokemonUUID) { return ActionBattleChannelController.global().isChanneling(casterPokemonUUID); }
 
     public static void clearBattle(UUID battleId) {
@@ -139,6 +141,7 @@ public final class ActionBattleHailHandler {
                     .orElse(null);
             if (area != null) spawnCeilingCloud(context.level(), area);
         }
+        ActionBattleParalysisController.onAbilitySucceeded(state.battleId(), state.casterPokemonUUID(), context.level().getGameTime());
         DebugLog.log("[CobblemonNML] Hail channel completed. Battle=" + state.battleId() + ", caster=" + state.casterPokemonUUID()
                 + ", anchor=" + state.lastTargetablePosition() + ", durationTicks=" + preset.durationTicks());
     }

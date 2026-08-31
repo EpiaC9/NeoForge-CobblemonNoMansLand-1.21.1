@@ -28,11 +28,11 @@ public final class FightOrFlightAdapter {
     private FightOrFlightAdapter() {}
 
     public static boolean supports(Move move) {
-        return move != null && (ActionBattleBalefulBunkerHandler.isBalefulBunker(move) || ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFreezeOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedPoisonOnHitMetadata(move))));
+        return move != null && (ActionBattleBalefulBunkerHandler.isBalefulBunker(move) || ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFreezeOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedPoisonOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move))));
     }
 
     public static boolean isRangedMove(Move move) {
-        return move != null && (ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFreezeOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedPoisonOnHitMetadata(move))));
+        return move != null && (ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFreezeOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedPoisonOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move))));
     }
 
     public static boolean isNativeDamageMove(Move move) {
@@ -166,10 +166,12 @@ public final class FightOrFlightAdapter {
                 ActionBattleMoveEffectResolver.applyDeclaredBurnOnHit(attacker, pokemonTarget, move, success);
                 ActionBattleMoveEffectResolver.applyDeclaredFreezeOnHit(attacker, pokemonTarget, move, success);
                 ActionBattleMoveEffectResolver.applyDeclaredPoisonOnHit(attacker, pokemonTarget, move, success);
+                ActionBattleMoveEffectResolver.applyDeclaredFlinchOnHit(attacker, pokemonTarget, move, success);
+                ActionBattleMoveEffectResolver.applyDeclaredParalysisOnHit(attacker, pokemonTarget, move, success);
             }
             return true;
         }
-        if (PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFreezeOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedPoisonOnHitMetadata(move)))) {
+        if (PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFreezeOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedPoisonOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move)))) {
             PokemonUtils.sendAnimationPacket(attacker, "special");
             ActionBattleProjectileEntity projectile = new ActionBattleProjectileEntity(attacker.level(), attacker, target, move);
             attacker.level().addFreshEntity(projectile);

@@ -8,5 +8,6 @@ public enum ActionBattleStatus {
     POISON,
     TOXIC_1,
     TOXIC_2,
-    TOXIC_3
+    TOXIC_3,
+    PARALYSIS
 }

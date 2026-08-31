@@ -19,6 +19,11 @@ public final class DebugLog {
         LOGGER.info(message);
     }
 
+    public static void log(String message, Throwable throwable) {
+        if (!Config.isDebugLoggingEnabled()) return;
+        LOGGER.info(message, throwable);
+    }
+
     public static void logf(String format, Object... args) {
         if (!Config.isDebugLoggingEnabled()) {
             return;

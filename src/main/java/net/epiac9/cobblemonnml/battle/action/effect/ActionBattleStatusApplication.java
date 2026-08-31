@@ -11,5 +11,7 @@ public enum ActionBattleStatusApplication {
     TOXIC_1_APPLIED,
     TOXIC_2_APPLIED,
     TOXIC_3_APPLIED,
-    TOXIC_3_REAPPLIED
+    TOXIC_3_REAPPLIED,
+    PARALYSIS_APPLIED,
+    PARALYSIS_REFRESHED
 }

@@ -1,7 +1,5 @@
 package net.epiac9.cobblemonnml.battle.action;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 public final class ActionBattleSession {
@@ -37,14 +35,7 @@ public final class ActionBattleSession {
     private double trainerRepositionTargetX;
     private double trainerRepositionTargetY;
     private double trainerRepositionTargetZ;
-    private final Map<UUID, Long> pokemonMoveCooldownEndTicks = new HashMap<>();
-    private final Map<UUID, Long> pokemonMoveCooldownDurationTicks = new HashMap<>();
-    private final Map<UUID, Long> pokemonMovementCommandCooldownEndTicks = new HashMap<>();
-    private final Map<UUID, Long> pokemonMovementCommandCooldownDurationTicks = new HashMap<>();
-    private long playerSwapCooldownEndTick = 0L;
-    private long playerSwapCooldownDurationTicks = 0L;
-    private long trainerSwapCooldownEndTick = 0L;
-    private long trainerSwapCooldownDurationTicks = 0L;
+    private final ActionBattleCommandCooldownState commandCooldowns = new ActionBattleCommandCooldownState();
     private boolean playerSendOutPending = false;
     private boolean trainerSendOutPending = false;
     private long hazeExpiresAtTick = 0L;
@@ -176,134 +167,56 @@ public final class ActionBattleSession {
 
 
     public boolean startPokemonMoveCooldown(UUID pokemonUUID, long currentTick, long durationTicks) {
-        if (state != ActionBattleState.ACTIVE || pokemonUUID == null || currentTick < 0L || durationTicks <= 0L) return false;
-        pokemonMoveCooldownEndTicks.put(pokemonUUID, currentTick + durationTicks);
-        pokemonMoveCooldownDurationTicks.put(pokemonUUID, durationTicks);
-        return true;
+        return state == ActionBattleState.ACTIVE && commandCooldowns.startMove(pokemonUUID, currentTick, durationTicks);
     }
 
-    public boolean isPokemonMoveOnCooldown(UUID pokemonUUID, long currentTick) {
-        if (pokemonUUID == null || currentTick < 0L) return false;
-        return currentTick < pokemonMoveCooldownEndTicks.getOrDefault(pokemonUUID, 0L);
-    }
-
-    public long pokemonMoveCooldownEndTick(UUID pokemonUUID) {
-        return pokemonUUID != null ? pokemonMoveCooldownEndTicks.getOrDefault(pokemonUUID, 0L) : 0L;
-    }
-
-    public long pokemonMoveCooldownDurationTicks(UUID pokemonUUID) {
-        return pokemonUUID != null ? pokemonMoveCooldownDurationTicks.getOrDefault(pokemonUUID, 0L) : 0L;
-    }
+    public boolean isPokemonMoveOnCooldown(UUID pokemonUUID, long currentTick) { return commandCooldowns.moveOnCooldown(pokemonUUID, currentTick); }
+    public long pokemonMoveCooldownEndTick(UUID pokemonUUID) { return commandCooldowns.moveEndTick(pokemonUUID); }
+    public long pokemonMoveCooldownDurationTicks(UUID pokemonUUID) { return commandCooldowns.moveDurationTicks(pokemonUUID); }
 
     public boolean startPokemonMovementCommandCooldown(UUID pokemonUUID, long currentTick, long durationTicks) {
-        if (state != ActionBattleState.ACTIVE || pokemonUUID == null || currentTick < 0L || durationTicks <= 0L) return false;
-        pokemonMovementCommandCooldownEndTicks.put(pokemonUUID, currentTick + durationTicks);
-        pokemonMovementCommandCooldownDurationTicks.put(pokemonUUID, durationTicks);
-        return true;
+        return state == ActionBattleState.ACTIVE && commandCooldowns.startMovement(pokemonUUID, currentTick, durationTicks);
     }
 
-    public boolean isPokemonMovementCommandOnCooldown(UUID pokemonUUID, long currentTick) {
-        if (pokemonUUID == null || currentTick < 0L) return false;
-        return currentTick < pokemonMovementCommandCooldownEndTicks.getOrDefault(pokemonUUID, 0L);
-    }
-
-    public long pokemonMovementCommandCooldownEndTick(UUID pokemonUUID) {
-        return pokemonUUID != null ? pokemonMovementCommandCooldownEndTicks.getOrDefault(pokemonUUID, 0L) : 0L;
-    }
-
-    public long pokemonMovementCommandCooldownDurationTicks(UUID pokemonUUID) {
-        return pokemonUUID != null ? pokemonMovementCommandCooldownDurationTicks.getOrDefault(pokemonUUID, 0L) : 0L;
-    }
+    public boolean isPokemonMovementCommandOnCooldown(UUID pokemonUUID, long currentTick) { return commandCooldowns.movementOnCooldown(pokemonUUID, currentTick); }
+    public long pokemonMovementCommandCooldownEndTick(UUID pokemonUUID) { return commandCooldowns.movementEndTick(pokemonUUID); }
+    public long pokemonMovementCommandCooldownDurationTicks(UUID pokemonUUID) { return commandCooldowns.movementDurationTicks(pokemonUUID); }
 
     public boolean setPokemonAllCommandCooldown(UUID pokemonUUID, long currentTick, long durationTicks) {
-        if (state != ActionBattleState.ACTIVE || pokemonUUID == null || currentTick < 0L || durationTicks <= 0L) return false;
-        boolean playerPokemon = pokemonUUID.equals(playerActivePokemonUUID);
-        boolean trainerPokemon = pokemonUUID.equals(trainerActivePokemonUUID);
-        if (!playerPokemon && !trainerPokemon) return false;
-        pokemonMoveCooldownEndTicks.put(pokemonUUID, safeAdd(currentTick, durationTicks));
-        pokemonMoveCooldownDurationTicks.put(pokemonUUID, durationTicks);
-        pokemonMovementCommandCooldownEndTicks.put(pokemonUUID, safeAdd(currentTick, durationTicks));
-        pokemonMovementCommandCooldownDurationTicks.put(pokemonUUID, durationTicks);
-        if (playerPokemon) {
-            playerSwapCooldownEndTick = safeAdd(currentTick, durationTicks);
-            playerSwapCooldownDurationTicks = durationTicks;
-        } else {
-            trainerSwapCooldownEndTick = safeAdd(currentTick, durationTicks);
-            trainerSwapCooldownDurationTicks = durationTicks;
-        }
-        return true;
+        if (state != ActionBattleState.ACTIVE) return false;
+        ActionBattleCommandCooldownState.Side side = cooldownSide(pokemonUUID);
+        return side != null && commandCooldowns.setAll(pokemonUUID, side, currentTick, durationTicks);
     }
 
     public boolean addPokemonCommandCooldownPenalty(UUID pokemonUUID, long currentTick, long penaltyTicks) {
-        if (state != ActionBattleState.ACTIVE || pokemonUUID == null || currentTick < 0L || penaltyTicks <= 0L) return false;
-        boolean playerPokemon = pokemonUUID.equals(playerActivePokemonUUID);
-        boolean trainerPokemon = pokemonUUID.equals(trainerActivePokemonUUID);
-        if (!playerPokemon && !trainerPokemon) return false;
-        extendPokemonCooldown(pokemonMoveCooldownEndTicks, pokemonMoveCooldownDurationTicks, pokemonUUID, currentTick, penaltyTicks);
-        extendPokemonCooldown(pokemonMovementCommandCooldownEndTicks, pokemonMovementCommandCooldownDurationTicks, pokemonUUID, currentTick, penaltyTicks);
-        if (playerPokemon) {
-            if (playerSwapCooldownEndTick > currentTick) {
-                playerSwapCooldownEndTick = safeAdd(playerSwapCooldownEndTick, penaltyTicks);
-                playerSwapCooldownDurationTicks = safeAdd(playerSwapCooldownDurationTicks, penaltyTicks);
-            } else {
-                playerSwapCooldownEndTick = safeAdd(currentTick, penaltyTicks);
-                playerSwapCooldownDurationTicks = penaltyTicks;
-            }
-        } else {
-            if (trainerSwapCooldownEndTick > currentTick) {
-                trainerSwapCooldownEndTick = safeAdd(trainerSwapCooldownEndTick, penaltyTicks);
-                trainerSwapCooldownDurationTicks = safeAdd(trainerSwapCooldownDurationTicks, penaltyTicks);
-            } else {
-                trainerSwapCooldownEndTick = safeAdd(currentTick, penaltyTicks);
-                trainerSwapCooldownDurationTicks = penaltyTicks;
-            }
-        }
-        return true;
-    }
-
-    private static void extendPokemonCooldown(Map<UUID, Long> endTicks, Map<UUID, Long> durationTicks, UUID pokemonUUID, long currentTick, long penaltyTicks) {
-        long currentEnd = endTicks.getOrDefault(pokemonUUID, 0L);
-        if (currentEnd > currentTick) {
-            endTicks.put(pokemonUUID, safeAdd(currentEnd, penaltyTicks));
-            durationTicks.put(pokemonUUID, safeAdd(durationTicks.getOrDefault(pokemonUUID, Math.max(0L, currentEnd - currentTick)), penaltyTicks));
-        } else {
-            endTicks.put(pokemonUUID, safeAdd(currentTick, penaltyTicks));
-            durationTicks.put(pokemonUUID, penaltyTicks);
-        }
-    }
-
-    private static long safeAdd(long left, long right) {
-        if (left < 0L || right < 0L) return Long.MAX_VALUE;
-        return Long.MAX_VALUE - left < right ? Long.MAX_VALUE : left + right;
+        if (state != ActionBattleState.ACTIVE) return false;
+        ActionBattleCommandCooldownState.Side side = cooldownSide(pokemonUUID);
+        return side != null && commandCooldowns.addPenalty(pokemonUUID, side, currentTick, penaltyTicks);
     }
 
     public boolean startPlayerSwapCooldown(long currentTick, long durationTicks) {
-        if (state != ActionBattleState.ACTIVE || currentTick < 0L || durationTicks <= 0L) return false;
-        playerSwapCooldownEndTick = currentTick + durationTicks;
-        playerSwapCooldownDurationTicks = durationTicks;
-        return true;
+        return state == ActionBattleState.ACTIVE && commandCooldowns.startSwap(ActionBattleCommandCooldownState.Side.PLAYER, currentTick, durationTicks);
     }
 
-    public boolean isPlayerSwapOnCooldown(long currentTick) {
-        return currentTick >= 0L && currentTick < playerSwapCooldownEndTick;
-    }
-
-    public long playerSwapCooldownEndTick() { return playerSwapCooldownEndTick; }
-    public long playerSwapCooldownDurationTicks() { return playerSwapCooldownDurationTicks; }
+    public boolean isPlayerSwapOnCooldown(long currentTick) { return commandCooldowns.swapOnCooldown(ActionBattleCommandCooldownState.Side.PLAYER, currentTick); }
+    public long playerSwapCooldownEndTick() { return commandCooldowns.swapEndTick(ActionBattleCommandCooldownState.Side.PLAYER); }
+    public long playerSwapCooldownDurationTicks() { return commandCooldowns.swapDurationTicks(ActionBattleCommandCooldownState.Side.PLAYER); }
 
     public boolean startTrainerSwapCooldown(long currentTick, long durationTicks) {
-        if (state != ActionBattleState.ACTIVE || currentTick < 0L || durationTicks <= 0L) return false;
-        trainerSwapCooldownEndTick = currentTick + durationTicks;
-        trainerSwapCooldownDurationTicks = durationTicks;
-        return true;
+        return state == ActionBattleState.ACTIVE && commandCooldowns.startSwap(ActionBattleCommandCooldownState.Side.TRAINER, currentTick, durationTicks);
     }
 
-    public boolean isTrainerSwapOnCooldown(long currentTick) {
-        return currentTick >= 0L && currentTick < trainerSwapCooldownEndTick;
+    public boolean isTrainerSwapOnCooldown(long currentTick) { return commandCooldowns.swapOnCooldown(ActionBattleCommandCooldownState.Side.TRAINER, currentTick); }
+    public long trainerSwapCooldownEndTick() { return commandCooldowns.swapEndTick(ActionBattleCommandCooldownState.Side.TRAINER); }
+    public long trainerSwapCooldownDurationTicks() { return commandCooldowns.swapDurationTicks(ActionBattleCommandCooldownState.Side.TRAINER); }
+
+    private ActionBattleCommandCooldownState.Side cooldownSide(UUID pokemonUUID) {
+        if (pokemonUUID == null) return null;
+        if (pokemonUUID.equals(playerActivePokemonUUID)) return ActionBattleCommandCooldownState.Side.PLAYER;
+        if (pokemonUUID.equals(trainerActivePokemonUUID)) return ActionBattleCommandCooldownState.Side.TRAINER;
+        return null;
     }
 
-    public long trainerSwapCooldownEndTick() { return trainerSwapCooldownEndTick; }
-    public long trainerSwapCooldownDurationTicks() { return trainerSwapCooldownDurationTicks; }
     public boolean isPlayerSendOutPending() { return playerSendOutPending; }
     public boolean isTrainerSendOutPending() { return trainerSendOutPending; }
     public void setPlayerSendOutPending(boolean pending) { playerSendOutPending = pending; }
@@ -312,7 +225,7 @@ public final class ActionBattleSession {
 
     public boolean activateHaze(long currentTick, long durationTicks) {
         if (state != ActionBattleState.ACTIVE || currentTick < 0L || durationTicks <= 0L) return false;
-        hazeExpiresAtTick = safeAdd(currentTick, durationTicks);
+        hazeExpiresAtTick = ActionBattleTiming.safeAdd(currentTick, durationTicks);
         return true;
     }
 
@@ -352,7 +265,6 @@ public final class ActionBattleSession {
     public double playerMoveTargetX() { return playerMoveTargetX; }
     public double playerMoveTargetY() { return playerMoveTargetY; }
     public double playerMoveTargetZ() { return playerMoveTargetZ; }
-    public long playerMoveCommandRevision() { return playerCommandRevision; }
     public long playerCommandRevision() { return playerCommandRevision; }
     public boolean hasPlayerMoveCommand() { return playerMoveCommandPending; }
     public int playerMoveSlot() { return playerMoveSlot; }

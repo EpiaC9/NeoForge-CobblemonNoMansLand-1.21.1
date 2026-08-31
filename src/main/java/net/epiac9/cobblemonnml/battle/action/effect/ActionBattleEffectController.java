@@ -84,6 +84,35 @@ public final class ActionBattleEffectController {
         return state(battleId, pokemonUUID).applyPoison(strength, currentTick, durationMultiplier);
     }
 
+
+    public ActionBattleStatusApplication applyParalysis(UUID battleId, UUID pokemonUUID, long currentTick, float durationMultiplier) {
+        if (!validIds(battleId, pokemonUUID) || currentTick < 0L || !(durationMultiplier > 0.0F)) return null;
+        return state(battleId, pokemonUUID).applyParalysis(currentTick, durationMultiplier);
+    }
+
+    public float paralysisCheckChance(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        if (state == null) return 0.0F;
+        float chance = state.paralysisCheckChance(currentTick);
+        removeIfEmpty(state, currentTick);
+        return chance;
+    }
+
+    public float advanceParalysisChecks(UUID battleId, UUID pokemonUUID, int count, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        if (state == null) return 0.0F;
+        float chance = state.advanceParalysisChecks(count, currentTick);
+        removeIfEmpty(state, currentTick);
+        return chance;
+    }
+
+    public void resetParalysisBuildup(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        if (state == null) return;
+        state.resetParalysisBuildup(currentTick);
+        removeIfEmpty(state, currentTick);
+    }
+
     public boolean hasStatus(UUID battleId, UUID pokemonUUID, ActionBattleStatus status, long currentTick) {
         ActionBattleEffectState state = existingState(battleId, pokemonUUID);
         if (state == null) return false;
@@ -129,6 +158,7 @@ public final class ActionBattleEffectController {
         return switch (status) {
             case CINDERS, BURN, FREEZE, FROSTBITE -> ActionBattleEffectState.BASE_STATUS_DURATION_TICKS;
             case POISON, TOXIC_1, TOXIC_2, TOXIC_3 -> ActionBattlePoisonToxicState.BASE_DURATION_TICKS;
+            case PARALYSIS -> ActionBattleParalysisState.BASE_DURATION_TICKS;
         };
     }
 
