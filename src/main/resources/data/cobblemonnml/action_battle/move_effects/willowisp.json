@@ -1,0 +1,6 @@
+{
+  "effect": "burn",
+  "trigger": "on_hit",
+  "target": "target",
+  "chance": 1.0
+}

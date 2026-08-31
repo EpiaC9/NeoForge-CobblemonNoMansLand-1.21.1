@@ -10,6 +10,7 @@ import net.epiac9.cobblemonnml.battle.action.projectile.ActionBattleProjectileEn
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionProjectileProfile;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Collections;
 import java.util.Map;
@@ -26,11 +27,15 @@ public final class ActionBattleProjectileNativeVisuals {
         var effectIds = ActionProjectileProfile.nativeCobblemonEffects(projectile.committedMoveName());
         if (effectIds.isEmpty()) return;
         boolean spawnedAny = false;
-        for (String effectId : effectIds) spawnedAny |= spawnEffect(level, projectile, effectId);
+        int count = effectIds.size();
+        for (int i = 0; i < count; i++) {
+            double lateralOffset = ActionProjectileProfile.visualProjectileCount(projectile.committedMoveName()) == 3 ? (i - 1) * 0.28D : 0.0D;
+            spawnedAny |= spawnEffect(level, projectile, effectIds.get(i), lateralOffset);
+        }
         if (spawnedAny) STARTED.put(projectile, Boolean.TRUE);
     }
 
-    private static boolean spawnEffect(ClientLevel level, ActionBattleProjectileEntity projectile, String effectId) {
+    private static boolean spawnEffect(ClientLevel level, ActionBattleProjectileEntity projectile, String effectId, double lateralOffset) {
         int separator = effectId.indexOf(':');
         if (separator <= 0 || separator >= effectId.length() - 1) return false;
         ResourceLocation id = ResourceLocation.fromNamespaceAndPath(effectId.substring(0, separator), effectId.substring(separator + 1));
@@ -39,10 +44,10 @@ public final class ActionBattleProjectileNativeVisuals {
 
         MatrixWrapper matrix = new MatrixWrapper();
         matrix.setUpdateFunction(wrapper -> {
-            wrapper.setPosition(projectile.position());
+            wrapper.setPosition(offsetPosition(projectile, lateralOffset));
             return Unit.INSTANCE;
         });
-        matrix.updatePosition(projectile.position());
+        matrix.updatePosition(offsetPosition(projectile, lateralOffset));
 
         ParticleStorm storm = new ParticleStorm(
                 effect,
@@ -60,5 +65,13 @@ public final class ActionBattleProjectileNativeVisuals {
         );
         storm.spawn();
         return true;
+    }
+
+    private static Vec3 offsetPosition(ActionBattleProjectileEntity projectile, double lateralOffset) {
+        if (lateralOffset == 0.0D) return projectile.position();
+        Vec3 velocity = projectile.getDeltaMovement();
+        Vec3 right = new Vec3(-velocity.z, 0.0D, velocity.x);
+        if (right.lengthSqr() < 0.000001D) right = new Vec3(1.0D, 0.0D, 0.0D);
+        return projectile.position().add(right.normalize().scale(lateralOffset));
     }
 }

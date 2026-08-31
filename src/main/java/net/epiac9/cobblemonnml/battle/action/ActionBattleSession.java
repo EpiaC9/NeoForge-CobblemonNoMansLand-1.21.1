@@ -214,6 +214,49 @@ public final class ActionBattleSession {
         return pokemonUUID != null ? pokemonMovementCommandCooldownDurationTicks.getOrDefault(pokemonUUID, 0L) : 0L;
     }
 
+    public boolean addPokemonCommandCooldownPenalty(UUID pokemonUUID, long currentTick, long penaltyTicks) {
+        if (state != ActionBattleState.ACTIVE || pokemonUUID == null || currentTick < 0L || penaltyTicks <= 0L) return false;
+        boolean playerPokemon = pokemonUUID.equals(playerActivePokemonUUID);
+        boolean trainerPokemon = pokemonUUID.equals(trainerActivePokemonUUID);
+        if (!playerPokemon && !trainerPokemon) return false;
+        extendPokemonCooldown(pokemonMoveCooldownEndTicks, pokemonMoveCooldownDurationTicks, pokemonUUID, currentTick, penaltyTicks);
+        extendPokemonCooldown(pokemonMovementCommandCooldownEndTicks, pokemonMovementCommandCooldownDurationTicks, pokemonUUID, currentTick, penaltyTicks);
+        if (playerPokemon) {
+            if (playerSwapCooldownEndTick > currentTick) {
+                playerSwapCooldownEndTick = safeAdd(playerSwapCooldownEndTick, penaltyTicks);
+                playerSwapCooldownDurationTicks = safeAdd(playerSwapCooldownDurationTicks, penaltyTicks);
+            } else {
+                playerSwapCooldownEndTick = safeAdd(currentTick, penaltyTicks);
+                playerSwapCooldownDurationTicks = penaltyTicks;
+            }
+        } else {
+            if (trainerSwapCooldownEndTick > currentTick) {
+                trainerSwapCooldownEndTick = safeAdd(trainerSwapCooldownEndTick, penaltyTicks);
+                trainerSwapCooldownDurationTicks = safeAdd(trainerSwapCooldownDurationTicks, penaltyTicks);
+            } else {
+                trainerSwapCooldownEndTick = safeAdd(currentTick, penaltyTicks);
+                trainerSwapCooldownDurationTicks = penaltyTicks;
+            }
+        }
+        return true;
+    }
+
+    private static void extendPokemonCooldown(Map<UUID, Long> endTicks, Map<UUID, Long> durationTicks, UUID pokemonUUID, long currentTick, long penaltyTicks) {
+        long currentEnd = endTicks.getOrDefault(pokemonUUID, 0L);
+        if (currentEnd > currentTick) {
+            endTicks.put(pokemonUUID, safeAdd(currentEnd, penaltyTicks));
+            durationTicks.put(pokemonUUID, safeAdd(durationTicks.getOrDefault(pokemonUUID, Math.max(0L, currentEnd - currentTick)), penaltyTicks));
+        } else {
+            endTicks.put(pokemonUUID, safeAdd(currentTick, penaltyTicks));
+            durationTicks.put(pokemonUUID, penaltyTicks);
+        }
+    }
+
+    private static long safeAdd(long left, long right) {
+        if (left < 0L || right < 0L) return Long.MAX_VALUE;
+        return Long.MAX_VALUE - left < right ? Long.MAX_VALUE : left + right;
+    }
+
     public boolean startPlayerSwapCooldown(long currentTick, long durationTicks) {
         if (state != ActionBattleState.ACTIVE || currentTick < 0L || durationTicks <= 0L) return false;
         playerSwapCooldownEndTick = currentTick + durationTicks;

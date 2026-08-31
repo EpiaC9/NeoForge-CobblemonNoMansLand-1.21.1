@@ -8,18 +8,27 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public record ActionBattleHudPayload(
         boolean visible,
         String playerPokemonName,
+        String playerPokemonUuid,
         int playerPokemonLevel,
         int playerCurrentHp,
         int playerMaxHp,
         int playerPartySlot,
         String trainerPokemonName,
+        String trainerPokemonUuid,
         int trainerPokemonLevel,
         int trainerCurrentHp,
         int trainerMaxHp,
         int trainerPartySlot,
+        List<StatusState> playerStatuses,
+        List<StatusState> trainerStatuses,
+        List<DamageState> playerDamageEvents,
+        List<DamageState> trainerDamageEvents,
         long playerSwapCooldownRemainingTicks,
         long playerSwapCooldownDurationTicks,
         long playerMoveHereCooldownRemainingTicks,
@@ -29,13 +38,16 @@ public record ActionBattleHudPayload(
         MoveState move3,
         MoveState move4
 ) implements CustomPacketPayload {
+    private static final int MAX_STATUS_ENTRIES = 16;
+    private static final int MAX_DAMAGE_ENTRIES = 16;
     public static final Type<ActionBattleHudPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(CobblemonNML.MOD_ID, "action_battle_hud"));
     public static final StreamCodec<ByteBuf, ActionBattleHudPayload> STREAM_CODEC = new StreamCodec<>() {
         @Override
         public ActionBattleHudPayload decode(ByteBuf buf) {
             return new ActionBattleHudPayload(
-                    buf.readBoolean(), readString(buf), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),
-                    readString(buf), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),
+                    buf.readBoolean(), readString(buf), readString(buf), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),
+                    readString(buf), readString(buf), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),
+                    readStatuses(buf), readStatuses(buf), readDamageEvents(buf), readDamageEvents(buf),
                     buf.readLong(), buf.readLong(), buf.readLong(), buf.readLong(),
                     readMove(buf), readMove(buf), readMove(buf), readMove(buf)
             );
@@ -45,15 +57,21 @@ public record ActionBattleHudPayload(
         public void encode(ByteBuf buf, ActionBattleHudPayload value) {
             buf.writeBoolean(value.visible());
             writeString(buf, value.playerPokemonName());
+            writeString(buf, value.playerPokemonUuid());
             buf.writeInt(value.playerPokemonLevel());
             buf.writeInt(value.playerCurrentHp());
             buf.writeInt(value.playerMaxHp());
             buf.writeInt(value.playerPartySlot());
             writeString(buf, value.trainerPokemonName());
+            writeString(buf, value.trainerPokemonUuid());
             buf.writeInt(value.trainerPokemonLevel());
             buf.writeInt(value.trainerCurrentHp());
             buf.writeInt(value.trainerMaxHp());
             buf.writeInt(value.trainerPartySlot());
+            writeStatuses(buf, value.playerStatuses());
+            writeStatuses(buf, value.trainerStatuses());
+            writeDamageEvents(buf, value.playerDamageEvents());
+            writeDamageEvents(buf, value.trainerDamageEvents());
             buf.writeLong(value.playerSwapCooldownRemainingTicks());
             buf.writeLong(value.playerSwapCooldownDurationTicks());
             buf.writeLong(value.playerMoveHereCooldownRemainingTicks());
@@ -65,9 +83,19 @@ public record ActionBattleHudPayload(
         }
     };
 
+    public ActionBattleHudPayload {
+        playerPokemonUuid = playerPokemonUuid != null ? playerPokemonUuid : "";
+        trainerPokemonUuid = trainerPokemonUuid != null ? trainerPokemonUuid : "";
+        playerStatuses = playerStatuses != null ? List.copyOf(playerStatuses) : List.of();
+        trainerStatuses = trainerStatuses != null ? List.copyOf(trainerStatuses) : List.of();
+        playerDamageEvents = playerDamageEvents != null ? List.copyOf(playerDamageEvents) : List.of();
+        trainerDamageEvents = trainerDamageEvents != null ? List.copyOf(trainerDamageEvents) : List.of();
+    }
+
     public static ActionBattleHudPayload hidden() {
         MoveState empty = MoveState.empty();
-        return new ActionBattleHudPayload(false, "", 0, 0, 1, -1, "", 0, 0, 1, -1, 0L, 0L, 0L, 0L, empty, empty, empty, empty);
+        return new ActionBattleHudPayload(false, "", "", 0, 0, 1, -1, "", "", 0, 0, 1, -1, List.of(), List.of(), List.of(), List.of(),
+                0L, 0L, 0L, 0L, empty, empty, empty, empty);
     }
 
     public MoveState move(int slot) {
@@ -86,6 +114,50 @@ public record ActionBattleHudPayload(
     private static void writeString(ByteBuf buf, String value) { ByteBufCodecs.STRING_UTF8.encode(buf, value != null ? value : ""); }
     private static String readString(ByteBuf buf) { return ByteBufCodecs.STRING_UTF8.decode(buf); }
 
+    private static void writeStatuses(ByteBuf buf, List<StatusState> statuses) {
+        List<StatusState> safe = statuses != null ? statuses : List.of();
+        int size = Math.min(MAX_STATUS_ENTRIES, safe.size());
+        buf.writeByte(size);
+        for (int i = 0; i < size; i++) {
+            StatusState status = safe.get(i);
+            writeString(buf, status != null ? status.statusId() : "");
+            buf.writeLong(status != null ? Math.max(0L, status.remainingTicks()) : 0L);
+            buf.writeLong(status != null ? Math.max(0L, status.totalTicks()) : 0L);
+        }
+    }
+
+    private static List<StatusState> readStatuses(ByteBuf buf) {
+        int encodedSize = buf.readUnsignedByte();
+        List<StatusState> statuses = new ArrayList<>(Math.min(MAX_STATUS_ENTRIES, encodedSize));
+        for (int i = 0; i < encodedSize; i++) {
+            StatusState status = new StatusState(readString(buf), buf.readLong(), buf.readLong());
+            if (i < MAX_STATUS_ENTRIES) statuses.add(status);
+        }
+        return List.copyOf(statuses);
+    }
+
+    private static void writeDamageEvents(ByteBuf buf, List<DamageState> events) {
+        List<DamageState> safe = events != null ? events : List.of();
+        int size = Math.min(MAX_DAMAGE_ENTRIES, safe.size());
+        buf.writeByte(size);
+        for (int i = 0; i < size; i++) {
+            DamageState event = safe.get(i);
+            buf.writeLong(event != null ? event.eventId() : 0L);
+            buf.writeInt(event != null ? Math.max(0, event.damage()) : 0);
+            writeString(buf, event != null ? event.category() : "NORMAL");
+        }
+    }
+
+    private static List<DamageState> readDamageEvents(ByteBuf buf) {
+        int encodedSize = buf.readUnsignedByte();
+        List<DamageState> events = new ArrayList<>(Math.min(MAX_DAMAGE_ENTRIES, encodedSize));
+        for (int i = 0; i < encodedSize; i++) {
+            DamageState event = new DamageState(buf.readLong(), buf.readInt(), readString(buf));
+            if (i < MAX_DAMAGE_ENTRIES) events.add(event);
+        }
+        return List.copyOf(events);
+    }
+
     private static void writeMove(ByteBuf buf, MoveState move) {
         MoveState value = move != null ? move : MoveState.empty();
         writeString(buf, value.name());
@@ -99,6 +171,21 @@ public record ActionBattleHudPayload(
 
     private static MoveState readMove(ByteBuf buf) {
         return new MoveState(readString(buf), readString(buf), buf.readInt(), buf.readInt(), buf.readBoolean(), buf.readLong(), buf.readLong());
+    }
+
+    public record DamageState(long eventId, int damage, String category) {
+        public DamageState {
+            damage = Math.max(0, damage);
+            category = category != null ? category : "NORMAL";
+        }
+    }
+
+    public record StatusState(String statusId, long remainingTicks, long totalTicks) {
+        public StatusState {
+            statusId = statusId != null ? statusId : "";
+            remainingTicks = Math.max(0L, remainingTicks);
+            totalTicks = Math.max(0L, totalTicks);
+        }
     }
 
     public record MoveState(String name, String type, int currentPp, int maxPp, boolean supported, long cooldownRemainingTicks, long cooldownDurationTicks) {

@@ -176,7 +176,9 @@ public final class QuestNpcInteractionEvents {
     }
 
     private static void playRunningStep(ServerLevel level, Entity npc, int stepIndex) {
-        SoundEvent stepSound = npc.getBlockStateOn().getSoundType().getStepSound();
+        SoundEvent stepSound = npc.getBlockStateOn()
+                .getSoundType(npc.level(), npc.getOnPos(), npc)
+                .getStepSound();
 
         double horizontalLength = Math.sqrt(
                 npc.getLookAngle().x * npc.getLookAngle().x

@@ -34,8 +34,14 @@ public final class ActionBattleHud {
         ActionBattleHudPayload state = ActionBattleHudClientState.get();
         Font font = minecraft.font;
         ActionBattleHudLayout layout = ActionBattleHudLayout.forScreen(graphics.guiWidth(), graphics.guiHeight());
-        renderPokemonPanel(graphics, font, layout.enemyPanel(), false, state.trainerPokemonName(), state.trainerPokemonLevel(), state.trainerCurrentHp(), state.trainerMaxHp());
-        renderPokemonPanel(graphics, font, layout.allyPanel(), true, state.playerPokemonName(), state.playerPokemonLevel(), state.playerCurrentHp(), state.playerMaxHp());
+        ActionBattleDamageHudState.RenderSnapshot enemyDamage = ActionBattleHudClientState.enemyDamage();
+        ActionBattleDamageHudState.RenderSnapshot allyDamage = ActionBattleHudClientState.allyDamage();
+        renderPokemonPanel(graphics, font, layout.enemyPanel(), false, state.trainerPokemonName(), state.trainerPokemonLevel(), state.trainerCurrentHp(), state.trainerMaxHp(), enemyDamage.trailingHp());
+        renderPokemonPanel(graphics, font, layout.allyPanel(), true, state.playerPokemonName(), state.playerPokemonLevel(), state.playerCurrentHp(), state.playerMaxHp(), allyDamage.trailingHp());
+        ActionBattleStatusHudRenderer.renderEnemy(graphics, layout.enemyPanel(), state.trainerStatuses());
+        ActionBattleStatusHudRenderer.renderAlly(graphics, layout.allyPanel(), state.playerStatuses());
+        ActionBattleDamageHudRenderer.renderFloating(graphics, font, layout.enemyPanel(), false, enemyDamage);
+        ActionBattleDamageHudRenderer.renderFloating(graphics, font, layout.allyPanel(), true, allyDamage);
         renderCommand(graphics, font, layout.commandButton(0), "Swap", "G", state.playerSwapCooldownRemainingTicks(), state.playerSwapCooldownDurationTicks());
         renderCommand(graphics, font, layout.commandButton(1), "Move Here", "V", state.playerMoveHereCooldownRemainingTicks(), state.playerMoveHereCooldownDurationTicks());
         for (int slot = 0; slot < 4; slot++) renderMove(graphics, font, layout.moveButton(slot), slot, state.move(slot));
@@ -43,7 +49,7 @@ public final class ActionBattleHud {
 
     public static ActionBattleHudLayout layoutForScreen(int width, int height) { return ActionBattleHudLayout.forScreen(width, height); }
 
-    private static void renderPokemonPanel(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect, boolean flipped, String rawName, int level, int hp, int maxHp) {
+    private static void renderPokemonPanel(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect, boolean flipped, String rawName, int level, int hp, int maxHp, double trailingHp) {
         int x = rect.x();
         int y = rect.y();
         graphics.blit(flipped ? BATTLE_INFO_FLIPPED : BATTLE_INFO, x, y, 0.0F, 0.0F, rect.width(), rect.height(), rect.width(), rect.height());
@@ -57,6 +63,7 @@ public final class ActionBattleHud {
         int barWidth = (int) Math.round(fullWidth * ratio);
         int barX = flipped ? infoX - 2 + (fullWidth - barWidth) : infoX - 2;
         int barColor = hpColor(ratio);
+        ActionBattleDamageHudRenderer.renderTrailingHp(graphics, rect, flipped, hp, maxHp, trailingHp);
         if (barWidth > 0) graphics.fill(barX, y + 22, barX + barWidth, y + 26, barColor);
         String hpText = Math.max(0, hp) + "/" + Math.max(1, maxHp);
         int centerX = flipped ? infoX + 49 : infoX + 48;

@@ -3,23 +3,35 @@ package net.epiac9.cobblemonnml.battle.action.compat;
 import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import me.rufia.fightorflight.PokemonInterface;
+import me.rufia.fightorflight.data.movedata.MoveData;
+import me.rufia.fightorflight.data.movedata.movedatas.StatusEffectMoveData;
 import me.rufia.fightorflight.entity.PokemonAttackEffect;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
+import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
+import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionBattleProjectileEntity;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionProjectileProfile;
 import me.rufia.fightorflight.utils.PokemonUtils;
 import net.minecraft.world.entity.LivingEntity;
 
 import java.lang.reflect.Method;
+import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class FightOrFlightAdapter {
     private FightOrFlightAdapter() {}
 
     public static boolean supports(Move move) {
-        return move != null && (PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move));
+        return move != null && (PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move)));
     }
 
     public static boolean isRangedMove(Move move) {
-        return move != null && PokemonUtils.isRangeAttackMove(move);
+        return move != null && (PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move)));
+    }
+
+    public static boolean isNativeDamageMove(Move move) {
+        return move != null && (PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move));
     }
 
     public static boolean hasPp(Move move) {
@@ -80,7 +92,11 @@ public final class FightOrFlightAdapter {
     public static boolean canCommit(PokemonEntity attacker, LivingEntity target, Move move) {
         if (attacker == null || target == null || move == null || !target.isAlive() || !supports(move)) return false;
         if (!attacker.getSensing().hasLineOfSight(target)) return false;
-        if (PokemonUtils.isMeleeAttackMove(move)) return attacker.isWithinMeleeAttackRange(target);
+        if (PokemonUtils.isMeleeAttackMove(move)) {
+            if (attacker.isWithinMeleeAttackRange(target)) return true;
+            return ActionProjectileProfile.isDashRush(move.getName())
+                    && attacker.getBoundingBox().inflate(ActionProjectileProfile.dashRangeBonus(move.getName())).intersects(target.getBoundingBox());
+        }
         double range = ActionProjectileProfile.rangedCommitDistance();
         return attacker.distanceToSqr(target) <= range * range;
     }
@@ -91,10 +107,18 @@ public final class FightOrFlightAdapter {
         attacker.setTarget(target);
         if (PokemonUtils.isMeleeAttackMove(move)) {
             PokemonUtils.sendAnimationPacket(attacker, "physical");
-            PokemonAttackEffect.pokemonAttack(attacker, target);
+            PokemonEntity pokemonTarget = target instanceof PokemonEntity value ? value : null;
+            int beforeHp = pokemonTarget != null ? pokemonTarget.getPokemon().getCurrentHealth() : 0;
+            boolean success = withStatusMoveDataSuppressed(move, () -> PokemonAttackEffect.pokemonAttack(attacker, target));
+            if (pokemonTarget != null) {
+                UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
+                if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(pokemonTarget.getUUID());
+                if (battleId != null) ActionBattleDamageFeedbackController.global().recordDamage(battleId, pokemonTarget.getPokemon().getUuid(), beforeHp, pokemonTarget.getPokemon().getCurrentHealth(), ActionBattleDamageFeedbackCategory.NORMAL);
+                ActionBattleMoveEffectResolver.applyDeclaredBurnOnHit(attacker, pokemonTarget, move, success);
+            }
             return true;
         }
-        if (PokemonUtils.isRangeAttackMove(move)) {
+        if (PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move))) {
             PokemonUtils.sendAnimationPacket(attacker, "special");
             ActionBattleProjectileEntity projectile = new ActionBattleProjectileEntity(attacker.level(), attacker, target, move);
             attacker.level().addFreshEntity(projectile);
@@ -102,6 +126,39 @@ public final class FightOrFlightAdapter {
         }
         return false;
     }
+
+    public static void applyOnUseEffectsWithoutActionStatuses(PokemonEntity attacker, LivingEntity target, Move move) {
+        withStatusMoveDataSuppressed(move, () -> {
+            PokemonAttackEffect.applyOnUseEffect(attacker, target, move);
+            return true;
+        });
+    }
+
+    public static void applyPostEffectsWithoutActionStatuses(PokemonEntity attacker, LivingEntity target, Move move, boolean success) {
+        withStatusMoveDataSuppressed(move, () -> {
+            PokemonAttackEffect.applyPostEffect(attacker, target, move, success);
+            return true;
+        });
+    }
+
+    private static boolean withStatusMoveDataSuppressed(Move move, BooleanOperation operation) {
+        if (move == null || operation == null) return false;
+        synchronized (MoveData.moveData) {
+            List<MoveData> original = MoveData.moveData.get(move.getName());
+            if (original == null || original.stream().noneMatch(StatusEffectMoveData.class::isInstance)) return operation.run();
+            List<MoveData> filtered = new ArrayList<>(original.size());
+            for (MoveData entry : original) if (!(entry instanceof StatusEffectMoveData)) filtered.add(entry);
+            MoveData.moveData.put(move.getName(), filtered);
+            try {
+                return operation.run();
+            } finally {
+                MoveData.moveData.put(move.getName(), original);
+            }
+        }
+    }
+
+    @FunctionalInterface
+    private interface BooleanOperation { boolean run(); }
 
 
     public static int movePower(Move move) {

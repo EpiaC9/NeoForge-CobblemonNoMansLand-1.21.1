@@ -6,7 +6,13 @@ import me.rufia.fightorflight.entity.PokemonAttackEffect;
 import me.rufia.fightorflight.entity.projectile.AbstractPokemonProjectile;
 import me.rufia.fightorflight.entity.projectile.PokemonArrow;
 import me.rufia.fightorflight.utils.PokemonUtils;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
+import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectResolver;
+import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
+import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
+import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.registry.ModEntities;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -14,8 +20,11 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.UUID;
 
@@ -34,17 +43,18 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         super(ModEntities.ACTION_BATTLE_PROJECTILE.get(), level);
         initPosition(shooter);
         setOwner(shooter);
-        setNoGravity(true);
+        setNoGravity(!ActionProjectileProfile.isLobbed(move.getName()));
         intendedTargetUUID = target.getUUID();
         committedMoveName = move.getName();
         entityData.set(DATA_MOVE_NAME, committedMoveName);
         committedMove = move;
         setElementalType(move.getType().getName());
-        setDamage(PokemonAttackEffect.calculatePokemonDamage(shooter, target, move));
+        setDamage(FightOrFlightAdapter.isNativeDamageMove(move) ? PokemonAttackEffect.calculatePokemonDamage(shooter, target, move) : 0.0F);
         maxLifetimeTicks = ActionProjectileProfile.maxLifetimeTicks(move.getName());
         double d = target.getX() - getX();
         double e = target.getY(0.5D) - getY();
         double f = target.getZ() - getZ();
+        if (ActionProjectileProfile.isLobbed(move.getName())) e += Math.sqrt(d * d + f * f) * 0.30D;
         shoot(d, e, f, (float) ActionProjectileProfile.speedBlocksPerTick(move.getName()), 0.0F);
     }
 
@@ -62,8 +72,33 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
 
     @Override
     public void tick() {
+        if (!level().isClientSide) updateDeliveryMotion();
         super.tick();
         if (!level().isClientSide && tickCount >= maxLifetimeTicks) discard();
+    }
+
+    private void updateDeliveryMotion() {
+        if (!(level() instanceof ServerLevel serverLevel) || intendedTargetUUID == null) return;
+        Entity rawTarget = serverLevel.getEntity(intendedTargetUUID);
+        if (!(rawTarget instanceof LivingEntity target) || !target.isAlive()) return;
+        double speed = ActionProjectileProfile.speedBlocksPerTick(committedMoveName());
+        if (ActionProjectileProfile.isHoming(committedMoveName())) {
+            Vec3 delta = target.getEyePosition().subtract(position());
+            if (delta.lengthSqr() > 0.000001D) setDeltaMovement(delta.normalize().scale(speed));
+            return;
+        }
+        if (ActionProjectileProfile.isGrounded(committedMoveName())) {
+            BlockPos column = blockPosition();
+            double surfaceY = serverLevel.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column.getX(), column.getZ()) + 0.15D;
+            Vec3 current = getDeltaMovement();
+            double vertical = Math.max(-0.20D, Math.min(0.20D, surfaceY - getY()));
+            Vec3 horizontal = new Vec3(current.x, 0.0D, current.z);
+            if (horizontal.lengthSqr() < 0.000001D) {
+                horizontal = new Vec3(target.getX() - getX(), 0.0D, target.getZ() - getZ());
+            }
+            if (horizontal.lengthSqr() > 0.000001D) horizontal = horizontal.normalize().scale(speed);
+            setDeltaMovement(horizontal.x, vertical, horizontal.z);
+        }
     }
 
     @Override
@@ -84,13 +119,22 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             discard();
             return;
         }
-        PokemonAttackEffect.applyOnUseEffect(attacker, target, move);
-        boolean success = target.hurt(damageSources().indirectMagic(this, attacker), getDamage());
-        if (success) attacker.setLastHurtMob(target);
-        PokemonUtils.setHurtByPlayer(attacker, target);
+        boolean nativeDamageMove = FightOrFlightAdapter.isNativeDamageMove(move);
+        PokemonEntity pokemonTarget = target instanceof PokemonEntity value ? value : null;
+        int beforeHp = pokemonTarget != null ? pokemonTarget.getPokemon().getCurrentHealth() : 0;
+        if (nativeDamageMove) FightOrFlightAdapter.applyOnUseEffectsWithoutActionStatuses(attacker, target, move);
+        boolean success = !nativeDamageMove || target.hurt(damageSources().indirectMagic(this, attacker), getDamage());
+        if (nativeDamageMove && success) attacker.setLastHurtMob(target);
+        if (nativeDamageMove) PokemonUtils.setHurtByPlayer(attacker, target);
         PokemonAttackEffect.applyOnHitVisualEffect(attacker, target, move);
         PokemonAttackEffect.applySFX(attacker.level(), move, attacker.blockPosition());
-        PokemonAttackEffect.applyPostEffect(attacker, target, move, success);
+        if (nativeDamageMove) FightOrFlightAdapter.applyPostEffectsWithoutActionStatuses(attacker, target, move, success);
+        if (pokemonTarget != null) {
+            UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
+            if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(pokemonTarget.getUUID());
+            if (battleId != null) ActionBattleDamageFeedbackController.global().recordDamage(battleId, pokemonTarget.getPokemon().getUuid(), beforeHp, pokemonTarget.getPokemon().getCurrentHealth(), ActionBattleDamageFeedbackCategory.NORMAL);
+            ActionBattleMoveEffectResolver.applyDeclaredBurnOnHit(attacker, pokemonTarget, move, success);
+        }
         discard();
     }
 

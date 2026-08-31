@@ -11,6 +11,13 @@ import com.gitlab.srcmc.rctapi.api.trainer.TrainerRegistry;
 import com.gitlab.srcmc.tbcs.api.TBCS;
 import kotlin.Unit;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
+import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
+import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleDotEvent;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleDotDamage;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
+import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
 import net.epiac9.cobblemonnml.dimension.DungeonDimension;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.events.trainer.DungeonTrainerBattleResultHandler;
@@ -81,6 +88,8 @@ public final class ActionBattleManager {
         BY_PLAYER.put(player.getUUID(), session);
         BY_TRAINER.put(trainer.getUUID(), session);
         POKEMON_BY_BATTLE.put(session.battleId(), new BattlePokemonRefs(playerLead.pokemon(), trainerLead.pokemon()));
+        seedDamageFeedback(session, playerLead.pokemon());
+        seedDamageFeedback(session, trainerLead.pokemon());
         DebugLog.log("[CobblemonNML] Action battle session started. Battle=" + session.battleId() + ", player=" + session.playerUUID() + ", trainer=" + session.trainerUUID() + ", runtimeTrainer=" + session.runtimeTrainerId() + ", preset=" + session.trainerPreset());
         try {
             sendOutPokemon(session, true, player, trainer, playerLead);
@@ -165,7 +174,7 @@ public final class ActionBattleManager {
         session.clearPlayerMoveCommand();
         BlockPos targetPos = BlockPos.containing(x, y, z);
         if (targetPos.getY() < level.getMinBuildHeight() || targetPos.getY() >= level.getMaxBuildHeight()) return false;
-        if (!level.hasChunkAt(targetPos) || !level.getWorldBorder().isWithinBounds(targetPos)) return false;
+        if (!level.getChunkSource().hasChunk(targetPos.getX() >> 4, targetPos.getZ() >> 4) || !level.getWorldBorder().isWithinBounds(targetPos)) return false;
         Path path = pokemonEntity.getNavigation().createPath(x, y, z, 0);
         if (path == null || !path.canReach()) {
             session.clearPlayerMoveTarget();
@@ -244,6 +253,7 @@ public final class ActionBattleManager {
         recallPokemon(previous);
         session.clearPlayerActivePokemon();
         refs.setPlayerPokemon(next.pokemon());
+        seedDamageFeedback(session, next.pokemon());
         sendOutPokemon(session, true, player, trainerEntity, next);
         DebugLog.log("[CobblemonNML] Player Swap Out accepted. Battle=" + session.battleId() + ", fromSlot=" + previousSlot + ", toSlot=" + next.slot() + ", cooldownTicks=" + SWAP_COOLDOWN_TICKS);
         return true;
@@ -262,6 +272,12 @@ public final class ActionBattleManager {
             session.cancelPlayerOrders();
             return;
         }
+        observeDamageFeedback(session);
+        List<ActionBattleDotEvent> effectTicks = ActionBattleEffectController.global().tickBattle(session.battleId(), level.getGameTime());
+        applyEffectTicks(session, level, effectTicks);
+        BattlePokemonRefs visualRefs = POKEMON_BY_BATTLE.get(session.battleId());
+        if (visualRefs != null) ActionBattleStatusParticleController.tickBattle(session, level, visualRefs.playerPokemon(), visualRefs.trainerPokemon());
+        observeDamageFeedback(session);
         if (handleFaintState(player, session, level)) return;
         tickPlayerBattleZone(session, player, level);
         if (level.getGameTime() % HUD_SYNC_INTERVAL_TICKS == 0L) syncHud(player, session);
@@ -380,6 +396,7 @@ public final class ActionBattleManager {
             recallPokemon(playerPokemon);
             session.clearPlayerActivePokemon();
             refs.setPlayerPokemon(playerReplacement.pokemon());
+            seedDamageFeedback(session, playerReplacement.pokemon());
             sendOutPokemon(session, true, player, trainerEntity, playerReplacement);
             DebugLog.log("[CobblemonNML] Player faint replacement started. Battle=" + session.battleId() + ", fromSlot=" + previousSlot + ", toSlot=" + playerReplacement.slot());
         }
@@ -389,6 +406,7 @@ public final class ActionBattleManager {
             recallPokemon(trainerPokemon);
             session.clearTrainerActivePokemon();
             refs.setTrainerPokemon(trainerReplacement.pokemon());
+            seedDamageFeedback(session, trainerReplacement.pokemon());
             sendOutPokemon(session, false, trainerEntity, player, trainerReplacement);
             DebugLog.log("[CobblemonNML] Trainer faint replacement started. Battle=" + session.battleId() + ", fromSlot=" + previousSlot + ", toSlot=" + trainerReplacement.slot());
         }
@@ -504,6 +522,7 @@ public final class ActionBattleManager {
         recallPokemon(trainerPokemon);
         session.clearTrainerActivePokemon();
         refs.setTrainerPokemon(replacement.pokemon());
+        seedDamageFeedback(session, replacement.pokemon());
         sendOutPokemon(session, false, trainerEntity, player, replacement);
         session.startTrainerSwapCooldown(currentTick, SWAP_COOLDOWN_TICKS);
         DebugLog.log("[CobblemonNML] Trainer voluntary swap started. Battle=" + session.battleId() + ", fromSlot=" + previousSlot
@@ -830,12 +849,74 @@ public final class ActionBattleManager {
         return session.battleZone().contains(player.getX(), player.getZ());
     }
 
-    private static ActionBattleSession findSessionForBattlePokemonEntity(UUID entityUUID) {
+    public static ActionBattleSession findSessionForBattlePokemonEntity(UUID entityUUID) {
         if (entityUUID == null) return null;
         for (ActionBattleSession session : BY_PLAYER.values()) {
             if (entityUUID.equals(session.playerActiveEntityUUID()) || entityUUID.equals(session.trainerActiveEntityUUID())) return session;
         }
         return null;
+    }
+
+    public static UUID battleIdForPokemonEntity(UUID entityUUID) {
+        ActionBattleSession session = findSessionForBattlePokemonEntity(entityUUID);
+        return session != null ? session.battleId() : null;
+    }
+
+    private static void applyEffectTicks(ActionBattleSession session, ServerLevel level, List<ActionBattleDotEvent> events) {
+        if (session == null || level == null || events == null || events.isEmpty()) return;
+        for (ActionBattleDotEvent event : events) {
+            Pokemon pokemon = findBattlePokemon(session, level, event.pokemonUUID());
+            if (pokemon == null || pokemon.isFainted()) continue;
+            int maxHealth = Math.max(1, pokemon.getMaxHealth());
+            int beforeHealth = pokemon.getCurrentHealth();
+            int damage = ActionBattleDotDamage.calculate(maxHealth, pokemon.getCurrentHealth(), event.maxHealthFraction());
+            int newHealth = Math.max(event.canKo() ? 0 : 1, beforeHealth - damage);
+            pokemon.setCurrentHealth(newHealth);
+            ActionBattleDamageFeedbackController.global().recordDamage(session.battleId(), pokemon.getUuid(), beforeHealth, newHealth, ActionBattleDamageFeedbackCategory.DOT);
+            if (event.status() == ActionBattleStatus.BURN) {
+                PokemonEntity entity = pokemon.getEntity();
+                if (entity != null && !entity.isRemoved() && entity.level() == level) ActionBattleStatusParticleController.emitBurnDotBurst(level, entity);
+            }
+            DebugLog.log("[CobblemonNML] Action battle DOT tick. Battle=" + session.battleId() + ", status=" + event.status()
+                    + ", pokemon=" + event.pokemonUUID() + ", damage=" + damage + ", hp=" + newHealth + "/" + maxHealth);
+        }
+    }
+
+    private static Pokemon findBattlePokemon(ActionBattleSession session, ServerLevel level, UUID pokemonUUID) {
+        if (session == null || level == null || pokemonUUID == null) return null;
+        ServerPlayer player = level.getServer().getPlayerList().getPlayer(session.playerUUID());
+        if (player != null) {
+            PlayerPartyStore party = Cobblemon.INSTANCE.getStorage().getParty(player);
+            for (int slot = 0; slot < party.size(); slot++) {
+                Pokemon pokemon = party.get(slot);
+                if (pokemon != null && pokemonUUID.equals(pokemon.getUuid())) return pokemon;
+            }
+        }
+        Entity rawTrainer = level.getEntity(session.trainerUUID());
+        if (rawTrainer instanceof LivingEntity trainerEntity) {
+            TrainerNPC trainer = resolveRuntimeTrainer(session.runtimeTrainerId(), trainerEntity);
+            if (trainer != null) {
+                for (Pokemon pokemon : trainer.getTeam()) {
+                    if (pokemon != null && pokemonUUID.equals(pokemon.getUuid())) return pokemon;
+                }
+            }
+        }
+        return null;
+    }
+
+
+    private static void seedDamageFeedback(ActionBattleSession session, Pokemon pokemon) {
+        if (session == null || pokemon == null) return;
+        ActionBattleDamageFeedbackController.global().seedPokemon(session.battleId(), pokemon.getUuid(), pokemon.getCurrentHealth());
+    }
+
+    private static void observeDamageFeedback(ActionBattleSession session) {
+        if (session == null) return;
+        BattlePokemonRefs refs = POKEMON_BY_BATTLE.get(session.battleId());
+        if (refs == null) return;
+        ActionBattleDamageFeedbackController feedback = ActionBattleDamageFeedbackController.global();
+        if (refs.playerPokemon() != null) feedback.observePokemon(session.battleId(), refs.playerPokemon().getUuid(), refs.playerPokemon().getCurrentHealth());
+        if (refs.trainerPokemon() != null) feedback.observePokemon(session.battleId(), refs.trainerPokemon().getUuid(), refs.trainerPokemon().getCurrentHealth());
     }
 
     private static void tickPlayerBattleZone(ActionBattleSession session, ServerPlayer player, ServerLevel level) {
@@ -896,6 +977,8 @@ public final class ActionBattleManager {
     }
 
     private static void cleanupBattlePokemon(ActionBattleSession session) {
+        ActionBattleEffectController.global().clearBattle(session.battleId());
+        ActionBattleDamageFeedbackController.global().clearBattle(session.battleId());
         BattlePokemonRefs refs = POKEMON_BY_BATTLE.remove(session.battleId());
         if (refs != null) {
             PokemonEntity playerEntity = refs.playerPokemon() != null ? refs.playerPokemon().getEntity() : null;

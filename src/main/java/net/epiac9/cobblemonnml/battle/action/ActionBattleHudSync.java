@@ -3,11 +3,18 @@ package net.epiac9.cobblemonnml.battle.action;
 import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
+import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
+import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackEvent;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleHudPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 public final class ActionBattleHudSync {
     private ActionBattleHudSync() {}
@@ -24,8 +31,12 @@ public final class ActionBattleHudSync {
         long moveHereCooldownDuration = session.pokemonMovementCommandCooldownDurationTicks(playerPokemon.getUuid());
         ActionBattleHudPayload payload = new ActionBattleHudPayload(
                 true,
-                playerPokemon.getSpecies().getName(), playerPokemon.getLevel(), currentHealth(playerPokemon), maxHealth(playerPokemon), session.playerActivePartyIndex(),
-                trainerPokemon.getSpecies().getName(), trainerPokemon.getLevel(), currentHealth(trainerPokemon), maxHealth(trainerPokemon), session.trainerActivePartyIndex(),
+                playerPokemon.getSpecies().getName(), playerPokemon.getUuid().toString(), playerPokemon.getLevel(), currentHealth(playerPokemon), maxHealth(playerPokemon), session.playerActivePartyIndex(),
+                trainerPokemon.getSpecies().getName(), trainerPokemon.getUuid().toString(), trainerPokemon.getLevel(), currentHealth(trainerPokemon), maxHealth(trainerPokemon), session.trainerActivePartyIndex(),
+                statusStates(session.battleId(), playerPokemon.getUuid(), currentTick),
+                statusStates(session.battleId(), trainerPokemon.getUuid(), currentTick),
+                damageStates(ActionBattleDamageFeedbackController.global().drain(session.battleId(), playerPokemon.getUuid())),
+                damageStates(ActionBattleDamageFeedbackController.global().drain(session.battleId(), trainerPokemon.getUuid())),
                 swapCooldownRemaining, swapCooldownDuration,
                 moveHereCooldownRemaining, moveHereCooldownDuration,
                 moveState(playerPokemon, 0, remaining, cooldownDuration), moveState(playerPokemon, 1, remaining, cooldownDuration),
@@ -36,6 +47,28 @@ public final class ActionBattleHudSync {
 
     public static void hide(ServerPlayer player) {
         if (player != null) PacketDistributor.sendToPlayer(player, ActionBattleHudPayload.hidden());
+    }
+
+    private static List<ActionBattleHudPayload.StatusState> statusStates(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectController controller = ActionBattleEffectController.global();
+        List<ActionBattleHudPayload.StatusState> states = new ArrayList<>();
+        for (ActionBattleStatus status : ActionBattleStatus.values()) {
+            long remaining = controller.statusRemainingTicks(battleId, pokemonUUID, status, currentTick);
+            if (remaining <= 0L) continue;
+            long duration = controller.statusDurationTicks(status);
+            states.add(new ActionBattleHudPayload.StatusState(status.name(), remaining, duration));
+        }
+        return List.copyOf(states);
+    }
+
+    private static List<ActionBattleHudPayload.DamageState> damageStates(List<ActionBattleDamageFeedbackEvent> events) {
+        if (events == null || events.isEmpty()) return List.of();
+        List<ActionBattleHudPayload.DamageState> states = new ArrayList<>(events.size());
+        for (ActionBattleDamageFeedbackEvent event : events) {
+            if (event == null || event.damage() <= 0) continue;
+            states.add(new ActionBattleHudPayload.DamageState(event.eventId(), event.damage(), event.category().name()));
+        }
+        return List.copyOf(states);
     }
 
     private static ActionBattleHudPayload.MoveState moveState(Pokemon pokemon, int slot, long cooldownRemaining, long cooldownDuration) {
