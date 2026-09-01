@@ -3,7 +3,9 @@ package net.epiac9.cobblemonnml.dimension.network;
 import net.epiac9.cobblemonnml.CobblemonNML;
 import net.epiac9.cobblemonnml.client.DungeonCleanupToastHandler;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleHudPayload;
+import net.epiac9.cobblemonnml.battle.action.network.ActionBattleFlinchVisualPayload;
 import net.epiac9.cobblemonnml.client.battle.action.ActionBattleHudPayloadHandler;
+import net.epiac9.cobblemonnml.client.battle.action.ActionBattleFlinchVisualPayloadHandler;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleMoveHerePayload;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleMoveHerePayloadHandler;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleMovePayload;
@@ -41,6 +43,11 @@ public final class ModNetworking {
                 ActionBattleHudPayload.TYPE,
                 ActionBattleHudPayload.STREAM_CODEC,
                 ActionBattleHudPayloadHandler::handle
+        );
+        registrar.playToClient(
+                ActionBattleFlinchVisualPayload.TYPE,
+                ActionBattleFlinchVisualPayload.STREAM_CODEC,
+                ActionBattleFlinchVisualPayloadHandler::handle
         );
         // DUNGEON CLEANUP TOAST
         registrar.playToClient(

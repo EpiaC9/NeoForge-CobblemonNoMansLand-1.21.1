@@ -4,7 +4,7 @@ import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatusApplication;
-import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
+import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleFlinchVisualType;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -29,8 +29,7 @@ public final class ActionBattleParalysisController {
         if (application == ActionBattleStatusApplication.PARALYSIS_REFRESHED && chance > 0.0F && chance > target.getRandom().nextFloat()) {
             effects.resetParalysisBuildup(session.battleId(), pokemonUUID, currentTick);
             resetMovementTracker(session.battleId(), pokemonUUID);
-            flinched = ActionBattleFlinchController.apply(session, pokemonUUID, currentTick, contact);
-            if (flinched && target.level() instanceof ServerLevel level) ActionBattleStatusParticleController.emitParalysisTriggerBurst(level, target);
+            flinched = ActionBattleFlinchController.apply(session, pokemonUUID, currentTick, contact, ActionBattleFlinchVisualType.PARALYSIS);
         }
         return new ApplicationResult(application, flinched, chance);
     }
@@ -78,9 +77,8 @@ public final class ActionBattleParalysisController {
             if (!(chance > 0.0F) || !(chance > pokemonEntity.getRandom().nextFloat())) continue;
             effects.resetParalysisBuildup(session.battleId(), pokemonUUID, currentTick);
             tracker.resetChain();
-            boolean flinched = ActionBattleFlinchController.apply(session, pokemonUUID, currentTick, false);
+            boolean flinched = ActionBattleFlinchController.apply(session, pokemonUUID, currentTick, false, ActionBattleFlinchVisualType.PARALYSIS);
             if (flinched) {
-                ActionBattleStatusParticleController.emitParalysisTriggerBurst(level, pokemonEntity);
                 DebugLog.log("[CobblemonNML] Paralysis movement check triggered Flinch. Battle=" + session.battleId()
                         + ", pokemon=" + pokemonUUID + ", chance=" + chance);
             }
