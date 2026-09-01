@@ -3,6 +3,7 @@ package net.epiac9.cobblemonnml.battle.action;
 import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import me.rufia.fightorflight.entity.PokemonAttackEffect;
+import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleConfusionRules;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
@@ -115,13 +116,13 @@ public final class ActionBattleConfusionController {
     public static void clearBattle(UUID battleId) { if (battleId != null) DASHES.entrySet().removeIf(e -> battleId.equals(e.getValue().battleId())); }
 
     private static void damageCollision(PokemonEntity attacker, LivingEntity target, Move move) {
-        float targetDamage = Math.max(1.0F, PokemonAttackEffect.calculatePokemonDamage(attacker, target, move));
+        float targetDamage = Math.max(1.0F, FightOrFlightAdapter.scaleActionDamage(attacker, target, move, PokemonAttackEffect.calculatePokemonDamage(attacker, target, move)));
         target.hurt(attacker.damageSources().mobAttack(attacker), targetDamage);
         damageSelf(attacker, move);
     }
 
     private static void damageSelf(PokemonEntity attacker, Move move) {
-        float selfDamage = Math.max(1.0F, PokemonAttackEffect.calculatePokemonDamage(attacker, attacker, move));
+        float selfDamage = Math.max(1.0F, FightOrFlightAdapter.scaleActionDamage(attacker, attacker, move, PokemonAttackEffect.calculatePokemonDamage(attacker, attacker, move)));
         attacker.hurt(attacker.damageSources().magic(), selfDamage);
     }
 

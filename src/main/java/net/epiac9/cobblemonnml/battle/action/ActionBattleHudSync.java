@@ -7,6 +7,7 @@ import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCo
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackEvent;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleHudPayload;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.minecraft.server.level.ServerPlayer;
@@ -38,6 +39,8 @@ public final class ActionBattleHudSync {
                 trainerPokemon.getSpecies().getName(), trainerPokemon.getUuid().toString(), trainerPokemon.getLevel(), currentHealth(trainerPokemon), maxHealth(trainerPokemon), session.trainerActivePartyIndex(),
                 statusStates(session.battleId(), playerPokemon.getUuid(), currentTick),
                 statusStates(session.battleId(), trainerPokemon.getUuid(), currentTick),
+                statStages(session.battleId(), playerPokemon.getUuid(), currentTick),
+                statStages(session.battleId(), trainerPokemon.getUuid(), currentTick),
                 damageStates(ActionBattleDamageFeedbackController.global().drain(session.battleId(), playerPokemon.getUuid())),
                 damageStates(ActionBattleDamageFeedbackController.global().drain(session.battleId(), trainerPokemon.getUuid())),
                 swapCooldownRemaining, swapCooldownDuration,
@@ -69,6 +72,19 @@ public final class ActionBattleHudSync {
             states.add(new ActionBattleHudPayload.StatusState(status.name(), remaining, duration));
         }
         return List.copyOf(states);
+    }
+
+
+    private static ActionBattleHudPayload.StatStageState statStages(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectController controller = ActionBattleEffectController.global();
+        return new ActionBattleHudPayload.StatStageState(
+                controller.effectiveStage(battleId, pokemonUUID, ActionBattleStat.ATTACK, currentTick),
+                controller.effectiveStage(battleId, pokemonUUID, ActionBattleStat.DEFENSE, currentTick),
+                controller.effectiveStage(battleId, pokemonUUID, ActionBattleStat.SPECIAL_ATTACK, currentTick),
+                controller.effectiveStage(battleId, pokemonUUID, ActionBattleStat.SPECIAL_DEFENSE, currentTick),
+                controller.effectiveStage(battleId, pokemonUUID, ActionBattleStat.SPEED, currentTick),
+                controller.effectiveStage(battleId, pokemonUUID, ActionBattleStat.ACCURACY, currentTick)
+        );
     }
 
     private static boolean isPoisonToxic(ActionBattleStatus status) {

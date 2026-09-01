@@ -15,6 +15,8 @@ import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatRules;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionBattleProjectileEntity;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionProjectileProfile;
@@ -41,6 +43,57 @@ public final class FightOrFlightAdapter {
 
     public static boolean isNativeDamageMove(Move move) {
         return move != null && (PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move));
+    }
+
+    public static double actionAccuracyProjectileMultiplier(PokemonEntity attacker) {
+        if (attacker == null || attacker.level().isClientSide) return 1.0D;
+        ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(attacker.getUUID());
+        if (session == null) return 1.0D;
+        return ActionBattleEffectController.global().accuracyProjectileMultiplier(
+                session.battleId(), attacker.getPokemon().getUuid(), attacker.level().getGameTime());
+    }
+
+    public static float scaleActionDamage(PokemonEntity attacker, LivingEntity target, Move move, float baseDamage) {
+        if (attacker == null || !(target instanceof PokemonEntity pokemonTarget) || move == null || !(baseDamage > 0.0F)) return baseDamage;
+        UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
+        if (battleId == null || !battleId.equals(ActionBattleManager.battleIdForPokemonEntity(pokemonTarget.getUUID()))) return baseDamage;
+        long tick = attacker.level().getGameTime();
+        boolean special = isSpecialDamageCategory(move);
+        ActionBattleStat offense = special ? ActionBattleStat.SPECIAL_ATTACK : ActionBattleStat.ATTACK;
+        ActionBattleStat defense = special ? ActionBattleStat.SPECIAL_DEFENSE : ActionBattleStat.DEFENSE;
+        ActionBattleEffectController effects = ActionBattleEffectController.global();
+        int offenseStage = effects.effectiveStage(battleId, attacker.getPokemon().getUuid(), offense, tick);
+        int defenseStage = effects.effectiveStage(battleId, pokemonTarget.getPokemon().getUuid(), defense, tick);
+        double multiplier = ActionBattleStatRules.damageMultiplier(offenseStage, defenseStage);
+        return Math.max(0.0F, (float) (baseDamage * multiplier));
+    }
+
+    private static void applyPostHitActionStatScaling(PokemonEntity attacker, PokemonEntity target, Move move, int beforeHp) {
+        if (attacker == null || target == null || move == null || beforeHp <= 0) return;
+        int afterHp = target.getPokemon().getCurrentHealth();
+        int baseDamage = Math.max(0, beforeHp - afterHp);
+        if (baseDamage <= 0) return;
+        int scaledDamage = Math.max(1, Math.round(scaleActionDamage(attacker, target, move, baseDamage)));
+        target.getPokemon().setCurrentHealth(Math.max(0, beforeHp - scaledDamage));
+    }
+
+    private static boolean isSpecialDamageCategory(Move move) {
+        if (move == null) return false;
+        Object category = invokeGetter(move, "getDamageCategory");
+        if (category == null) category = invokeGetter(move, "getCategory");
+        if (category == null) {
+            Object template = invokeGetter(move, "getTemplate");
+            if (template != null) {
+                category = invokeGetter(template, "getDamageCategory");
+                if (category == null) category = invokeGetter(template, "getCategory");
+            }
+        }
+        if (category != null) {
+            String id = category.toString().toLowerCase(java.util.Locale.ROOT).replace("_", "").replace("-", "").replace(" ", "");
+            if (id.contains("special")) return true;
+            if (id.contains("physical")) return false;
+        }
+        return PokemonUtils.isRangeAttackMove(move) && !PokemonUtils.isMeleeAttackMove(move);
     }
 
     public static boolean makesContact(Move move) {
@@ -178,6 +231,7 @@ public final class FightOrFlightAdapter {
                     : ActionBattleSleepController.WakePlan.NONE;
             boolean success = withStatusMoveDataSuppressed(move, () -> PokemonAttackEffect.pokemonAttack(attacker, target));
             if (pokemonTarget != null) {
+                if (success) applyPostHitActionStatScaling(attacker, pokemonTarget, move, beforeHp);
                 applyProtectImpact(attacker, pokemonTarget, move, beforeHp, success);
                 if (success) ActionBattleSleepController.applyWakeDamageAndWake(sleepSession, pokemonTarget, currentTick, beforeHp, wakePlan);
                 UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
@@ -262,6 +316,15 @@ public final class FightOrFlightAdapter {
             return templatePriority != null ? templatePriority : 0;
         } catch (ReflectiveOperationException exception) {
             return 0;
+        }
+    }
+
+    private static Object invokeGetter(Object target, String methodName) {
+        if (target == null || methodName == null) return null;
+        try {
+            return target.getClass().getMethod(methodName).invoke(target);
+        } catch (ReflectiveOperationException exception) {
+            return null;
         }
     }
 

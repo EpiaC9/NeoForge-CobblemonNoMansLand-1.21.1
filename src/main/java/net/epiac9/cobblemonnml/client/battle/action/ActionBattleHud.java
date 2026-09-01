@@ -38,6 +38,8 @@ public final class ActionBattleHud {
         ActionBattleDamageHudState.RenderSnapshot allyDamage = ActionBattleHudClientState.allyDamage();
         renderPokemonPanel(graphics, font, layout.enemyPanel(), false, state.trainerPokemonName(), state.trainerPokemonLevel(), state.trainerCurrentHp(), state.trainerMaxHp(), enemyDamage.trailingHp());
         renderPokemonPanel(graphics, font, layout.allyPanel(), true, state.playerPokemonName(), state.playerPokemonLevel(), state.playerCurrentHp(), state.playerMaxHp(), allyDamage.trailingHp());
+        ActionBattleStatStageHudRenderer.render(graphics, font, layout.enemyPanel(), state.trainerStatStages(), false);
+        ActionBattleStatStageHudRenderer.render(graphics, font, layout.allyPanel(), state.playerStatStages(), true);
         ActionBattleStatusHudRenderer.renderEnemy(graphics, layout.enemyPanel(), state.trainerStatuses());
         ActionBattleStatusHudRenderer.renderAlly(graphics, layout.allyPanel(), state.playerStatuses());
         ActionBattleDamageHudRenderer.renderFloating(graphics, font, layout.enemyPanel(), false, enemyDamage);

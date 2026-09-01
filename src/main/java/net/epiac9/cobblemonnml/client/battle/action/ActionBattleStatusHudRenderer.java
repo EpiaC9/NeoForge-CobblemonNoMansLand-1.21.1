@@ -29,7 +29,7 @@ public final class ActionBattleStatusHudRenderer {
     }
 
     static int statusY(ActionBattleHudLayout.Rect panel) {
-        return panel.y() + panel.height() + PANEL_GAP;
+        return ActionBattleStatStageHudRenderer.rowBottom(panel) + PANEL_GAP;
     }
 
     private static void render(GuiGraphics graphics, ActionBattleHudLayout.Rect panel, List<ActionBattleHudPayload.StatusState> statuses, boolean ally) {

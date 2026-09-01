@@ -27,6 +27,8 @@ public record ActionBattleHudPayload(
         int trainerPartySlot,
         List<StatusState> playerStatuses,
         List<StatusState> trainerStatuses,
+        StatStageState playerStatStages,
+        StatStageState trainerStatStages,
         List<DamageState> playerDamageEvents,
         List<DamageState> trainerDamageEvents,
         long playerSwapCooldownRemainingTicks,
@@ -47,7 +49,7 @@ public record ActionBattleHudPayload(
             return new ActionBattleHudPayload(
                     buf.readBoolean(), readString(buf), readString(buf), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),
                     readString(buf), readString(buf), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),
-                    readStatuses(buf), readStatuses(buf), readDamageEvents(buf), readDamageEvents(buf),
+                    readStatuses(buf), readStatuses(buf), readStatStages(buf), readStatStages(buf), readDamageEvents(buf), readDamageEvents(buf),
                     buf.readLong(), buf.readLong(), buf.readLong(), buf.readLong(),
                     readMove(buf), readMove(buf), readMove(buf), readMove(buf)
             );
@@ -70,6 +72,8 @@ public record ActionBattleHudPayload(
             buf.writeInt(value.trainerPartySlot());
             writeStatuses(buf, value.playerStatuses());
             writeStatuses(buf, value.trainerStatuses());
+            writeStatStages(buf, value.playerStatStages());
+            writeStatStages(buf, value.trainerStatStages());
             writeDamageEvents(buf, value.playerDamageEvents());
             writeDamageEvents(buf, value.trainerDamageEvents());
             buf.writeLong(value.playerSwapCooldownRemainingTicks());
@@ -88,13 +92,15 @@ public record ActionBattleHudPayload(
         trainerPokemonUuid = trainerPokemonUuid != null ? trainerPokemonUuid : "";
         playerStatuses = playerStatuses != null ? List.copyOf(playerStatuses) : List.of();
         trainerStatuses = trainerStatuses != null ? List.copyOf(trainerStatuses) : List.of();
+        playerStatStages = playerStatStages != null ? playerStatStages : StatStageState.neutral();
+        trainerStatStages = trainerStatStages != null ? trainerStatStages : StatStageState.neutral();
         playerDamageEvents = playerDamageEvents != null ? List.copyOf(playerDamageEvents) : List.of();
         trainerDamageEvents = trainerDamageEvents != null ? List.copyOf(trainerDamageEvents) : List.of();
     }
 
     public static ActionBattleHudPayload hidden() {
         MoveState empty = MoveState.empty();
-        return new ActionBattleHudPayload(false, "", "", 0, 0, 1, -1, "", "", 0, 0, 1, -1, List.of(), List.of(), List.of(), List.of(),
+        return new ActionBattleHudPayload(false, "", "", 0, 0, 1, -1, "", "", 0, 0, 1, -1, List.of(), List.of(), StatStageState.neutral(), StatStageState.neutral(), List.of(), List.of(),
                 0L, 0L, 0L, 0L, empty, empty, empty, empty);
     }
 
@@ -136,6 +142,21 @@ public record ActionBattleHudPayload(
         return List.copyOf(statuses);
     }
 
+
+    private static void writeStatStages(ByteBuf buf, StatStageState stages) {
+        StatStageState value = stages != null ? stages : StatStageState.neutral();
+        buf.writeByte(value.attack());
+        buf.writeByte(value.defense());
+        buf.writeByte(value.specialAttack());
+        buf.writeByte(value.specialDefense());
+        buf.writeByte(value.speed());
+        buf.writeByte(value.accuracy());
+    }
+
+    private static StatStageState readStatStages(ByteBuf buf) {
+        return new StatStageState(buf.readByte(), buf.readByte(), buf.readByte(), buf.readByte(), buf.readByte(), buf.readByte());
+    }
+
     private static void writeDamageEvents(ByteBuf buf, List<DamageState> events) {
         List<DamageState> safe = events != null ? events : List.of();
         int size = Math.min(MAX_DAMAGE_ENTRIES, safe.size());
@@ -171,6 +192,32 @@ public record ActionBattleHudPayload(
 
     private static MoveState readMove(ByteBuf buf) {
         return new MoveState(readString(buf), readString(buf), buf.readInt(), buf.readInt(), buf.readBoolean(), buf.readLong(), buf.readLong());
+    }
+
+
+    public record StatStageState(int attack, int defense, int specialAttack, int specialDefense, int speed, int accuracy) {
+        public StatStageState {
+            attack = clampStage(attack);
+            defense = clampStage(defense);
+            specialAttack = clampStage(specialAttack);
+            specialDefense = clampStage(specialDefense);
+            speed = clampStage(speed);
+            accuracy = clampStage(accuracy);
+        }
+
+        public static StatStageState neutral() { return new StatStageState(0, 0, 0, 0, 0, 0); }
+        public int stage(int index) {
+            return switch (index) {
+                case 0 -> attack;
+                case 1 -> defense;
+                case 2 -> specialAttack;
+                case 3 -> specialDefense;
+                case 4 -> speed;
+                case 5 -> accuracy;
+                default -> 0;
+            };
+        }
+        private static int clampStage(int stage) { return Math.max(-6, Math.min(6, stage)); }
     }
 
     public record DamageState(long eventId, int damage, String category) {

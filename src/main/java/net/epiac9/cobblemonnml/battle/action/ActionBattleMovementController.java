@@ -4,6 +4,7 @@ import com.cobblemon.mod.common.CobblemonMemories;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatRules;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -87,7 +88,7 @@ final class ActionBattleMovementController {
     static double movementSpeed(ActionBattleSession session, UUID pokemonUUID, long currentTick) {
         if (session == null || pokemonUUID == null || currentTick < 0L) return ACTION_MOVEMENT_SPEED;
         int stage = ActionBattleEffectController.global().effectiveStage(session.battleId(), pokemonUUID, ActionBattleStat.SPEED, currentTick);
-        return ACTION_MOVEMENT_SPEED * Math.max(0.70D, 1.0D + stage * 0.05D);
+        return ACTION_MOVEMENT_SPEED * ActionBattleStatRules.standardMultiplier(stage);
     }
 
     static void removeBattle(UUID battleId) {

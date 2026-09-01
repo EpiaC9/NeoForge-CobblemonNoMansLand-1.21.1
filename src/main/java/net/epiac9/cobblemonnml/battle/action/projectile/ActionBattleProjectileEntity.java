@@ -37,6 +37,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
     private String committedMoveName = "";
     private transient Move committedMove;
     private boolean confusedShot;
+    private double accuracySpeedMultiplier = 1.0D;
 
     public ActionBattleProjectileEntity(EntityType<? extends AbstractPokemonProjectile> entityType, Level level) {
         super(entityType, level);
@@ -52,13 +53,14 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         entityData.set(DATA_MOVE_NAME, committedMoveName);
         committedMove = move;
         setElementalType(move.getType().getName());
-        setDamage(FightOrFlightAdapter.isNativeDamageMove(move) ? PokemonAttackEffect.calculatePokemonDamage(shooter, target, move) : 0.0F);
+        setDamage(FightOrFlightAdapter.isNativeDamageMove(move) ? FightOrFlightAdapter.scaleActionDamage(shooter, target, move, PokemonAttackEffect.calculatePokemonDamage(shooter, target, move)) : 0.0F);
+        accuracySpeedMultiplier = FightOrFlightAdapter.actionAccuracyProjectileMultiplier(shooter);
         maxLifetimeTicks = ActionProjectileProfile.maxLifetimeTicks(move.getName());
         double d = target.getX() - getX();
         double e = target.getY(0.5D) - getY();
         double f = target.getZ() - getZ();
         if (ActionProjectileProfile.isLobbed(move.getName())) e += Math.sqrt(d * d + f * f) * 0.30D;
-        shoot(d, e, f, (float) ActionProjectileProfile.speedBlocksPerTick(move.getName()), 0.0F);
+        shoot(d, e, f, (float) projectileSpeed(move.getName()), 0.0F);
     }
 
 
@@ -74,9 +76,10 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         committedMove = move;
         setElementalType(move.getType().getName());
         setDamage(0.0F);
+        accuracySpeedMultiplier = FightOrFlightAdapter.actionAccuracyProjectileMultiplier(shooter);
         maxLifetimeTicks = ActionProjectileProfile.maxLifetimeTicks(move.getName());
         Vec3 shot = direction.lengthSqr() > 0.000001D ? direction.normalize() : new Vec3(1.0D, 0.0D, 0.0D);
-        shoot(shot.x, shot.y, shot.z, (float) ActionProjectileProfile.speedBlocksPerTick(move.getName()), 0.0F);
+        shoot(shot.x, shot.y, shot.z, (float) projectileSpeed(move.getName()), 0.0F);
     }
 
     @Override
@@ -101,7 +104,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         if (!(level() instanceof ServerLevel serverLevel) || intendedTargetUUID == null) return;
         Entity rawTarget = serverLevel.getEntity(intendedTargetUUID);
         if (!(rawTarget instanceof LivingEntity target) || !target.isAlive()) return;
-        double speed = ActionProjectileProfile.speedBlocksPerTick(committedMoveName());
+        double speed = projectileSpeed(committedMoveName());
         if (ActionProjectileProfile.isHoming(committedMoveName())) {
             Vec3 delta = target.getEyePosition().subtract(position());
             if (delta.lengthSqr() > 0.000001D) setDeltaMovement(delta.normalize().scale(speed));
@@ -141,7 +144,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             return;
         }
         boolean nativeDamageMove = FightOrFlightAdapter.isNativeDamageMove(move);
-        if (confusedShot && nativeDamageMove) setDamage(PokemonAttackEffect.calculatePokemonDamage(attacker, target, move));
+        if (confusedShot && nativeDamageMove) setDamage(FightOrFlightAdapter.scaleActionDamage(attacker, target, move, PokemonAttackEffect.calculatePokemonDamage(attacker, target, move)));
         PokemonEntity pokemonTarget = target instanceof PokemonEntity value ? value : null;
         int beforeHp = pokemonTarget != null ? pokemonTarget.getPokemon().getCurrentHealth() : 0;
         ActionBattleSession sleepSession = pokemonTarget != null ? ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID()) : null;
@@ -191,6 +194,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         tag.putString("ActionMove", committedMoveName);
         tag.putInt("ActionLifetime", maxLifetimeTicks);
         tag.putBoolean("ActionConfusedShot", confusedShot);
+        tag.putDouble("ActionAccuracySpeedMultiplier", accuracySpeedMultiplier);
     }
 
     @Override
@@ -201,5 +205,10 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         entityData.set(DATA_MOVE_NAME, committedMoveName);
         maxLifetimeTicks = tag.contains("ActionLifetime") ? tag.getInt("ActionLifetime") : 80;
         confusedShot = tag.getBoolean("ActionConfusedShot");
+        accuracySpeedMultiplier = tag.contains("ActionAccuracySpeedMultiplier") ? tag.getDouble("ActionAccuracySpeedMultiplier") : 1.0D;
     }
+    private double projectileSpeed(String moveName) {
+        return ActionProjectileProfile.speedBlocksPerTick(moveName) * accuracySpeedMultiplier;
+    }
+
 }

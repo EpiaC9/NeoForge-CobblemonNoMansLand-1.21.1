@@ -17,6 +17,18 @@ public final class ActionBattleEffectController {
         return state(battleId, pokemonUUID).applyStatContribution(stat, stages, currentTick, durationTicks);
     }
 
+    public boolean applyTimedStatContribution(UUID battleId, UUID pokemonUUID, ActionBattleStat stat, int stages, long currentTick) {
+        return applyStatContribution(battleId, pokemonUUID, stat, stages, currentTick, ActionBattleStatRules.DEFAULT_STAT_DURATION_TICKS);
+    }
+
+    public double standardStatMultiplier(UUID battleId, UUID pokemonUUID, ActionBattleStat stat, long currentTick) {
+        return ActionBattleStatRules.standardMultiplier(effectiveStage(battleId, pokemonUUID, stat, currentTick));
+    }
+
+    public double accuracyProjectileMultiplier(UUID battleId, UUID pokemonUUID, long currentTick) {
+        return ActionBattleStatRules.accuracyProjectileMultiplier(effectiveStage(battleId, pokemonUUID, ActionBattleStat.ACCURACY, currentTick));
+    }
+
     public int effectiveStage(UUID battleId, UUID pokemonUUID, ActionBattleStat stat, long currentTick) {
         ActionBattleEffectState state = existingState(battleId, pokemonUUID);
         if (state == null) return 0;

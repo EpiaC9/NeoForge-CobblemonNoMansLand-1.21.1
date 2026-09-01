@@ -30,7 +30,7 @@ public final class ActionBattleEffectState {
 
     boolean applyStatContribution(ActionBattleStat stat, int stages, long currentTick, long durationTicks) {
         if (hazeProtected) return false;
-        if (stat == null || stages == 0 || stages < -6 || stages > 6 || currentTick < 0L || durationTicks <= 0L) return false;
+        if (stat == null || stages == 0 || Math.abs(stages) > ActionBattleStatRules.maxStage(stat) || currentTick < 0L || durationTicks <= 0L) return false;
         statContributions.put(new ContributionKey(stat, stages), new ActionBattleStatContribution(stat, stages, ActionBattleTiming.safeAdd(currentTick, durationTicks)));
         return true;
     }
@@ -50,7 +50,7 @@ public final class ActionBattleEffectState {
         }
         if (stat == ActionBattleStat.SPECIAL_ATTACK && hasStatus(ActionBattleStatus.POISON, currentTick)) total -= 1;
         if (stat == ActionBattleStat.SPEED && hasStatus(ActionBattleStatus.PARALYSIS, currentTick)) total -= 1;
-        return Math.max(-6, Math.min(6, total));
+        return ActionBattleStatRules.clampStage(stat, total);
     }
 
     void clearTemporaryStatChanges() { statContributions.clear(); }
