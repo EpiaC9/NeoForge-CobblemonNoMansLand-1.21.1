@@ -6,6 +6,7 @@ import com.cobblemon.mod.common.pokemon.Pokemon;
 import com.gitlab.srcmc.rctapi.api.trainer.TrainerNPC;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleConfusionRules;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
@@ -136,6 +137,10 @@ public final class ActionBattleManager {
         UUID activeEntityId = session.playerActiveEntityUUID();
         if (activePokemonId == null || activeEntityId == null) return false;
         long currentTick = level.getGameTime();
+        if (ActionBattleSleepController.isSleeping(session, activePokemonId, currentTick)) {
+            DebugLog.log("[CobblemonNML] Move Here rejected. Battle=" + session.battleId() + ", reason=sleep");
+            return false;
+        }
         ActionBattleCommandController.onCommandIssued(session, activePokemonId);
         if (session.isPokemonMovementCommandOnCooldown(activePokemonId, currentTick)) {
             DebugLog.log("[CobblemonNML] Move Here rejected. Battle=" + session.battleId() + ", reason=move_here_cooldown");
@@ -143,6 +148,11 @@ public final class ActionBattleManager {
         }
         Entity rawEntity = level.getEntity(activeEntityId);
         if (!(rawEntity instanceof PokemonEntity pokemonEntity) || pokemonEntity.isRemoved()) return false;
+        ActionBattleConfusionController.CommandPlan confusionPlan = ActionBattleConfusionController.roll(session, pokemonEntity, ActionBattleConfusionRules.CommandKind.MOVE_HERE, currentTick);
+        if (confusionPlan.corrupted()) {
+            Vec3 randomTarget = ActionBattleConfusionController.randomMoveTarget(pokemonEntity);
+            x = randomTarget.x; y = randomTarget.y; z = randomTarget.z;
+        }
         pokemonEntity.getNavigation().stop();
         session.clearPlayerMoveCommand();
         BlockPos targetPos = BlockPos.containing(x, y, z);
@@ -159,6 +169,7 @@ public final class ActionBattleManager {
             return false;
         }
         session.startPokemonMovementCommandCooldown(activePokemonId, currentTick, ActionBattleTiming.MOVE_HERE_COOLDOWN_TICKS);
+        if (confusionPlan.corrupted()) ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick);
         long revision = session.replacePlayerMoveTarget(x, y, z);
         DebugLog.log("[CobblemonNML] Move Here accepted. Battle=" + session.battleId() + ", revision=" + revision + ", target=" + new Vec3(x, y, z) + ", cooldownTicks=" + ActionBattleTiming.MOVE_HERE_COOLDOWN_TICKS);
         return true;
@@ -177,12 +188,68 @@ public final class ActionBattleManager {
         if (!FightOrFlightAdapter.supports(move)) return rejectMove(session, moveSlot, "unsupported_move");
         if (!FightOrFlightAdapter.hasPp(move)) return rejectMove(session, moveSlot, "no_pp");
         long currentTick = level.getGameTime();
+        if (ActionBattleSleepController.isSleeping(session, refs.playerPokemon().getUuid(), currentTick)) return rejectMove(session, moveSlot, "sleep");
         ActionBattleCommandController.onCommandIssued(session, refs.playerPokemon().getUuid());
         if (session.isPokemonMoveOnCooldown(refs.playerPokemon().getUuid(), currentTick)) return rejectMove(session, moveSlot, "cooldown");
         UUID playerEntityId = session.playerActiveEntityUUID();
         if (playerEntityId == null) return rejectMove(session, moveSlot, "missing_player_entity_id");
         Entity rawPlayerPokemon = level.getEntity(playerEntityId);
         if (!(rawPlayerPokemon instanceof PokemonEntity pokemonEntity) || pokemonEntity.isRemoved()) return rejectMove(session, moveSlot, "missing_player_entity");
+        ActionBattleConfusionRules.CommandKind confusionKind = ActionBattleBalefulBunkerHandler.isBalefulBunker(move)
+                ? ActionBattleConfusionRules.CommandKind.PROTECT
+                : (ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move))
+                ? ActionBattleConfusionRules.CommandKind.CHANNEL
+                : FightOrFlightAdapter.isMeleeMove(move) ? ActionBattleConfusionRules.CommandKind.MELEE
+                : FightOrFlightAdapter.isRangedMove(move) ? ActionBattleConfusionRules.CommandKind.RANGED
+                : ActionBattleConfusionRules.CommandKind.SUPPORT;
+        ActionBattleConfusionController.CommandPlan confusionPlan = ActionBattleConfusionController.roll(session, pokemonEntity, confusionKind, currentTick);
+        if (confusionPlan.corrupted() && (confusionKind == ActionBattleConfusionRules.CommandKind.PROTECT || confusionKind == ActionBattleConfusionRules.CommandKind.SUPPORT)) {
+            pokemonEntity.getNavigation().stop();
+            session.clearPlayerMoveTarget();
+            if (!FightOrFlightAdapter.consumeOnePp(move)) return rejectMove(session, moveSlot, "no_pp");
+            long cooldownTicks = confusionKind == ActionBattleConfusionRules.CommandKind.PROTECT
+                    ? ActionBattleBalefulBunkerHandler.GLOBAL_COOLDOWN_TICKS : FightOrFlightAdapter.cooldownTicks(move);
+            session.startPokemonMoveCooldown(refs.playerPokemon().getUuid(), currentTick, cooldownTicks);
+            ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick);
+            DebugLog.log("[CobblemonNML] Confusion caused move to fail without effect. Battle=" + session.battleId() + ", move=" + move.getName() + ", cooldownTicks=" + cooldownTicks);
+            return true;
+        }
+        if (confusionPlan.corrupted() && confusionKind == ActionBattleConfusionRules.CommandKind.RANGED) {
+            pokemonEntity.getNavigation().stop();
+            session.clearPlayerMoveTarget();
+            if (!FightOrFlightAdapter.consumeOnePp(move)) return rejectMove(session, moveSlot, "no_pp");
+            long cooldownTicks = FightOrFlightAdapter.cooldownTicks(move);
+            session.startPokemonMoveCooldown(refs.playerPokemon().getUuid(), currentTick, cooldownTicks);
+            ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick);
+            FightOrFlightAdapter.executeConfusedRanged(pokemonEntity, move, ActionBattleConfusionController.randomShotDirection(pokemonEntity));
+            DebugLog.log("[CobblemonNML] Confusion fired ranged move in random direction. Battle=" + session.battleId() + ", move=" + move.getName());
+            return true;
+        }
+        if (confusionPlan.corrupted() && confusionKind == ActionBattleConfusionRules.CommandKind.MELEE) {
+            pokemonEntity.getNavigation().stop();
+            session.clearPlayerMoveTarget();
+            if (!FightOrFlightAdapter.consumeOnePp(move)) return rejectMove(session, moveSlot, "no_pp");
+            long cooldownTicks = FightOrFlightAdapter.cooldownTicks(move);
+            session.startPokemonMoveCooldown(refs.playerPokemon().getUuid(), currentTick, cooldownTicks);
+            ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick);
+            ActionBattleConfusionController.startMeleeDash(session, level, pokemonEntity, move, currentTick);
+            DebugLog.log("[CobblemonNML] Confusion started uncontrolled melee dash. Battle=" + session.battleId() + ", move=" + move.getName());
+            return true;
+        }
+        if (confusionPlan.corrupted() && confusionKind == ActionBattleConfusionRules.CommandKind.CHANNEL) {
+            pokemonEntity.getNavigation().stop();
+            session.clearPlayerMoveTarget();
+            if (ActionBattleHailHandler.isHail(move)) {
+                var result = ActionBattleHailHandler.tryStart(session, level, pokemonEntity, null, move, confusionPlan.channelBonusTicks(), confusionPlan.channelSelfCancel());
+                if (result == ActionBattleHailHandler.StartResult.STARTED) ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick);
+                DebugLog.log("[CobblemonNML] Confused Hail ACTION start result. Battle=" + session.battleId() + ", result=" + result);
+                return result == ActionBattleHailHandler.StartResult.STARTED;
+            }
+            var result = ActionBattleToxicSpikesHandler.tryStart(session, level, pokemonEntity, null, move, confusionPlan.channelBonusTicks(), confusionPlan.channelSelfCancel());
+            if (result == ActionBattleToxicSpikesHandler.StartResult.STARTED) ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick);
+            DebugLog.log("[CobblemonNML] Confused Toxic Spikes ACTION start result. Battle=" + session.battleId() + ", result=" + result);
+            return result == ActionBattleToxicSpikesHandler.StartResult.STARTED;
+        }
         if (ActionBattleBalefulBunkerHandler.isBalefulBunker(move)) {
             pokemonEntity.getNavigation().stop();
             session.clearPlayerMoveTarget();
@@ -215,6 +282,7 @@ public final class ActionBattleManager {
         if (!DungeonSession.isActive() || !session.dungeonSessionId().equals(DungeonSession.getSessionId())) return rejectSwap(session, "inactive_dungeon_session");
         if (!(player.level() instanceof ServerLevel level) || !player.level().dimension().equals(DungeonDimension.DUNGEON_DIMENSION)) return rejectSwap(session, "wrong_dimension");
         long currentTick = level.getGameTime();
+        if (session.playerActivePokemonUUID() != null && ActionBattleSleepController.isSleeping(session, session.playerActivePokemonUUID(), currentTick)) return rejectSwap(session, "sleep");
         if (session.playerActivePokemonUUID() != null) ActionBattleCommandController.onCommandIssued(session, session.playerActivePokemonUUID());
         if (session.isPlayerSwapOnCooldown(currentTick)) return rejectSwap(session, "cooldown");
         if (session.isPlayerSendOutPending()) return rejectSwap(session, "sendout_pending");
@@ -263,6 +331,7 @@ public final class ActionBattleManager {
         if (handleFaintState(player, session, level)) return;
         ActionBattleMovementController.tickPlayerBattleZone(session, player, level);
         ActionBattleParalysisController.tickBattle(session, level);
+        ActionBattleConfusionController.tickBattle(session, level);
         if (level.getGameTime() % ActionBattleTiming.HUD_SYNC_INTERVAL_TICKS == 0L) syncHud(player, session);
         ActionBattleTrainerAiController.tick(session, level, ActionBattleRegistry.pokemonRefs(session.battleId()));
         if (session.state() != ActionBattleState.ACTIVE) return;
@@ -271,6 +340,12 @@ public final class ActionBattleManager {
         if (!(rawEntity instanceof PokemonEntity pokemonEntity) || pokemonEntity.isRemoved()) {
             session.clearPlayerMoveTarget();
             session.clearPlayerMoveCommand();
+            return;
+        }
+        long sleepTick = level.getGameTime();
+        if (session.playerActivePokemonUUID() != null && ActionBattleSleepController.isSleeping(session, session.playerActivePokemonUUID(), sleepTick)) {
+            pokemonEntity.getNavigation().stop();
+            ActionBattleCommandController.cancelPendingOrders(session, session.playerActivePokemonUUID(), ActionBattleCommandController.InterruptReason.CONTROL_EFFECT);
             return;
         }
         if (session.hasPlayerMoveCommand()) {
@@ -459,6 +534,7 @@ public final class ActionBattleManager {
     private static void removeSession(ActionBattleSession session) {
         ActionBattleRegistry.remove(session);
         ActionBattleMovementController.removeBattle(session.battleId());
+        ActionBattleConfusionController.clearBattle(session.battleId());
     }
 
     private static void routeResult(ServerPlayer player, ActionBattleSession session, ActionBattleResult result) {

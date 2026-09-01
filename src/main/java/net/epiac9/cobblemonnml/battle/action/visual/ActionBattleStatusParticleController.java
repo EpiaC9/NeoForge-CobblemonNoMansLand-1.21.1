@@ -28,6 +28,10 @@ public final class ActionBattleStatusParticleController {
     private static final int TOXIC_2_INTERVAL_TICKS = 4;
     private static final int TOXIC_3_INTERVAL_TICKS = 3;
     private static final int PARALYSIS_INTERVAL_TICKS = 4;
+    private static final int DROWSINESS_INTERVAL_TICKS = 10;
+    private static final int SLEEP_INTERVAL_TICKS = 6;
+    private static final int DROWSINESS_GRACE_INTERVAL_TICKS = 12;
+    private static final int CONFUSION_INTERVAL_TICKS = 5;
 
     private ActionBattleStatusParticleController() {}
 
@@ -52,6 +56,10 @@ public final class ActionBattleStatusParticleController {
         else if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.TOXIC_1, tick) && tick % TOXIC_1_INTERVAL_TICKS == 0L) emitPoisonAmbient(level, entity, 1);
         else if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.POISON, tick) && tick % POISON_INTERVAL_TICKS == 0L) emitPoisonAmbient(level, entity, 0);
         if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.PARALYSIS, tick) && tick % PARALYSIS_INTERVAL_TICKS == 0L) emitParalysisAmbient(level, entity);
+        if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.SLEEP, tick) && tick % SLEEP_INTERVAL_TICKS == 0L) emitSleepAmbient(level, entity);
+        else if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.DROWSINESS, tick) && tick % DROWSINESS_INTERVAL_TICKS == 0L) emitDrowsinessAmbient(level, entity);
+        if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.DROWSINESS_GRACE, tick) && tick % DROWSINESS_GRACE_INTERVAL_TICKS == 0L) emitDrowsinessGraceAmbient(level, entity);
+        if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.CONFUSION, tick) && tick % CONFUSION_INTERVAL_TICKS == 0L) emitConfusionAmbient(level, entity);
     }
 
     private static void emitCindersAmbient(ServerLevel level, PokemonEntity entity) { emitAcrossBody(level, entity, CINDERS_EMBERS_PER_EMISSION, ParticleTypes.LAVA, 0.01D); }
@@ -89,6 +97,47 @@ public final class ActionBattleStatusParticleController {
         int green = switch (Math.clamp(toxicLevel, 0, 3)) { case 0 -> 8; case 1 -> 5; case 2 -> 2; default -> 0; };
         if (green > 0) level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, cx, cy, cz, green, Math.max(0.25D, box.getXsize() * 0.50D), Math.max(0.35D, box.getYsize() * 0.45D), Math.max(0.25D, box.getZsize() * 0.50D), 0.03D);
         level.sendParticles(ParticleTypes.WITCH, cx, cy, cz, purple, Math.max(0.25D, box.getXsize() * 0.55D), Math.max(0.35D, box.getYsize() * 0.50D), Math.max(0.25D, box.getZsize() * 0.55D), toxicLevel >= 2 ? 0.12D : 0.08D);
+    }
+
+
+    private static void emitDrowsinessAmbient(ServerLevel level, PokemonEntity entity) {
+        AABB box = entity.getBoundingBox();
+        level.sendParticles(ParticleTypes.ENCHANT, box.getCenter().x, box.maxY + 0.20D, box.getCenter().z, 2, 0.18D, 0.08D, 0.18D, 0.01D);
+    }
+
+    private static void emitSleepAmbient(ServerLevel level, PokemonEntity entity) {
+        AABB box = entity.getBoundingBox();
+        level.sendParticles(ParticleTypes.CLOUD, box.getCenter().x, box.maxY + 0.15D, box.getCenter().z, 3, 0.20D, 0.10D, 0.20D, 0.01D);
+        level.sendParticles(ParticleTypes.ENCHANT, box.getCenter().x, box.maxY + 0.30D, box.getCenter().z, 2, 0.16D, 0.08D, 0.16D, 0.01D);
+    }
+
+    private static void emitDrowsinessGraceAmbient(ServerLevel level, PokemonEntity entity) {
+        AABB box = entity.getBoundingBox();
+        level.sendParticles(ParticleTypes.END_ROD, box.getCenter().x, box.maxY + 0.15D, box.getCenter().z, 1, 0.12D, 0.08D, 0.12D, 0.005D);
+    }
+
+    public static void emitSleepTransitionBurst(ServerLevel level, PokemonEntity entity) {
+        if (level == null || entity == null || entity.isRemoved()) return;
+        AABB box = entity.getBoundingBox();
+        level.sendParticles(ParticleTypes.CLOUD, box.getCenter().x, box.getCenter().y, box.getCenter().z, 10, Math.max(0.20D, box.getXsize() * 0.4D), Math.max(0.25D, box.getYsize() * 0.35D), Math.max(0.20D, box.getZsize() * 0.4D), 0.02D);
+        level.sendParticles(ParticleTypes.ENCHANT, box.getCenter().x, box.maxY + 0.15D, box.getCenter().z, 8, 0.25D, 0.15D, 0.25D, 0.02D);
+    }
+
+    public static void emitWakeBurst(ServerLevel level, PokemonEntity entity) {
+        if (level == null || entity == null || entity.isRemoved()) return;
+        AABB box = entity.getBoundingBox();
+        level.sendParticles(ParticleTypes.END_ROD, box.getCenter().x, box.getCenter().y, box.getCenter().z, 12, Math.max(0.20D, box.getXsize() * 0.4D), Math.max(0.25D, box.getYsize() * 0.35D), Math.max(0.20D, box.getZsize() * 0.4D), 0.03D);
+    }
+
+    private static void emitConfusionAmbient(ServerLevel level, PokemonEntity entity) {
+        AABB box = entity.getBoundingBox();
+        level.sendParticles(ParticleTypes.PORTAL, box.getCenter().x, box.maxY + 0.15D, box.getCenter().z, 3, 0.30D, 0.12D, 0.30D, 0.02D);
+    }
+
+    public static void emitConfusionBurst(ServerLevel level, PokemonEntity entity) {
+        if (level == null || entity == null || entity.isRemoved()) return;
+        AABB box = entity.getBoundingBox();
+        level.sendParticles(ParticleTypes.PORTAL, box.getCenter().x, box.getCenter().y, box.getCenter().z, 14, Math.max(0.25D, box.getXsize() * 0.5D), Math.max(0.30D, box.getYsize() * 0.4D), Math.max(0.25D, box.getZsize() * 0.5D), 0.08D);
     }
 
     private static void emitParalysisAmbient(ServerLevel level, PokemonEntity entity) {

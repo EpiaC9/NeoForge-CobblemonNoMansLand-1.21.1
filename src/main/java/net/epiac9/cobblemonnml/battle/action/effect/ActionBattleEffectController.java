@@ -90,6 +90,43 @@ public final class ActionBattleEffectController {
         return state(battleId, pokemonUUID).applyParalysis(currentTick, durationMultiplier);
     }
 
+
+    public ActionBattleStatusApplication applyDrowsiness(UUID battleId, UUID pokemonUUID, long currentTick) {
+        if (!validIds(battleId, pokemonUUID) || currentTick < 0L) return null;
+        return state(battleId, pokemonUUID).applyDrowsiness(currentTick);
+    }
+
+    public ActionBattleStatusApplication applyConfusion(UUID battleId, UUID pokemonUUID, long currentTick) {
+        if (!validIds(battleId, pokemonUUID) || currentTick < 0L) return null;
+        return state(battleId, pokemonUUID).applyConfusion(currentTick);
+    }
+
+    public boolean shouldBeginSleep(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        return state != null && state.shouldBeginSleep(currentTick);
+    }
+
+    public boolean beginSleep(UUID battleId, UUID pokemonUUID, long currentTick, long durationTicks) {
+        if (!validIds(battleId, pokemonUUID) || currentTick < 0L) return false;
+        return state(battleId, pokemonUUID).beginSleep(currentTick, durationTicks);
+    }
+
+    public boolean wakeSleep(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        if (state == null) return false;
+        boolean woke = state.wakeSleep(currentTick);
+        removeIfEmpty(state, currentTick);
+        return woke;
+    }
+
+    public ActionBattleSleepState.NaturalWakeResult tickSleepState(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        if (state == null) return ActionBattleSleepState.NaturalWakeResult.NONE;
+        ActionBattleSleepState.NaturalWakeResult result = state.tickSleepState(currentTick);
+        removeIfEmpty(state, currentTick);
+        return result;
+    }
+
     public float paralysisCheckChance(UUID battleId, UUID pokemonUUID, long currentTick) {
         ActionBattleEffectState state = existingState(battleId, pokemonUUID);
         if (state == null) return 0.0F;
@@ -159,13 +196,17 @@ public final class ActionBattleEffectController {
             case CINDERS, BURN, FREEZE, FROSTBITE -> ActionBattleEffectState.BASE_STATUS_DURATION_TICKS;
             case POISON, TOXIC_1, TOXIC_2, TOXIC_3 -> ActionBattlePoisonToxicState.BASE_DURATION_TICKS;
             case PARALYSIS -> ActionBattleParalysisState.BASE_DURATION_TICKS;
+            case DROWSINESS -> ActionBattleSleepState.DROWSINESS_DURATION_TICKS;
+            case SLEEP -> ActionBattleSleepState.SLEEP_MAX_DURATION_TICKS;
+            case DROWSINESS_GRACE -> ActionBattleSleepState.DROWSINESS_GRACE_DURATION_TICKS;
+            case CONFUSION -> ActionBattleConfusionRules.DURATION_TICKS;
         };
     }
 
     public void clearStatuses(UUID battleId, UUID pokemonUUID, long currentTick) {
         ActionBattleEffectState state = existingState(battleId, pokemonUUID);
         if (state == null) return;
-        state.clearStatuses();
+        state.clearStatuses(currentTick);
         removeIfEmpty(state, currentTick);
     }
 

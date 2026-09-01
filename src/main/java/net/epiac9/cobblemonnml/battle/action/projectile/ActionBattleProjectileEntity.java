@@ -7,6 +7,8 @@ import me.rufia.fightorflight.entity.projectile.AbstractPokemonProjectile;
 import me.rufia.fightorflight.entity.projectile.PokemonArrow;
 import me.rufia.fightorflight.utils.PokemonUtils;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleSleepController;
 import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectResolver;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
@@ -34,6 +36,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
     private UUID intendedTargetUUID;
     private String committedMoveName = "";
     private transient Move committedMove;
+    private boolean confusedShot;
 
     public ActionBattleProjectileEntity(EntityType<? extends AbstractPokemonProjectile> entityType, Level level) {
         super(entityType, level);
@@ -58,6 +61,23 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         shoot(d, e, f, (float) ActionProjectileProfile.speedBlocksPerTick(move.getName()), 0.0F);
     }
 
+
+    public ActionBattleProjectileEntity(Level level, PokemonEntity shooter, Move move, Vec3 direction) {
+        super(ModEntities.ACTION_BATTLE_PROJECTILE.get(), level);
+        initPosition(shooter);
+        setOwner(shooter);
+        setNoGravity(!ActionProjectileProfile.isLobbed(move.getName()));
+        intendedTargetUUID = null;
+        confusedShot = true;
+        committedMoveName = move.getName();
+        entityData.set(DATA_MOVE_NAME, committedMoveName);
+        committedMove = move;
+        setElementalType(move.getType().getName());
+        setDamage(0.0F);
+        maxLifetimeTicks = ActionProjectileProfile.maxLifetimeTicks(move.getName());
+        Vec3 shot = direction.lengthSqr() > 0.000001D ? direction.normalize() : new Vec3(1.0D, 0.0D, 0.0D);
+        shoot(shot.x, shot.y, shot.z, (float) ActionProjectileProfile.speedBlocksPerTick(move.getName()), 0.0F);
+    }
 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
@@ -103,6 +123,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
 
     @Override
     protected boolean canHitEntity(Entity target) {
+        if (confusedShot) return target instanceof LivingEntity && target != getOwner() && super.canHitEntity(target);
         return intendedTargetUUID != null && intendedTargetUUID.equals(target.getUUID()) && super.canHitEntity(target);
     }
 
@@ -120,8 +141,14 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             return;
         }
         boolean nativeDamageMove = FightOrFlightAdapter.isNativeDamageMove(move);
+        if (confusedShot && nativeDamageMove) setDamage(PokemonAttackEffect.calculatePokemonDamage(attacker, target, move));
         PokemonEntity pokemonTarget = target instanceof PokemonEntity value ? value : null;
         int beforeHp = pokemonTarget != null ? pokemonTarget.getPokemon().getCurrentHealth() : 0;
+        ActionBattleSession sleepSession = pokemonTarget != null ? ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID()) : null;
+        long currentTick = attacker.level().getGameTime();
+        ActionBattleSleepController.WakePlan wakePlan = nativeDamageMove && pokemonTarget != null
+                ? ActionBattleSleepController.planDamagingWake(sleepSession, pokemonTarget, currentTick, true, false)
+                : ActionBattleSleepController.WakePlan.NONE;
         if (nativeDamageMove) FightOrFlightAdapter.applyOnUseEffectsWithoutActionStatuses(attacker, target, move);
         boolean success = !nativeDamageMove || target.hurt(damageSources().indirectMagic(this, attacker), getDamage());
         if (nativeDamageMove && success) attacker.setLastHurtMob(target);
@@ -131,6 +158,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         if (nativeDamageMove) FightOrFlightAdapter.applyPostEffectsWithoutActionStatuses(attacker, target, move, success);
         if (pokemonTarget != null) {
             FightOrFlightAdapter.applyProtectImpact(attacker, pokemonTarget, move, beforeHp, success);
+            if (nativeDamageMove && success) ActionBattleSleepController.applyWakeDamageAndWake(sleepSession, pokemonTarget, currentTick, beforeHp, wakePlan);
             UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
             if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(pokemonTarget.getUUID());
             if (battleId != null) ActionBattleDamageFeedbackController.global().recordDamage(battleId, pokemonTarget.getPokemon().getUuid(), beforeHp, pokemonTarget.getPokemon().getCurrentHealth(), ActionBattleDamageFeedbackCategory.NORMAL);
@@ -139,6 +167,8 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             ActionBattleMoveEffectResolver.applyDeclaredPoisonOnHit(attacker, pokemonTarget, move, success);
             ActionBattleMoveEffectResolver.applyDeclaredFlinchOnHit(attacker, pokemonTarget, move, success);
             ActionBattleMoveEffectResolver.applyDeclaredParalysisOnHit(attacker, pokemonTarget, move, success);
+            ActionBattleMoveEffectResolver.applyDeclaredDrowsinessOnHit(attacker, pokemonTarget, move, success);
+            ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, pokemonTarget, move, success);
         }
         discard();
     }
@@ -160,6 +190,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         if (intendedTargetUUID != null) tag.putUUID("ActionTarget", intendedTargetUUID);
         tag.putString("ActionMove", committedMoveName);
         tag.putInt("ActionLifetime", maxLifetimeTicks);
+        tag.putBoolean("ActionConfusedShot", confusedShot);
     }
 
     @Override
@@ -169,5 +200,6 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         committedMoveName = tag.getString("ActionMove");
         entityData.set(DATA_MOVE_NAME, committedMoveName);
         maxLifetimeTicks = tag.contains("ActionLifetime") ? tag.getInt("ActionLifetime") : 80;
+        confusedShot = tag.getBoolean("ActionConfusedShot");
     }
 }

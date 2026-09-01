@@ -9,5 +9,9 @@ public enum ActionBattleStatus {
     TOXIC_1,
     TOXIC_2,
     TOXIC_3,
-    PARALYSIS
+    PARALYSIS,
+    DROWSINESS,
+    SLEEP,
+    DROWSINESS_GRACE,
+    CONFUSION
 }

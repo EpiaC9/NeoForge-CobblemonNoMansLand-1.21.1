@@ -12,6 +12,10 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual TOXIC_2 = visual("toxic_2", 0xFF8E5DB2);
     private static final StatusVisual TOXIC_3 = visual("toxic_3", 0xFFA04AC0);
     private static final StatusVisual PARALYSIS = visual("paralysis", 0xFFFFD83D);
+    private static final StatusVisual DROWSINESS = visual("drowsiness", 0xFFB9A7E8);
+    private static final StatusVisual SLEEP = visual("sleep", 0xFF7E73C7);
+    private static final StatusVisual DROWSINESS_GRACE = visual("drowsiness_grace", 0xFFFFE48A);
+    private static final StatusVisual CONFUSION = visual("confusion", 0xFFC56BFF);
     private static final StatusVisual[] DETERIORATING_SHIELD = {
             visual("deteriorating_shield_1", 0xFFD8E7EC), visual("deteriorating_shield_2", 0xFFD0DFE5), visual("deteriorating_shield_3", 0xFFC5D5DC),
             visual("deteriorating_shield_4", 0xFFBACAD2), visual("deteriorating_shield_5", 0xFFADBFC8), visual("deteriorating_shield_6", 0xFFA0B4BE),
@@ -41,6 +45,10 @@ public final class ActionBattleStatusVisualRegistry {
             case "TOXIC_2" -> TOXIC_2;
             case "TOXIC_3" -> TOXIC_3;
             case "PARALYSIS" -> PARALYSIS;
+            case "DROWSINESS" -> DROWSINESS;
+            case "SLEEP" -> SLEEP;
+            case "DROWSINESS_GRACE" -> DROWSINESS_GRACE;
+            case "CONFUSION" -> CONFUSION;
             default -> null;
         };
     }

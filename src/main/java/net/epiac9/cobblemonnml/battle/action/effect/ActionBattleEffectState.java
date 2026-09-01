@@ -19,6 +19,8 @@ public final class ActionBattleEffectState {
     private boolean hazeProtected;
     private ActionBattlePoisonToxicState poisonToxic;
     private ActionBattleParalysisState paralysis;
+    private ActionBattleSleepState sleep;
+    private ActionBattleConfusionState confusion;
 
     ActionBattleEffectState(UUID battleId, UUID pokemonUUID) {
         if (battleId == null || pokemonUUID == null) throw new IllegalArgumentException("Battle and Pokemon IDs cannot be null.");
@@ -108,6 +110,33 @@ public final class ActionBattleEffectState {
                 : ActionBattleStatusApplication.PARALYSIS_REFRESHED;
     }
 
+
+    ActionBattleStatusApplication applyDrowsiness(long currentTick) {
+        if (currentTick < 0L) return null;
+        if (sleep == null) sleep = new ActionBattleSleepState();
+        return switch (sleep.applyDrowsiness(currentTick)) {
+            case APPLIED -> ActionBattleStatusApplication.DROWSINESS_APPLIED;
+            case SHORTENED, READY_FOR_SLEEP -> ActionBattleStatusApplication.DROWSINESS_SHORTENED;
+            case BLOCKED_BY_SLEEP, BLOCKED_BY_GRACE -> ActionBattleStatusApplication.DROWSINESS_BLOCKED;
+            case REJECTED -> null;
+        };
+    }
+
+    boolean shouldBeginSleep(long currentTick) { return sleep != null && sleep.shouldBeginSleep(currentTick); }
+    boolean beginSleep(long currentTick, long durationTicks) {
+        if (sleep == null) sleep = new ActionBattleSleepState();
+        return sleep.beginSleep(currentTick, durationTicks);
+    }
+    boolean wakeSleep(long currentTick) { return sleep != null && sleep.wake(currentTick); }
+    ActionBattleSleepState.NaturalWakeResult tickSleepState(long currentTick) { return sleep != null ? sleep.tick(currentTick) : ActionBattleSleepState.NaturalWakeResult.NONE; }
+
+    ActionBattleStatusApplication applyConfusion(long currentTick) {
+        if (currentTick < 0L) return null;
+        if (confusion == null) confusion = new ActionBattleConfusionState();
+        ActionBattleConfusionState.ApplyResult result = confusion.apply(currentTick);
+        return result == ActionBattleConfusionState.ApplyResult.APPLIED ? ActionBattleStatusApplication.CONFUSION_APPLIED : ActionBattleStatusApplication.CONFUSION_REFRESHED;
+    }
+
     float paralysisCheckChance(long currentTick) {
         return paralysis != null && paralysis.isActive(currentTick) ? paralysis.checkChance() : 0.0F;
     }
@@ -131,6 +160,10 @@ public final class ActionBattleEffectState {
             case FROSTBITE -> freeze.hasDot(currentTick);
             case POISON, TOXIC_1, TOXIC_2, TOXIC_3 -> poisonStatusMatches(status, currentTick);
             case PARALYSIS -> paralysis != null && paralysis.isActive(currentTick);
+            case DROWSINESS -> sleep != null && sleep.isDrowsy(currentTick);
+            case SLEEP -> sleep != null && sleep.isSleeping(currentTick);
+            case DROWSINESS_GRACE -> sleep != null && sleep.hasDrowsinessGrace(currentTick);
+            case CONFUSION -> confusion != null && confusion.isActive(currentTick);
         };
     }
 
@@ -143,6 +176,10 @@ public final class ActionBattleEffectState {
             case FROSTBITE -> freeze.dotRemainingTicks(currentTick);
             case POISON, TOXIC_1, TOXIC_2, TOXIC_3 -> poisonStatusMatches(status, currentTick) && poisonToxic != null ? poisonToxic.remainingTicks(currentTick) : 0L;
             case PARALYSIS -> paralysis != null ? paralysis.remainingTicks(currentTick) : 0L;
+            case DROWSINESS -> sleep != null ? sleep.drowsinessRemainingTicks(currentTick) : 0L;
+            case SLEEP -> sleep != null ? sleep.sleepRemainingTicks(currentTick) : 0L;
+            case DROWSINESS_GRACE -> sleep != null ? sleep.graceRemainingTicks(currentTick) : 0L;
+            case CONFUSION -> confusion != null ? confusion.remainingTicks(currentTick) : 0L;
         };
     }
 
@@ -179,13 +216,19 @@ public final class ActionBattleEffectState {
         return events;
     }
 
-    void clearStatuses() {
+    void clearStatuses(long currentTick) {
         burn.clear();
         freeze.clear();
         if (poisonToxic != null) poisonToxic.clear();
         poisonToxic = null;
         if (paralysis != null) paralysis.clear();
         paralysis = null;
+        if (sleep != null) {
+            sleep.cleanse(currentTick);
+            if (sleep.isEmpty(currentTick)) sleep = null;
+        }
+        if (confusion != null) confusion.clear();
+        confusion = null;
     }
 
     void onPokemonRecalled(long currentTick) {
@@ -195,6 +238,10 @@ public final class ActionBattleEffectState {
         statContributions.clear();
         if (paralysis != null) paralysis.clear();
         paralysis = null;
+        if (sleep != null) sleep.clearAll();
+        sleep = null;
+        if (confusion != null) confusion.clear();
+        confusion = null;
         if (poisonToxic != null) {
             if (poisonToxic.isExpired(currentTick)) poisonToxic = null;
             else poisonToxic.collapseToPoisonOnRecall(currentTick);
@@ -208,6 +255,8 @@ public final class ActionBattleEffectState {
         freeze.prune(currentTick);
         if (poisonToxic != null && poisonToxic.isExpired(currentTick)) poisonToxic = null;
         if (paralysis != null && paralysis.isEmpty(currentTick)) paralysis = null;
+        if (sleep != null && sleep.isEmpty(currentTick)) sleep = null;
+        if (confusion != null && confusion.isEmpty(currentTick)) confusion = null;
         return isEmpty();
     }
 
@@ -232,7 +281,7 @@ public final class ActionBattleEffectState {
     }
 
     private boolean isEmpty() {
-        return statContributions.isEmpty() && !hazeProtected && burn.isEmpty() && freeze.isEmpty() && poisonToxic == null && paralysis == null;
+        return statContributions.isEmpty() && !hazeProtected && burn.isEmpty() && freeze.isEmpty() && poisonToxic == null && paralysis == null && sleep == null && confusion == null;
     }
 
     UUID battleId() { return battleId; }

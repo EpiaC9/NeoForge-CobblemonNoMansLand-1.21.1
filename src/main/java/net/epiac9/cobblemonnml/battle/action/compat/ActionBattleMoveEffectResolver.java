@@ -5,9 +5,11 @@ import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import me.rufia.fightorflight.data.movedata.MoveData;
 import me.rufia.fightorflight.data.movedata.movedatas.StatusEffectMoveData;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleFlinchController;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleConfusionController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleParalysisController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleSleepController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatusApplication;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
@@ -36,13 +38,16 @@ public final class ActionBattleMoveEffectResolver {
     public static boolean hasSupportedPoisonOnHitMetadata(Move move) { return hasSupportedOnHitMetadata(move, StatusFamily.POISON); }
     public static boolean hasSupportedFlinchOnHitMetadata(Move move) { return hasSupportedOnHitMetadata(move, StatusFamily.FLINCH); }
     public static boolean hasSupportedParalysisOnHitMetadata(Move move) { return hasSupportedOnHitMetadata(move, StatusFamily.PARALYSIS); }
+    public static boolean hasSupportedDrowsinessOnHitMetadata(Move move) { return hasSupportedOnHitMetadata(move, StatusFamily.DROWSINESS); }
+    public static boolean hasSupportedConfusionOnHitMetadata(Move move) { return hasSupportedOnHitMetadata(move, StatusFamily.CONFUSION); }
 
     public static boolean isOwnedActionStatus(StatusEffectMoveData status) {
         if (!isOnHitTarget(status)) return false;
         String name = status.getName();
         return StatusFamily.BURN.matchesMetadata(name) || StatusFamily.FREEZE.matchesMetadata(name)
                 || StatusFamily.POISON.matchesMetadata(name) || StatusFamily.FLINCH.matchesMetadata(name)
-                || StatusFamily.PARALYSIS.matchesMetadata(name) || Objects.equals(name, "triattack");
+                || StatusFamily.PARALYSIS.matchesMetadata(name) || StatusFamily.DROWSINESS.matchesMetadata(name)
+                || StatusFamily.CONFUSION.matchesMetadata(name) || Objects.equals(name, "triattack");
     }
 
     public static void applyDeclaredBurnOnHit(PokemonEntity attacker, PokemonEntity target, Move move, boolean hitSucceeded) {
@@ -63,6 +68,14 @@ public final class ActionBattleMoveEffectResolver {
 
     public static void applyDeclaredParalysisOnHit(PokemonEntity attacker, PokemonEntity target, Move move, boolean hitSucceeded) {
         applyDeclared(attacker, target, move, hitSucceeded, StatusFamily.PARALYSIS);
+    }
+
+    public static void applyDeclaredDrowsinessOnHit(PokemonEntity attacker, PokemonEntity target, Move move, boolean hitSucceeded) {
+        applyDeclared(attacker, target, move, hitSucceeded, StatusFamily.DROWSINESS);
+    }
+
+    public static void applyDeclaredConfusionOnHit(PokemonEntity attacker, PokemonEntity target, Move move, boolean hitSucceeded) {
+        applyDeclared(attacker, target, move, hitSucceeded, StatusFamily.CONFUSION);
     }
 
     private static boolean hasSupportedOnHitMetadata(Move move, StatusFamily family) {
@@ -94,6 +107,18 @@ public final class ActionBattleMoveEffectResolver {
                     + ", move=" + move.getName() + ", target=" + target.getPokemon().getUuid());
             return;
         }
+        if (family == StatusFamily.CONFUSION) {
+            ActionBattleStatusApplication result = ActionBattleConfusionController.apply(session, target, currentTick);
+            if (result != null) DebugLog.log("[CobblemonNML] Action battle Confusion effect resolved. Battle=" + session.battleId()
+                    + ", move=" + move.getName() + ", target=" + target.getPokemon().getUuid() + ", result=" + result);
+            return;
+        }
+        if (family == StatusFamily.DROWSINESS) {
+            ActionBattleStatusApplication result = ActionBattleSleepController.applyDrowsiness(session, target, currentTick);
+            if (result != null) DebugLog.log("[CobblemonNML] Action battle Drowsiness effect resolved. Battle=" + session.battleId()
+                    + ", move=" + move.getName() + ", target=" + target.getPokemon().getUuid() + ", result=" + result);
+            return;
+        }
         int baseDuration = family.baseDurationTicks();
         ActionBattleProtectController.EffectInterception interception = ActionBattleProtectController.global()
                 .interceptTimedEffect(session.battleId(), target.getPokemon().getUuid(), currentTick, family.effectId(), baseDuration);
@@ -110,7 +135,7 @@ public final class ActionBattleMoveEffectResolver {
                 ActionBattleParalysisController.ApplicationResult paralysis = ActionBattleParalysisController.apply(session, target, currentTick, durationMultiplier, FightOrFlightAdapter.makesContact(move));
                 yield paralysis != null ? paralysis.application() : null;
             }
-            case FLINCH -> null;
+            case FLINCH, DROWSINESS, CONFUSION -> null;
         };
         if (result == null) return;
         String detail = family == StatusFamily.POISON ? ", strength=" + strength : "";
@@ -155,6 +180,8 @@ public final class ActionBattleMoveEffectResolver {
         FREEZE("freeze", "Freeze", STANDARD_STATUS_DURATION_TICKS),
         POISON("poison", "Poison/Toxic", POISON_STATUS_DURATION_TICKS),
         PARALYSIS("paralysis", "Paralysis", STANDARD_STATUS_DURATION_TICKS),
+        DROWSINESS("drowsiness", "Drowsiness", 360),
+        CONFUSION("confusion", "Confusion", 180),
         FLINCH("flinch", "Flinch", 0);
 
         private final String effectId;
@@ -174,6 +201,8 @@ public final class ActionBattleMoveEffectResolver {
                 case POISON -> isPoisonName(name) || isToxicName(name);
                 case PARALYSIS -> isParalysisName(name) || Objects.equals(name, "triattack");
                 case FLINCH -> isFlinchName(name);
+                case DROWSINESS -> isDrowsinessName(name);
+                case CONFUSION -> isConfusionName(name);
             };
         }
 
@@ -184,6 +213,8 @@ public final class ActionBattleMoveEffectResolver {
                 case POISON -> fallback.isSupportedPoisonOnHit();
                 case PARALYSIS -> fallback.isSupportedParalysisOnHit();
                 case FLINCH -> fallback.isSupportedFlinchOnHit();
+                case DROWSINESS -> fallback.isSupportedDrowsinessOnHit();
+                case CONFUSION -> fallback.isSupportedConfusionOnHit();
             };
         }
 
@@ -227,6 +258,15 @@ public final class ActionBattleMoveEffectResolver {
     private static boolean isParalysisName(String name) {
         return Objects.equals(name, "paralysis") || Objects.equals(name, "paralyze")
                 || Objects.equals(name, "paralyzed") || Objects.equals(name, "par");
+    }
+
+    private static boolean isDrowsinessName(String name) {
+        return Objects.equals(name, "drowsiness") || Objects.equals(name, "drowsy")
+                || Objects.equals(name, "sleep") || Objects.equals(name, "slp");
+    }
+
+    private static boolean isConfusionName(String name) {
+        return Objects.equals(name, "confusion") || Objects.equals(name, "confuse") || Objects.equals(name, "confused");
     }
 
     private static boolean isToxicName(String name) {

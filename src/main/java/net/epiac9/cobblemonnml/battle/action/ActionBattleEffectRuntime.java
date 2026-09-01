@@ -41,6 +41,12 @@ final class ActionBattleEffectRuntime {
         ActionBattleProtectController.global().tickBattle(session.battleId(), activeProtectPokemon);
 
         long currentTick = level.getGameTime();
+        if (refs != null) {
+            PokemonEntity playerEntity = refs.playerPokemon() != null ? refs.playerPokemon().getEntity() : null;
+            PokemonEntity trainerEntity = refs.trainerPokemon() != null ? refs.trainerPokemon().getEntity() : null;
+            if (playerEntity != null && !playerEntity.isRemoved() && playerEntity.level() == level) ActionBattleSleepController.tickPokemon(session, playerEntity, currentTick);
+            if (trainerEntity != null && !trainerEntity.isRemoved() && trainerEntity.level() == level) ActionBattleSleepController.tickPokemon(session, trainerEntity, currentTick);
+        }
         syncHazeBattleZone(session, level, currentTick);
         observeDamageFeedback(session, refs);
         List<ActionBattleDotEvent> effectTicks = ActionBattleEffectController.global().tickBattle(session.battleId(), currentTick);

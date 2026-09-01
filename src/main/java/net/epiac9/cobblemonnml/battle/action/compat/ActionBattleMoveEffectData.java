@@ -27,6 +27,16 @@ public record ActionBattleMoveEffectData(String effect, String trigger, String t
                 && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
     }
 
+    public boolean isSupportedDrowsinessOnHit() {
+        return ("drowsiness".equals(effect) || "drowsy".equals(effect) || "sleep".equals(effect))
+                && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
+    }
+
+    public boolean isSupportedConfusionOnHit() {
+        return ("confusion".equals(effect) || "confuse".equals(effect) || "confused".equals(effect))
+                && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
+    }
+
     public int poisonProgressionStrength() {
         if (!isSupportedPoisonOnHit()) return 0;
         return "toxic".equals(effect) || "badly_poison".equals(effect) ? 2 : 1;
