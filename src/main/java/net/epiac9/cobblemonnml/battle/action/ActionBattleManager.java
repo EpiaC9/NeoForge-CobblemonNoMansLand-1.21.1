@@ -5,6 +5,8 @@ import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import com.gitlab.srcmc.rctapi.api.trainer.TrainerNPC;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
+import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
+import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleConfusionRules;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandler;
@@ -189,6 +191,7 @@ public final class ActionBattleManager {
         if (!FightOrFlightAdapter.hasPp(move)) return rejectMove(session, moveSlot, "no_pp");
         long currentTick = level.getGameTime();
         if (ActionBattleSleepController.isSleeping(session, refs.playerPokemon().getUuid(), currentTick)) return rejectMove(session, moveSlot, "sleep");
+        if (!ActionBattleControlController.global().canUseMove(session.battleId(), refs.playerPokemon().getUuid(), move, currentTick)) return rejectMove(session, moveSlot, "control_effect");
         ActionBattleCommandController.onCommandIssued(session, refs.playerPokemon().getUuid());
         if (session.isPokemonMoveOnCooldown(refs.playerPokemon().getUuid(), currentTick)) return rejectMove(session, moveSlot, "cooldown");
         UUID playerEntityId = session.playerActiveEntityUUID();
@@ -210,6 +213,7 @@ public final class ActionBattleManager {
             long cooldownTicks = confusionKind == ActionBattleConfusionRules.CommandKind.PROTECT
                     ? ActionBattleBalefulBunkerHandler.GLOBAL_COOLDOWN_TICKS : FightOrFlightAdapter.cooldownTicks(move);
             session.startPokemonMoveCooldown(refs.playerPokemon().getUuid(), currentTick, cooldownTicks);
+            ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), refs.playerPokemon().getUuid(), move);
             ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick);
             DebugLog.log("[CobblemonNML] Confusion caused move to fail without effect. Battle=" + session.battleId() + ", move=" + move.getName() + ", cooldownTicks=" + cooldownTicks);
             return true;
@@ -220,6 +224,7 @@ public final class ActionBattleManager {
             if (!FightOrFlightAdapter.consumeOnePp(move)) return rejectMove(session, moveSlot, "no_pp");
             long cooldownTicks = FightOrFlightAdapter.cooldownTicks(move);
             session.startPokemonMoveCooldown(refs.playerPokemon().getUuid(), currentTick, cooldownTicks);
+            ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), refs.playerPokemon().getUuid(), move);
             ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick);
             FightOrFlightAdapter.executeConfusedRanged(pokemonEntity, move, ActionBattleConfusionController.randomShotDirection(pokemonEntity));
             DebugLog.log("[CobblemonNML] Confusion fired ranged move in random direction. Battle=" + session.battleId() + ", move=" + move.getName());
@@ -231,6 +236,7 @@ public final class ActionBattleManager {
             if (!FightOrFlightAdapter.consumeOnePp(move)) return rejectMove(session, moveSlot, "no_pp");
             long cooldownTicks = FightOrFlightAdapter.cooldownTicks(move);
             session.startPokemonMoveCooldown(refs.playerPokemon().getUuid(), currentTick, cooldownTicks);
+            ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), refs.playerPokemon().getUuid(), move);
             ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick);
             ActionBattleConfusionController.startMeleeDash(session, level, pokemonEntity, move, currentTick);
             DebugLog.log("[CobblemonNML] Confusion started uncontrolled melee dash. Battle=" + session.battleId() + ", move=" + move.getName());
@@ -241,12 +247,12 @@ public final class ActionBattleManager {
             session.clearPlayerMoveTarget();
             if (ActionBattleHailHandler.isHail(move)) {
                 var result = ActionBattleHailHandler.tryStart(session, level, pokemonEntity, null, move, confusionPlan.channelBonusTicks(), confusionPlan.channelSelfCancel());
-                if (result == ActionBattleHailHandler.StartResult.STARTED) ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick);
+                if (result == ActionBattleHailHandler.StartResult.STARTED) { ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), refs.playerPokemon().getUuid(), move); ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick); }
                 DebugLog.log("[CobblemonNML] Confused Hail ACTION start result. Battle=" + session.battleId() + ", result=" + result);
                 return result == ActionBattleHailHandler.StartResult.STARTED;
             }
             var result = ActionBattleToxicSpikesHandler.tryStart(session, level, pokemonEntity, null, move, confusionPlan.channelBonusTicks(), confusionPlan.channelSelfCancel());
-            if (result == ActionBattleToxicSpikesHandler.StartResult.STARTED) ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick);
+            if (result == ActionBattleToxicSpikesHandler.StartResult.STARTED) { ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), refs.playerPokemon().getUuid(), move); ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick); }
             DebugLog.log("[CobblemonNML] Confused Toxic Spikes ACTION start result. Battle=" + session.battleId() + ", result=" + result);
             return result == ActionBattleToxicSpikesHandler.StartResult.STARTED;
         }
@@ -254,7 +260,7 @@ public final class ActionBattleManager {
             pokemonEntity.getNavigation().stop();
             session.clearPlayerMoveTarget();
             ActionBattleBalefulBunkerHandler.StartResult result = ActionBattleBalefulBunkerHandler.tryStart(session, pokemonEntity, move);
-            if (result == ActionBattleBalefulBunkerHandler.StartResult.STARTED) ActionBattleParalysisController.onAbilitySucceeded(session.battleId(), refs.playerPokemon().getUuid(), currentTick);
+            if (result == ActionBattleBalefulBunkerHandler.StartResult.STARTED) { ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), refs.playerPokemon().getUuid(), move); ActionBattleParalysisController.onAbilitySucceeded(session.battleId(), refs.playerPokemon().getUuid(), currentTick); }
             DebugLog.log("[CobblemonNML] Baleful Bunker ACTION start result. Battle=" + session.battleId() + ", result=" + result);
             return result == ActionBattleBalefulBunkerHandler.StartResult.STARTED;
         }
@@ -283,6 +289,7 @@ public final class ActionBattleManager {
         if (!(player.level() instanceof ServerLevel level) || !player.level().dimension().equals(DungeonDimension.DUNGEON_DIMENSION)) return rejectSwap(session, "wrong_dimension");
         long currentTick = level.getGameTime();
         if (session.playerActivePokemonUUID() != null && ActionBattleSleepController.isSleeping(session, session.playerActivePokemonUUID(), currentTick)) return rejectSwap(session, "sleep");
+        if (session.playerActivePokemonUUID() != null && ActionBattleControlController.global().blocksSwap(session.battleId(), session.playerActivePokemonUUID(), currentTick)) return rejectSwap(session, "trapped");
         if (session.playerActivePokemonUUID() != null) ActionBattleCommandController.onCommandIssued(session, session.playerActivePokemonUUID());
         if (session.isPlayerSwapOnCooldown(currentTick)) return rejectSwap(session, "cooldown");
         if (session.isPlayerSendOutPending()) return rejectSwap(session, "sendout_pending");
@@ -302,6 +309,8 @@ public final class ActionBattleManager {
         session.setPlayerSendOutPending(true);
         Pokemon previous = refs.playerPokemon();
         ActionBattleEffectController.global().onPokemonRecalled(session.battleId(), previous.getUuid(), currentTick);
+        ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), previous.getUuid(), false, currentTick);
+        ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), previous.getUuid(), false, currentTick);
         ActionBattleParalysisController.onPokemonRecalled(session.battleId(), previous.getUuid());
         ActionBattleProtectController.global().onPokemonRecalled(session.battleId(), previous.getUuid());
         ActionBattlePokemonRuntime.recall(previous);
@@ -367,6 +376,12 @@ public final class ActionBattleManager {
             }
             long currentTick = level.getGameTime();
             UUID pokemonUUID = refs.playerPokemon().getUuid();
+            if (!ActionBattleControlController.global().canUseMove(session.battleId(), pokemonUUID, move, currentTick)) {
+                pokemonEntity.getNavigation().stop();
+                session.clearPlayerMoveCommand();
+                DebugLog.log("[CobblemonNML] Action move rejected. Battle=" + session.battleId() + ", slot=" + (session.playerMoveSlot() + 1) + ", reason=control_effect");
+                return;
+            }
             if (session.isPokemonMoveOnCooldown(pokemonUUID, currentTick)) {
                 pokemonEntity.getNavigation().stop();
                 session.clearPlayerMoveCommand();
@@ -381,7 +396,7 @@ public final class ActionBattleManager {
                 pokemonEntity.getNavigation().stop();
                 ActionBattleHailHandler.StartResult hailResult = ActionBattleHailHandler.tryStart(session, level, pokemonEntity, targetEntity, move);
                 session.clearPlayerMoveCommand();
-                if (hailResult == ActionBattleHailHandler.StartResult.STARTED) ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), pokemonUUID);
+                if (hailResult == ActionBattleHailHandler.StartResult.STARTED) { ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), pokemonUUID); ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), pokemonUUID, move); }
                 DebugLog.log("[CobblemonNML] Hail ACTION start result. Battle=" + session.battleId() + ", result=" + hailResult);
                 return;
             }
@@ -393,7 +408,7 @@ public final class ActionBattleManager {
                 pokemonEntity.getNavigation().stop();
                 ActionBattleToxicSpikesHandler.StartResult result = ActionBattleToxicSpikesHandler.tryStart(session, level, pokemonEntity, targetEntity, move);
                 session.clearPlayerMoveCommand();
-                if (result == ActionBattleToxicSpikesHandler.StartResult.STARTED) ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), pokemonUUID);
+                if (result == ActionBattleToxicSpikesHandler.StartResult.STARTED) { ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), pokemonUUID); ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), pokemonUUID, move); }
                 DebugLog.log("[CobblemonNML] Toxic Spikes ACTION start result. Battle=" + session.battleId() + ", result=" + result);
                 return;
             }
@@ -408,6 +423,7 @@ public final class ActionBattleManager {
                     long cooldownTicks = FightOrFlightAdapter.cooldownTicks(move);
                     session.startPokemonMoveCooldown(pokemonUUID, currentTick, cooldownTicks);
                     ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), pokemonUUID);
+                    ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), pokemonUUID, move);
                     ActionBattleParalysisController.onAbilitySucceeded(session.battleId(), pokemonUUID, currentTick);
                     session.clearPlayerMoveCommand();
                     DebugLog.log("[CobblemonNML] Action move committed through Fight or Flight. Battle=" + session.battleId() + ", move=" + move.getName() + ", cooldownTicks=" + cooldownTicks);
@@ -474,6 +490,8 @@ public final class ActionBattleManager {
         ActionBattleMovementController.stopActivePlayerNavigation(session, level);
         ActionBattleMovementController.stopActiveTrainerNavigation(session, level);
         if (playerFainted) {
+            ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), playerPokemon.getUuid(), true, level.getGameTime());
+            ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), playerPokemon.getUuid(), true, level.getGameTime());
             int previousSlot = session.playerActivePartyIndex();
             session.setPlayerSendOutPending(true);
             ActionBattlePokemonRuntime.recall(playerPokemon);
@@ -484,6 +502,8 @@ public final class ActionBattleManager {
             DebugLog.log("[CobblemonNML] Player faint replacement started. Battle=" + session.battleId() + ", fromSlot=" + previousSlot + ", toSlot=" + playerReplacement.slot());
         }
         if (trainerFainted) {
+            ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), trainerPokemon.getUuid(), true, level.getGameTime());
+            ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), trainerPokemon.getUuid(), true, level.getGameTime());
             int previousSlot = session.trainerActivePartyIndex();
             session.setTrainerSendOutPending(true);
             ActionBattlePokemonRuntime.recall(trainerPokemon);

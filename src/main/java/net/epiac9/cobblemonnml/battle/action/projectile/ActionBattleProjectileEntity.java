@@ -9,6 +9,7 @@ import me.rufia.fightorflight.utils.PokemonUtils;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSleepController;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleEvasionController;
 import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectResolver;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
@@ -56,9 +57,12 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         setDamage(FightOrFlightAdapter.isNativeDamageMove(move) ? FightOrFlightAdapter.scaleActionDamage(shooter, target, move, PokemonAttackEffect.calculatePokemonDamage(shooter, target, move)) : 0.0F);
         accuracySpeedMultiplier = FightOrFlightAdapter.actionAccuracyProjectileMultiplier(shooter);
         maxLifetimeTicks = ActionProjectileProfile.maxLifetimeTicks(move.getName());
-        double d = target.getX() - getX();
-        double e = target.getY(0.5D) - getY();
-        double f = target.getZ() - getZ();
+        Vec3 trackedTarget = target instanceof PokemonEntity pokemonTarget
+                ? ActionBattleEvasionController.trackedPosition(pokemonTarget, level.getGameTime()).add(0.0D, target.getBbHeight() * 0.5D, 0.0D)
+                : target.position().add(0.0D, target.getBbHeight() * 0.5D, 0.0D);
+        double d = trackedTarget.x - getX();
+        double e = trackedTarget.y - getY();
+        double f = trackedTarget.z - getZ();
         if (ActionProjectileProfile.isLobbed(move.getName())) e += Math.sqrt(d * d + f * f) * 0.30D;
         shoot(d, e, f, (float) projectileSpeed(move.getName()), 0.0F);
     }
@@ -106,7 +110,9 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         if (!(rawTarget instanceof LivingEntity target) || !target.isAlive()) return;
         double speed = projectileSpeed(committedMoveName());
         if (ActionProjectileProfile.isHoming(committedMoveName())) {
-            Vec3 delta = target.getEyePosition().subtract(position());
+            Vec3 trackedEye = target instanceof PokemonEntity pokemonTarget
+                    ? ActionBattleEvasionController.trackedEyePosition(pokemonTarget, serverLevel.getGameTime()) : target.getEyePosition();
+            Vec3 delta = trackedEye.subtract(position());
             if (delta.lengthSqr() > 0.000001D) setDeltaMovement(delta.normalize().scale(speed));
             return;
         }
@@ -117,7 +123,9 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             double vertical = Math.max(-0.20D, Math.min(0.20D, surfaceY - getY()));
             Vec3 horizontal = new Vec3(current.x, 0.0D, current.z);
             if (horizontal.lengthSqr() < 0.000001D) {
-                horizontal = new Vec3(target.getX() - getX(), 0.0D, target.getZ() - getZ());
+                Vec3 tracked = target instanceof PokemonEntity pokemonTarget
+                        ? ActionBattleEvasionController.trackedPosition(pokemonTarget, serverLevel.getGameTime()) : target.position();
+                horizontal = new Vec3(tracked.x - getX(), 0.0D, tracked.z - getZ());
             }
             if (horizontal.lengthSqr() > 0.000001D) horizontal = horizontal.normalize().scale(speed);
             setDeltaMovement(horizontal.x, vertical, horizontal.z);

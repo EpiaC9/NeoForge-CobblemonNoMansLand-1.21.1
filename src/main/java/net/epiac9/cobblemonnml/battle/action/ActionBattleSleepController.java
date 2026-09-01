@@ -7,6 +7,7 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleSleepWakeRules;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatusApplication;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
+import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
 import net.epiac9.cobblemonnml.util.DebugLog;
 
@@ -38,6 +39,7 @@ public final class ActionBattleSleepController {
             return;
         }
         if (effects.tickSleepState(session.battleId(), pokemonUUID, currentTick) == ActionBattleSleepState.NaturalWakeResult.WOKE_NATURALLY) {
+            ActionBattlePersistentController.global().onSleepEnded(session.battleId(), pokemonUUID);
             if (target.level() instanceof net.minecraft.server.level.ServerLevel level) ActionBattleStatusParticleController.emitWakeBurst(level, target);
             DebugLog.log("[CobblemonNML] Action battle Pokemon woke naturally. Battle=" + session.battleId() + ", pokemon=" + pokemonUUID + ", graceTicks=" + ActionBattleSleepState.DROWSINESS_GRACE_DURATION_TICKS);
         }
@@ -63,6 +65,7 @@ public final class ActionBattleSleepController {
         if (bonusDamage > 0) target.getPokemon().setCurrentHealth(Math.max(0, afterHp - bonusDamage));
         boolean woke = ActionBattleEffectController.global().wakeSleep(session.battleId(), target.getPokemon().getUuid(), currentTick);
         if (woke) {
+            ActionBattlePersistentController.global().onSleepEnded(session.battleId(), target.getPokemon().getUuid());
             if (target.level() instanceof net.minecraft.server.level.ServerLevel level) ActionBattleStatusParticleController.emitWakeBurst(level, target);
             DebugLog.log("[CobblemonNML] Action battle Pokemon woke from ability damage. Battle=" + session.battleId() + ", pokemon=" + target.getPokemon().getUuid()
                     + ", explicitWake=" + plan.explicitWake() + ", multiplier=" + plan.damageMultiplier() + ", graceTicks=" + ActionBattleSleepState.DROWSINESS_GRACE_DURATION_TICKS);

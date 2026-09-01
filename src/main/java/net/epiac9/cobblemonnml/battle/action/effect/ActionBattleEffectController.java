@@ -108,6 +108,11 @@ public final class ActionBattleEffectController {
         return state(battleId, pokemonUUID).applyDrowsiness(currentTick);
     }
 
+    public ActionBattleStatusApplication applyEvasion(UUID battleId, UUID pokemonUUID, long currentTick) {
+        if (!validIds(battleId, pokemonUUID) || currentTick < 0L) return null;
+        return state(battleId, pokemonUUID).applyEvasion(currentTick);
+    }
+
     public ActionBattleStatusApplication applyConfusion(UUID battleId, UUID pokemonUUID, long currentTick) {
         if (!validIds(battleId, pokemonUUID) || currentTick < 0L) return null;
         return state(battleId, pokemonUUID).applyConfusion(currentTick);
@@ -212,6 +217,7 @@ public final class ActionBattleEffectController {
             case SLEEP -> ActionBattleSleepState.SLEEP_MAX_DURATION_TICKS;
             case DROWSINESS_GRACE -> ActionBattleSleepState.DROWSINESS_GRACE_DURATION_TICKS;
             case CONFUSION -> ActionBattleConfusionRules.DURATION_TICKS;
+            case EVASION -> ActionBattleEvasionState.DURATION_TICKS;
         };
     }
 

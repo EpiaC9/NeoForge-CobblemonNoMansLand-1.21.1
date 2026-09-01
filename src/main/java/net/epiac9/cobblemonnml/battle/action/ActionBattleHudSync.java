@@ -3,6 +3,8 @@ package net.epiac9.cobblemonnml.battle.action;
 import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
+import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
+import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlEffect;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackEvent;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
@@ -10,6 +12,8 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleHudPayload;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
+import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
+import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentType;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -45,8 +49,8 @@ public final class ActionBattleHudSync {
                 damageStates(ActionBattleDamageFeedbackController.global().drain(session.battleId(), trainerPokemon.getUuid())),
                 swapCooldownRemaining, swapCooldownDuration,
                 moveHereCooldownRemaining, moveHereCooldownDuration,
-                moveState(playerPokemon, 0, remaining, cooldownDuration), moveState(playerPokemon, 1, remaining, cooldownDuration),
-                moveState(playerPokemon, 2, remaining, cooldownDuration), moveState(playerPokemon, 3, remaining, cooldownDuration)
+                moveState(session.battleId(), playerPokemon, 0, currentTick, remaining, cooldownDuration), moveState(session.battleId(), playerPokemon, 1, currentTick, remaining, cooldownDuration),
+                moveState(session.battleId(), playerPokemon, 2, currentTick, remaining, cooldownDuration), moveState(session.battleId(), playerPokemon, 3, currentTick, remaining, cooldownDuration)
         );
         PacketDistributor.sendToPlayer(player, payload);
     }
@@ -70,6 +74,28 @@ public final class ActionBattleHudSync {
             if (remaining <= 0L) continue;
             long duration = isPoisonToxic(status) ? POISON_TOXIC_HUD_DURATION_TICKS : controller.statusDurationTicks(status);
             states.add(new ActionBattleHudPayload.StatusState(status.name(), remaining, duration));
+        }
+        ActionBattleControlController controls = ActionBattleControlController.global();
+        ActionBattleControlEffect activeControl = controls.activeEffect(battleId, pokemonUUID, currentTick);
+        if (activeControl != null) {
+            long controlRemaining = controls.activeRemainingTicks(battleId, pokemonUUID, currentTick);
+            long controlDuration = controls.activeDurationTicks(battleId, pokemonUUID, currentTick);
+            long shownRemaining = controlRemaining == Long.MAX_VALUE ? 1L : controlRemaining;
+            long shownDuration = controlDuration == Long.MAX_VALUE ? 1L : Math.max(1L, controlDuration);
+            states.add(new ActionBattleHudPayload.StatusState("CONTROL_" + activeControl.type().name(), shownRemaining, shownDuration));
+        }
+        long graceRemaining = controls.graceRemainingTicks(battleId, pokemonUUID, currentTick);
+        if (graceRemaining > 0L) states.add(new ActionBattleHudPayload.StatusState("CONTROL_GRACE", graceRemaining, 60L));
+        ActionBattlePersistentController persistent = ActionBattlePersistentController.global();
+        for (ActionBattlePersistentType type : ActionBattlePersistentType.values()) {
+            long persistentRemaining = persistent.remainingTicks(battleId, pokemonUUID, type, currentTick);
+            if (persistentRemaining <= 0L) continue;
+            long persistentDuration = persistent.durationTicks(battleId, pokemonUUID, type);
+            if (persistentRemaining == Long.MAX_VALUE || persistentDuration == Long.MAX_VALUE) {
+                persistentRemaining = 1L;
+                persistentDuration = 1L;
+            }
+            states.add(new ActionBattleHudPayload.StatusState("PERSISTENT_" + type.name(), persistentRemaining, Math.max(1L, persistentDuration)));
         }
         return List.copyOf(states);
     }
@@ -101,11 +127,12 @@ public final class ActionBattleHudSync {
         return List.copyOf(states);
     }
 
-    private static ActionBattleHudPayload.MoveState moveState(Pokemon pokemon, int slot, long cooldownRemaining, long cooldownDuration) {
+    private static ActionBattleHudPayload.MoveState moveState(UUID battleId, Pokemon pokemon, int slot, long currentTick, long cooldownRemaining, long cooldownDuration) {
         Move move = pokemon.getMoveSet().get(slot);
         if (move == null) return ActionBattleHudPayload.MoveState.empty();
+        boolean controlAllowed = ActionBattleControlController.global().canUseMove(battleId, pokemon.getUuid(), move, currentTick);
         return new ActionBattleHudPayload.MoveState(
-                move.getName(), move.getType().getName(), FightOrFlightAdapter.currentPp(move), FightOrFlightAdapter.maxPp(move), FightOrFlightAdapter.supports(move),
+                move.getName(), move.getType().getName(), FightOrFlightAdapter.currentPp(move), FightOrFlightAdapter.maxPp(move), FightOrFlightAdapter.supports(move) && controlAllowed,
                 cooldownRemaining, cooldownDuration
         );
     }

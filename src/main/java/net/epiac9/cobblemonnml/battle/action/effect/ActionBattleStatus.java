@@ -13,5 +13,6 @@ public enum ActionBattleStatus {
     DROWSINESS,
     SLEEP,
     DROWSINESS_GRACE,
-    CONFUSION
+    CONFUSION,
+    EVASION
 }

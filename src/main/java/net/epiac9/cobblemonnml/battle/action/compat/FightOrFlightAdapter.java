@@ -9,6 +9,7 @@ import me.rufia.fightorflight.entity.PokemonAttackEffect;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSleepController;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleEvasionController;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
@@ -223,6 +224,15 @@ public final class FightOrFlightAdapter {
         if (PokemonUtils.isMeleeAttackMove(move)) {
             PokemonUtils.sendAnimationPacket(attacker, "physical");
             PokemonEntity pokemonTarget = target instanceof PokemonEntity value ? value : null;
+            long evasionTick = attacker.level().getGameTime();
+            if (pokemonTarget != null && ActionBattleEvasionController.isEvading(pokemonTarget, evasionTick)) {
+                net.minecraft.world.phys.Vec3 tracked = ActionBattleEvasionController.trackedPosition(pokemonTarget, evasionTick);
+                net.minecraft.world.phys.AABB staleHitBox = pokemonTarget.getBoundingBox().move(tracked.subtract(pokemonTarget.position())).inflate(0.10D);
+                if (!staleHitBox.intersects(pokemonTarget.getBoundingBox())) {
+                    PokemonAttackEffect.applySFX(attacker.level(), move, attacker.blockPosition());
+                    return true;
+                }
+            }
             int beforeHp = pokemonTarget != null ? pokemonTarget.getPokemon().getCurrentHealth() : 0;
             ActionBattleSession sleepSession = pokemonTarget != null ? ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID()) : null;
             long currentTick = attacker.level().getGameTime();

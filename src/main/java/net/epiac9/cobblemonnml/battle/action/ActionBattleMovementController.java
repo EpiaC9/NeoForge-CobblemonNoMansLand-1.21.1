@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.pathfinder.Path;
 
 import java.util.HashMap;
@@ -74,7 +75,8 @@ final class ActionBattleMovementController {
             pokemonEntity.getNavigation().stop();
             return;
         }
-        Path path = pokemonEntity.getNavigation().createPath(targetEntity, 0);
+        var tracked = ActionBattleEvasionController.trackedPosition(targetEntity, pokemonEntity.level().getGameTime());
+        Path path = pokemonEntity.getNavigation().createPath(BlockPos.containing(tracked), 0);
         if (path == null || !path.canReach()) {
             pokemonEntity.getNavigation().stop();
             session.clearPlayerMoveCommand();

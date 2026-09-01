@@ -21,6 +21,7 @@ public final class ActionBattleEffectState {
     private ActionBattleParalysisState paralysis;
     private ActionBattleSleepState sleep;
     private ActionBattleConfusionState confusion;
+    private ActionBattleEvasionState evasion;
 
     ActionBattleEffectState(UUID battleId, UUID pokemonUUID) {
         if (battleId == null || pokemonUUID == null) throw new IllegalArgumentException("Battle and Pokemon IDs cannot be null.");
@@ -130,6 +131,13 @@ public final class ActionBattleEffectState {
     boolean wakeSleep(long currentTick) { return sleep != null && sleep.wake(currentTick); }
     ActionBattleSleepState.NaturalWakeResult tickSleepState(long currentTick) { return sleep != null ? sleep.tick(currentTick) : ActionBattleSleepState.NaturalWakeResult.NONE; }
 
+    ActionBattleStatusApplication applyEvasion(long currentTick) {
+        if (currentTick < 0L) return null;
+        if (evasion == null) evasion = new ActionBattleEvasionState();
+        ActionBattleEvasionState.ApplyResult result = evasion.apply(currentTick);
+        return result == ActionBattleEvasionState.ApplyResult.APPLIED ? ActionBattleStatusApplication.EVASION_APPLIED : ActionBattleStatusApplication.EVASION_REFRESHED;
+    }
+
     ActionBattleStatusApplication applyConfusion(long currentTick) {
         if (currentTick < 0L) return null;
         if (confusion == null) confusion = new ActionBattleConfusionState();
@@ -164,6 +172,7 @@ public final class ActionBattleEffectState {
             case SLEEP -> sleep != null && sleep.isSleeping(currentTick);
             case DROWSINESS_GRACE -> sleep != null && sleep.hasDrowsinessGrace(currentTick);
             case CONFUSION -> confusion != null && confusion.isActive(currentTick);
+            case EVASION -> evasion != null && evasion.isActive(currentTick);
         };
     }
 
@@ -180,6 +189,7 @@ public final class ActionBattleEffectState {
             case SLEEP -> sleep != null ? sleep.sleepRemainingTicks(currentTick) : 0L;
             case DROWSINESS_GRACE -> sleep != null ? sleep.graceRemainingTicks(currentTick) : 0L;
             case CONFUSION -> confusion != null ? confusion.remainingTicks(currentTick) : 0L;
+            case EVASION -> evasion != null ? evasion.remainingTicks(currentTick) : 0L;
         };
     }
 
@@ -229,6 +239,8 @@ public final class ActionBattleEffectState {
         }
         if (confusion != null) confusion.clear();
         confusion = null;
+        if (evasion != null) evasion.clear();
+        evasion = null;
     }
 
     void onPokemonRecalled(long currentTick) {
@@ -242,6 +254,8 @@ public final class ActionBattleEffectState {
         sleep = null;
         if (confusion != null) confusion.clear();
         confusion = null;
+        if (evasion != null) evasion.clear();
+        evasion = null;
         if (poisonToxic != null) {
             if (poisonToxic.isExpired(currentTick)) poisonToxic = null;
             else poisonToxic.collapseToPoisonOnRecall(currentTick);
@@ -257,6 +271,7 @@ public final class ActionBattleEffectState {
         if (paralysis != null && paralysis.isEmpty(currentTick)) paralysis = null;
         if (sleep != null && sleep.isEmpty(currentTick)) sleep = null;
         if (confusion != null && confusion.isEmpty(currentTick)) confusion = null;
+        if (evasion != null && evasion.isEmpty(currentTick)) evasion = null;
         return isEmpty();
     }
 
@@ -281,7 +296,7 @@ public final class ActionBattleEffectState {
     }
 
     private boolean isEmpty() {
-        return statContributions.isEmpty() && !hazeProtected && burn.isEmpty() && freeze.isEmpty() && poisonToxic == null && paralysis == null && sleep == null && confusion == null;
+        return statContributions.isEmpty() && !hazeProtected && burn.isEmpty() && freeze.isEmpty() && poisonToxic == null && paralysis == null && sleep == null && confusion == null && evasion == null;
     }
 
     UUID battleId() { return battleId; }
