@@ -40,20 +40,14 @@ public final class ActionBattleControlState {
 
     public boolean end(EndReason reason, long currentTick) {
         if (reason == null || currentTick < 0L || active == null) return false;
-        active = null;
-        endTick = 0L;
-        activeDurationTicks = 0L;
-        startGrace(currentTick);
+        clearActiveAndStartGrace(currentTick);
         return true;
     }
 
     public EndResult endIfSource(java.util.UUID sourcePokemonUUID, long currentTick) {
         if (sourcePokemonUUID == null || currentTick < 0L || active == null || !sourcePokemonUUID.equals(active.sourcePokemonUUID())) return EndResult.NONE;
         ActionBattleControlType ended = active.type();
-        active = null;
-        endTick = 0L;
-        activeDurationTicks = 0L;
-        startGrace(currentTick);
+        clearActiveAndStartGrace(currentTick);
         return ended == ActionBattleControlType.IMPRISON || ended == ActionBattleControlType.TRAPPED || ended == ActionBattleControlType.TORMENT ? EndResult.SOURCE_ENDED : EndResult.NONE;
     }
 
@@ -92,11 +86,15 @@ public final class ActionBattleControlState {
 
     private EndResult expireIfNeeded(long currentTick) {
         if (active == null || !active.type().timed() || endTick > currentTick) return EndResult.NONE;
+        clearActiveAndStartGrace(currentTick);
+        return EndResult.EXPIRED;
+    }
+
+    private void clearActiveAndStartGrace(long currentTick) {
         active = null;
         endTick = 0L;
         activeDurationTicks = 0L;
         startGrace(currentTick);
-        return EndResult.EXPIRED;
     }
 
     private void startGrace(long currentTick) {

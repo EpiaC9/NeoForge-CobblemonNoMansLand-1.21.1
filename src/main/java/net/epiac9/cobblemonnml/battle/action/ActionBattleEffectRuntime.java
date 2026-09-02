@@ -48,18 +48,8 @@ final class ActionBattleEffectRuntime {
         long currentTick = level.getGameTime();
         ActionBattleControlController.global().tickBattle(session.battleId(), currentTick);
         if (refs != null) {
-            PokemonEntity playerEntity = refs.playerPokemon() != null ? refs.playerPokemon().getEntity() : null;
-            PokemonEntity trainerEntity = refs.trainerPokemon() != null ? refs.trainerPokemon().getEntity() : null;
-            if (playerEntity != null && !playerEntity.isRemoved() && playerEntity.level() == level) {
-                ActionBattleEvasionController.record(session, playerEntity, currentTick);
-                ActionBattleSleepController.tickPokemon(session, playerEntity, currentTick);
-                syncNightmareWithSleep(session, playerEntity, currentTick);
-            }
-            if (trainerEntity != null && !trainerEntity.isRemoved() && trainerEntity.level() == level) {
-                ActionBattleEvasionController.record(session, trainerEntity, currentTick);
-                ActionBattleSleepController.tickPokemon(session, trainerEntity, currentTick);
-                syncNightmareWithSleep(session, trainerEntity, currentTick);
-            }
+            trackRuntimeState(session, level, refs.playerPokemon(), currentTick);
+            trackRuntimeState(session, level, refs.trainerPokemon(), currentTick);
         }
         syncHazeBattleZone(session, level, currentTick);
         observeDamageFeedback(session, refs);
@@ -94,26 +84,37 @@ final class ActionBattleEffectRuntime {
 
     private static void applyEffectTicks(ActionBattleSession session, ServerLevel level, List<ActionBattleDotEvent> events) {
         if (session == null || level == null || events == null || events.isEmpty()) return;
-        for (ActionBattleDotEvent event : events) {
-            Pokemon pokemon = findBattlePokemon(session, level, event.pokemonUUID());
-            if (pokemon == null || pokemon.isFainted()) continue;
-            int maxHealth = Math.max(1, pokemon.getMaxHealth());
-            int beforeHealth = pokemon.getCurrentHealth();
-            int damage = ActionBattleDotDamage.calculate(maxHealth, pokemon.getCurrentHealth(), event.maxHealthFraction());
-            int newHealth = Math.max(event.canKo() ? 0 : 1, beforeHealth - damage);
-            pokemon.setCurrentHealth(newHealth);
-            boolean poisonDot = isPoison(event.status());
-            ActionBattleDamageFeedbackController.global().recordDamage(session.battleId(), pokemon.getUuid(), beforeHealth, newHealth,
-                    poisonDot ? ActionBattleDamageFeedbackCategory.POISON_DOT : ActionBattleDamageFeedbackCategory.DOT);
-            PokemonEntity entity = pokemon.getEntity();
-            if (entity != null && !entity.isRemoved() && entity.level() == level) {
-                if (event.status() == ActionBattleStatus.BURN) ActionBattleStatusParticleController.emitBurnDotBurst(level, entity);
-                else if (event.status() == ActionBattleStatus.FROSTBITE) ActionBattleStatusParticleController.emitFrostbiteDotBurst(level, entity);
-                else if (poisonDot) ActionBattleStatusParticleController.emitPoisonDotBurst(level, entity, toxicLevel(event.status()));
-            }
-            DebugLog.log("[CobblemonNML] Action battle DOT tick. Battle=" + session.battleId() + ", status=" + event.status()
-                    + ", pokemon=" + event.pokemonUUID() + ", damage=" + damage + ", hp=" + newHealth + "/" + maxHealth);
+        for (ActionBattleDotEvent event : events) applyEffectTick(session, level, event);
+    }
+
+    private static void applyEffectTick(ActionBattleSession session, ServerLevel level, ActionBattleDotEvent event) {
+        Pokemon pokemon = findBattlePokemon(session, level, event.pokemonUUID());
+        if (pokemon == null || pokemon.isFainted()) return;
+        int maxHealth = Math.max(1, pokemon.getMaxHealth());
+        int beforeHealth = pokemon.getCurrentHealth();
+        int damage = ActionBattleDotDamage.calculate(maxHealth, pokemon.getCurrentHealth(), event.maxHealthFraction());
+        int newHealth = Math.max(event.canKo() ? 0 : 1, beforeHealth - damage);
+        pokemon.setCurrentHealth(newHealth);
+        boolean poisonDot = isPoison(event.status());
+        ActionBattleDamageFeedbackController.global().recordDamage(session.battleId(), pokemon.getUuid(), beforeHealth, newHealth,
+                poisonDot ? ActionBattleDamageFeedbackCategory.POISON_DOT : ActionBattleDamageFeedbackCategory.DOT);
+        PokemonEntity entity = pokemon.getEntity();
+        if (entity != null && !entity.isRemoved() && entity.level() == level) {
+            if (event.status() == ActionBattleStatus.BURN) ActionBattleStatusParticleController.emitBurnDotBurst(level, entity);
+            else if (event.status() == ActionBattleStatus.FROSTBITE) ActionBattleStatusParticleController.emitFrostbiteDotBurst(level, entity);
+            else if (poisonDot) ActionBattleStatusParticleController.emitPoisonDotBurst(level, entity, toxicLevel(event.status()));
         }
+        DebugLog.log("[CobblemonNML] Action battle DOT tick. Battle=" + session.battleId() + ", status=" + event.status()
+                + ", pokemon=" + event.pokemonUUID() + ", damage=" + damage + ", hp=" + newHealth + "/" + maxHealth);
+    }
+
+    private static void trackRuntimeState(ActionBattleSession session, ServerLevel level, Pokemon pokemon, long currentTick) {
+        if (session == null || level == null || pokemon == null) return;
+        PokemonEntity entity = pokemon.getEntity();
+        if (entity == null || entity.isRemoved() || entity.level() != level) return;
+        ActionBattleEvasionController.record(session, entity, currentTick);
+        ActionBattleSleepController.tickPokemon(session, entity, currentTick);
+        syncNightmareWithSleep(session, entity, currentTick);
     }
 
     private static void syncNightmareWithSleep(ActionBattleSession session, PokemonEntity entity, long currentTick) {
@@ -128,34 +129,37 @@ final class ActionBattleEffectRuntime {
 
     private static void applyPersistentTicks(ActionBattleSession session, ServerLevel level, List<ActionBattlePersistentTick> ticks, long currentTick) {
         if (session == null || level == null || ticks == null || ticks.isEmpty()) return;
-        for (ActionBattlePersistentTick tick : ticks) {
-            if (tick == null || tick.event() == null) continue;
-            ActionBattlePersistentEvent event = tick.event();
-            if (event.kind() == ActionBattlePersistentEvent.Kind.ENDED) continue;
-            Pokemon target = findBattlePokemon(session, level, tick.targetPokemonUUID());
-            if (target == null || target.isFainted()) continue;
-            if (event.kind() == ActionBattlePersistentEvent.Kind.FAINT) {
-                int before = target.getCurrentHealth();
-                target.setCurrentHealth(0);
-                ActionBattleDamageFeedbackController.global().recordDamage(session.battleId(), target.getUuid(), before, 0, ActionBattleDamageFeedbackCategory.DOT);
-                DebugLog.log("[CobblemonNML] Action battle Perish countdown reached zero. Battle=" + session.battleId() + ", pokemon=" + target.getUuid());
-                continue;
-            }
-            int maxHealth = Math.max(1, target.getMaxHealth());
+        for (ActionBattlePersistentTick tick : ticks) applyPersistentTick(session, level, tick, currentTick);
+    }
+
+    private static void applyPersistentTick(ActionBattleSession session, ServerLevel level, ActionBattlePersistentTick tick, long currentTick) {
+        if (tick == null || tick.event() == null) return;
+        ActionBattlePersistentEvent event = tick.event();
+        if (event.kind() == ActionBattlePersistentEvent.Kind.ENDED) return;
+        Pokemon target = findBattlePokemon(session, level, tick.targetPokemonUUID());
+        if (target == null || target.isFainted()) return;
+        if (event.kind() == ActionBattlePersistentEvent.Kind.FAINT) {
             int before = target.getCurrentHealth();
-            int damage = Math.max(1, (int) Math.floor(maxHealth * event.maxHealthFraction()));
-            int after = Math.max(0, before - damage);
-            target.setCurrentHealth(after);
-            int actualDamage = Math.max(0, before - after);
-            ActionBattleDamageFeedbackController.global().recordDamage(session.battleId(), target.getUuid(), before, after, ActionBattleDamageFeedbackCategory.DOT);
-            if (event.type() == ActionBattlePersistentType.LEECH_SEED && actualDamage > 0) healLeechRecipient(session, level, target.getUuid(), actualDamage, currentTick);
-            DebugLog.log("[CobblemonNML] Action battle persistent tick. Battle=" + session.battleId() + ", effect=" + event.type()
-                    + ", pokemon=" + target.getUuid() + ", damage=" + actualDamage + ", hp=" + after + "/" + maxHealth);
+            target.setCurrentHealth(0);
+            ActionBattleDamageFeedbackController.global().recordDamage(session.battleId(), target.getUuid(), before, 0, ActionBattleDamageFeedbackCategory.DOT);
+            DebugLog.log("[CobblemonNML] Action battle Perish countdown reached zero. Battle=" + session.battleId() + ", pokemon=" + target.getUuid());
+            return;
         }
+        int maxHealth = Math.max(1, target.getMaxHealth());
+        int before = target.getCurrentHealth();
+        int damage = Math.max(1, (int) Math.floor(maxHealth * event.maxHealthFraction()));
+        int after = Math.max(0, before - damage);
+        target.setCurrentHealth(after);
+        int actualDamage = Math.max(0, before - after);
+        ActionBattleDamageFeedbackController.global().recordDamage(session.battleId(), target.getUuid(), before, after, ActionBattleDamageFeedbackCategory.DOT);
+        if (event.type() == ActionBattlePersistentType.LEECH_SEED && actualDamage > 0) healLeechRecipient(session, level, target.getUuid(), actualDamage, currentTick);
+        DebugLog.log("[CobblemonNML] Action battle persistent tick. Battle=" + session.battleId() + ", effect=" + event.type()
+                + ", pokemon=" + target.getUuid() + ", damage=" + actualDamage + ", hp=" + after + "/" + maxHealth);
     }
 
     private static void healLeechRecipient(ActionBattleSession session, ServerLevel level, UUID seededPokemonUUID, int amount, long currentTick) {
-        UUID recipientUUID = seededPokemonUUID.equals(session.playerActivePokemonUUID()) ? session.trainerActivePokemonUUID() : session.playerActivePokemonUUID();
+        UUID recipientUUID = session.playerActivePokemonUUID();
+        if (seededPokemonUUID.equals(recipientUUID)) recipientUUID = session.trainerActivePokemonUUID();
         if (recipientUUID == null || amount <= 0) return;
         Pokemon recipient = findBattlePokemon(session, level, recipientUUID);
         if (recipient == null || recipient.isFainted() || ActionBattleControlController.global().blocksHealing(session.battleId(), recipientUUID, currentTick)) return;
@@ -166,22 +170,28 @@ final class ActionBattleEffectRuntime {
 
     private static Pokemon findBattlePokemon(ActionBattleSession session, ServerLevel level, UUID pokemonUUID) {
         if (session == null || level == null || pokemonUUID == null) return null;
+        Pokemon playerPokemon = findPlayerPokemon(session, level, pokemonUUID);
+        return playerPokemon != null ? playerPokemon : findTrainerPokemon(session, level, pokemonUUID);
+    }
+
+    private static Pokemon findPlayerPokemon(ActionBattleSession session, ServerLevel level, UUID pokemonUUID) {
         ServerPlayer player = level.getServer().getPlayerList().getPlayer(session.playerUUID());
-        if (player != null) {
-            PlayerPartyStore party = Cobblemon.INSTANCE.getStorage().getParty(player);
-            for (int slot = 0; slot < party.size(); slot++) {
-                Pokemon pokemon = party.get(slot);
-                if (pokemon != null && pokemonUUID.equals(pokemon.getUuid())) return pokemon;
-            }
+        if (player == null) return null;
+        PlayerPartyStore party = Cobblemon.INSTANCE.getStorage().getParty(player);
+        for (int slot = 0; slot < party.size(); slot++) {
+            Pokemon pokemon = party.get(slot);
+            if (pokemon != null && pokemonUUID.equals(pokemon.getUuid())) return pokemon;
         }
+        return null;
+    }
+
+    private static Pokemon findTrainerPokemon(ActionBattleSession session, ServerLevel level, UUID pokemonUUID) {
         Entity rawTrainer = level.getEntity(session.trainerUUID());
-        if (rawTrainer instanceof LivingEntity trainerEntity) {
-            TrainerNPC trainer = ActionBattleTrainerResolver.resolve(session.runtimeTrainerId(), trainerEntity);
-            if (trainer != null) {
-                for (Pokemon pokemon : trainer.getTeam()) {
-                    if (pokemon != null && pokemonUUID.equals(pokemon.getUuid())) return pokemon;
-                }
-            }
+        if (!(rawTrainer instanceof LivingEntity trainerEntity)) return null;
+        TrainerNPC trainer = ActionBattleTrainerResolver.resolve(session.runtimeTrainerId(), trainerEntity);
+        if (trainer == null) return null;
+        for (Pokemon pokemon : trainer.getTeam()) {
+            if (pokemon != null && pokemonUUID.equals(pokemon.getUuid())) return pokemon;
         }
         return null;
     }
@@ -196,9 +206,13 @@ final class ActionBattleEffectRuntime {
     private static void syncPokemonHaze(ActionBattleSession session, ServerLevel level, UUID pokemonUUID, UUID entityUUID, boolean hazeActive, long currentTick) {
         if (pokemonUUID == null) return;
         Entity raw = entityUUID != null ? level.getEntity(entityUUID) : null;
-        boolean inside = hazeActive && raw instanceof PokemonEntity pokemonEntity && !pokemonEntity.isRemoved()
-                && session.battleZone().contains(pokemonEntity.getX(), pokemonEntity.getZ());
+        boolean inside = isInsideHazeZone(session, raw, hazeActive);
         ActionBattleEffectController.global().setHazeProtected(session.battleId(), pokemonUUID, inside, currentTick);
+    }
+
+    private static boolean isInsideHazeZone(ActionBattleSession session, Entity entity, boolean hazeActive) {
+        return hazeActive && entity instanceof PokemonEntity pokemonEntity && !pokemonEntity.isRemoved()
+                && session.battleZone().contains(pokemonEntity.getX(), pokemonEntity.getZ());
     }
 
     private static void observeDamageFeedback(ActionBattleSession session, ActionBattlePokemonRefs refs) {

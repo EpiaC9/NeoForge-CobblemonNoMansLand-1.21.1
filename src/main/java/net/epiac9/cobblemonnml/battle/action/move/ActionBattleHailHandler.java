@@ -70,10 +70,9 @@ public final class ActionBattleHailHandler {
         session.startPokemonMoveCooldown(casterPokemonUUID, currentTick, FightOrFlightAdapter.cooldownTicks(move));
         boolean playerSide = casterPokemonUUID.equals(session.playerActivePokemonUUID());
         boolean confusedChannel = confusionBonusTicks > 0L;
-        ActionBattlePosition initialTargetPosition = confusedChannel
-                ? positionOf(ActionBattleConfusionController.randomMoveTarget(caster)) : positionOf(target);
-        int totalChannelTicks = (int) Math.min(Integer.MAX_VALUE, CHANNEL_TICKS + confusionBonusTicks);
-        int cancelAtElapsedTick = confusionSelfCancel ? Math.max(1, Math.min(totalChannelTicks - 1, 1 + caster.getRandom().nextInt(Math.max(1, totalChannelTicks - 1)))) : -1;
+        ActionBattlePosition initialTargetPosition = ActionBattleAreaEffectSupport.targetPosition(caster, target, confusionBonusTicks);
+        int totalChannelTicks = ActionBattleAreaEffectSupport.totalChannelTicks(confusionBonusTicks);
+        int cancelAtElapsedTick = ActionBattleAreaEffectSupport.cancelAtElapsedTick(caster, totalChannelTicks, confusionSelfCancel);
         HailCastContext context = new HailCastContext(session, level, move, casterPokemonUUID, playerSide, confusedChannel, cancelAtElapsedTick);
         CASTS.put(casterPokemonUUID, context);
         boolean started = ActionBattleChannelController.global().start(
@@ -108,7 +107,7 @@ public final class ActionBattleHailHandler {
         }
         ActionBattleChannelController.global().tick(session.battleId(), state -> trackTarget(session, level, state));
         for (ActionBattleChannelState state : ActionBattleChannelController.global().statesForBattle(session.battleId())) {
-            PokemonEntity caster = activePokemonEntity(session, level, state.casterPokemonUUID());
+            PokemonEntity caster = ActionBattleAreaEffectSupport.activePokemonEntity(session, level, state.casterPokemonUUID());
             if (caster == null || caster.isRemoved()) {
                 ActionBattleChannelController.global().cancel(state.casterPokemonUUID(), ActionBattleChannelCancelReason.CASTER_INVALID);
                 continue;
@@ -134,18 +133,18 @@ public final class ActionBattleHailHandler {
         HailCastContext context = CASTS.get(state.casterPokemonUUID());
         if (context == null || context.session() != session) return new ActionBattleChannelController.TargetUpdate(false, null);
         if (context.confused()) return new ActionBattleChannelController.TargetUpdate(true, state.lastTargetablePosition());
-        PokemonEntity caster = activePokemonEntity(session, level, state.casterPokemonUUID());
-        PokemonEntity target = activePokemonEntity(session, level, state.targetPokemonUUID());
+        PokemonEntity caster = ActionBattleAreaEffectSupport.activePokemonEntity(session, level, state.casterPokemonUUID());
+        PokemonEntity target = ActionBattleAreaEffectSupport.activePokemonEntity(session, level, state.targetPokemonUUID());
         if (caster == null || target == null || caster.isRemoved() || target.isRemoved() || !FightOrFlightAdapter.canCommitHail(caster, target)) {
             return new ActionBattleChannelController.TargetUpdate(false, null);
         }
-        return new ActionBattleChannelController.TargetUpdate(true, positionOf(target));
+        return new ActionBattleChannelController.TargetUpdate(true, ActionBattleAreaEffectSupport.positionOf(target));
     }
 
     private static void complete(ActionBattleChannelState state) {
         HailCastContext context = CASTS.remove(state.casterPokemonUUID());
         if (context == null || state.lastTargetablePosition() == null) return;
-        PokemonEntity caster = activePokemonEntity(context.session(), context.level(), state.casterPokemonUUID());
+        PokemonEntity caster = ActionBattleAreaEffectSupport.activePokemonEntity(context.session(), context.level(), state.casterPokemonUUID());
         ActionBattlePersistentAreaPreset preset = caster != null && holdsIcyRock(caster) ? HAIL_ICY_ROCK : HAIL_NORMAL;
         UUID areaId = ActionBattlePersistentAreaController.global().create(
                 state.battleId(), state.casterPokemonUUID(), MOVE_ID, state.lastTargetablePosition(), preset,
@@ -170,7 +169,7 @@ public final class ActionBattleHailHandler {
             FightOrFlightAdapter.refundOnePp(context.move());
             context.session().setPokemonAllCommandCooldown(state.casterPokemonUUID(), context.level().getGameTime(), FAILURE_COOLDOWN_TICKS);
         }
-        PokemonEntity caster = activePokemonEntity(context.session(), context.level(), state.casterPokemonUUID());
+        PokemonEntity caster = ActionBattleAreaEffectSupport.activePokemonEntity(context.session(), context.level(), state.casterPokemonUUID());
         if (caster != null) ActionBattleChannelVisuals.emitCancellationBurst(context.level(), caster, "ice");
         DebugLog.log("[CobblemonNML] Hail channel cancelled. Battle=" + state.battleId() + ", caster=" + state.casterPokemonUUID() + ", reason=" + reason);
     }
@@ -179,8 +178,8 @@ public final class ActionBattleHailHandler {
         if (context == null || area == null) return;
         ActionBattleHailVisuals.emitPulse(context.level(), area);
         PokemonEntity enemy = context.playerSide()
-                ? activePokemonEntity(context.session(), context.level(), context.session().trainerActivePokemonUUID())
-                : activePokemonEntity(context.session(), context.level(), context.session().playerActivePokemonUUID());
+                ? ActionBattleAreaEffectSupport.activePokemonEntity(context.session(), context.level(), context.session().trainerActivePokemonUUID())
+                : ActionBattleAreaEffectSupport.activePokemonEntity(context.session(), context.level(), context.session().playerActivePokemonUUID());
         if (enemy == null || enemy.isRemoved() || !area.contains(enemy.getX(), enemy.getY(), enemy.getZ())) return;
         long currentTick = context.level().getGameTime();
         ActionBattleProtectController.EffectInterception interception = ActionBattleProtectController.global()
@@ -237,23 +236,6 @@ public final class ActionBattleHailHandler {
         if (context == null || context.level() == null || context.entityUUID() == null) return;
         Entity entity = context.level().getEntity(context.entityUUID());
         if (entity != null && !entity.isRemoved()) entity.discard();
-    }
-
-    private static PokemonEntity activePokemonEntity(ActionBattleSession session, ServerLevel level, UUID pokemonUUID) {
-        if (session == null || level == null || pokemonUUID == null) return null;
-        UUID entityUUID = null;
-        if (pokemonUUID.equals(session.playerActivePokemonUUID())) entityUUID = session.playerActiveEntityUUID();
-        else if (pokemonUUID.equals(session.trainerActivePokemonUUID())) entityUUID = session.trainerActiveEntityUUID();
-        Entity raw = entityUUID != null ? level.getEntity(entityUUID) : null;
-        return raw instanceof PokemonEntity pokemonEntity ? pokemonEntity : null;
-    }
-
-    private static ActionBattlePosition positionOf(PokemonEntity entity) {
-        return new ActionBattlePosition(entity.getX(), entity.getY(), entity.getZ());
-    }
-
-    private static ActionBattlePosition positionOf(net.minecraft.world.phys.Vec3 position) {
-        return new ActionBattlePosition(position.x, position.y, position.z);
     }
 
     private static boolean holdsIcyRock(PokemonEntity caster) {

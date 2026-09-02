@@ -55,8 +55,7 @@ public final class VillageDataManager {
     }
     // BRIDGE MATERIAL RESOLUTION
     public static BlockState resolveBridgeDeck(
-            VillageBridgeEnvironment environment,
-            RegistryAccess registries
+            VillageBridgeEnvironment environment
     ) {
         BridgeMaterialRule rule = snapshot.bridgeRule();
         ResourceLocation selected;

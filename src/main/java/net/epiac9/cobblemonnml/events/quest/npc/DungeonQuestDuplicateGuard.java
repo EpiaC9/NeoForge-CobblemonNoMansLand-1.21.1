@@ -21,8 +21,10 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @EventBusSubscriber(modid = "cobblemonnml")
@@ -97,7 +99,7 @@ public final class DungeonQuestDuplicateGuard {
 
         MinecraftServer server = event.getServer();
         Iterator<PendingCheck> iterator = PENDING_CHECKS.iterator();
-        List<PendingCheck> stabilizedChecks = new ArrayList<>();
+        Set<StabilizedKey> stabilizedKeys = new HashSet<>();
 
         while (iterator.hasNext()) {
             PendingCheck pending = iterator.next();
@@ -114,14 +116,13 @@ public final class DungeonQuestDuplicateGuard {
 
             iterator.remove();
             if (runDuplicateCheck(pending)) {
-                stabilizedChecks.add(pending);
+                stabilizedKeys.add(new StabilizedKey(level, pending.intendedQuestNpcUUID()));
             }
         }
 
-        if (!stabilizedChecks.isEmpty()) {
-            PENDING_CHECKS.removeIf(pending -> stabilizedChecks.stream().anyMatch(stabilized ->
-                    pending.level() == stabilized.level()
-                            && pending.intendedQuestNpcUUID().equals(stabilized.intendedQuestNpcUUID())
+        if (!stabilizedKeys.isEmpty()) {
+            PENDING_CHECKS.removeIf(pending -> stabilizedKeys.contains(
+                    new StabilizedKey(pending.level(), pending.intendedQuestNpcUUID())
             ));
         }
     }
@@ -334,5 +335,8 @@ public final class DungeonQuestDuplicateGuard {
             Vec3 spawnPosition,
             long executeAtGameTime
     ) {
+    }
+
+    private record StabilizedKey(ServerLevel level, UUID intendedQuestNpcUUID) {
     }
 }

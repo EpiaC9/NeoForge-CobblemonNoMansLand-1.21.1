@@ -102,6 +102,11 @@ public final class ActionBattleSession {
         playerMoveTargetPending = false;
     }
 
+    public void clearPlayerMoveState() {
+        clearPlayerMoveTarget();
+        clearPlayerMoveCommandInternal();
+    }
+
     public long replacePlayerMoveCommand(int moveSlot, UUID targetEntityUUID) {
         if (state != ActionBattleState.ACTIVE || moveSlot < 0 || moveSlot > 3 || targetEntityUUID == null) return playerCommandRevision;
         playerMoveTargetPending = false;
@@ -116,8 +121,7 @@ public final class ActionBattleSession {
     }
 
     public void cancelPlayerOrders() {
-        playerMoveTargetPending = false;
-        clearPlayerMoveCommandInternal();
+        clearPlayerMoveState();
     }
 
     public long replaceTrainerMoveCommand(int moveSlot, UUID targetEntityUUID) {
@@ -134,9 +138,13 @@ public final class ActionBattleSession {
         trainerMoveTargetEntityUUID = null;
     }
 
-    public void cancelTrainerOrders() {
+    public void clearTrainerMoveState() {
         clearTrainerMoveCommand();
         resetTrainerRepositionState();
+    }
+
+    public void cancelTrainerOrders() {
+        clearTrainerMoveState();
     }
 
     public void setTrainerRepositionTarget(double x, double y, double z) {
@@ -267,10 +275,12 @@ public final class ActionBattleSession {
     public double playerMoveTargetZ() { return playerMoveTargetZ; }
     public long playerCommandRevision() { return playerCommandRevision; }
     public boolean hasPlayerMoveCommand() { return playerMoveCommandPending; }
+    public boolean hasPlayerMovementIntent() { return hasPlayerMoveTarget() || hasPlayerMoveCommand(); }
     public int playerMoveSlot() { return playerMoveSlot; }
     public UUID playerMoveTargetEntityUUID() { return playerMoveTargetEntityUUID; }
     public long trainerCommandRevision() { return trainerCommandRevision; }
     public boolean hasTrainerMoveCommand() { return trainerMoveCommandPending; }
+    public boolean hasTrainerMovementIntent() { return hasTrainerMoveCommand() || hasTrainerRepositionTarget(); }
     public int trainerMoveSlot() { return trainerMoveSlot; }
     public UUID trainerMoveTargetEntityUUID() { return trainerMoveTargetEntityUUID; }
     public int trainerRepositionAttempt() { return trainerRepositionAttempt; }

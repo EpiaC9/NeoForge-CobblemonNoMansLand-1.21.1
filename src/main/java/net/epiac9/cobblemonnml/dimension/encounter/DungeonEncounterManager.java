@@ -237,9 +237,7 @@ public final class DungeonEncounterManager {
             return false;
         }
         // NORMAL TRAINERS ONLY
-        List<ResourceLocation> trainers =
-                new ArrayList<>( DungeonTrainerPresets.findNormalTrainerPresets( level, activeTier ) );
-        trainers.sort( Comparator.naturalOrder() );
+        List<ResourceLocation> trainers = DungeonTrainerPresets.findNormalTrainerPresets( level, activeTier );
 
         if (trainers.isEmpty()) {
             DebugLog.log(

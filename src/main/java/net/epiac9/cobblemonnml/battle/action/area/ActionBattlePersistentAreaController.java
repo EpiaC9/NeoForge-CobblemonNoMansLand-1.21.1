@@ -25,9 +25,7 @@ public final class ActionBattlePersistentAreaController {
 
     public void tick(UUID battleId) {
         if (battleId == null) return;
-        List<UUID> ids = new ArrayList<>();
-        for (Map.Entry<UUID, ActiveArea> entry : activeAreas.entrySet()) if (battleId.equals(entry.getValue().state().battleId())) ids.add(entry.getKey());
-        for (UUID id : ids) {
+        for (UUID id : battleAreaIds(battleId)) {
             ActiveArea active = activeAreas.get(id);
             if (active == null) continue;
             ActionBattlePersistentAreaState state = active.state();
@@ -44,14 +42,27 @@ public final class ActionBattlePersistentAreaController {
     }
 
     public void clearBattle(UUID battleId) {
-        if (battleId != null) activeAreas.entrySet().removeIf(entry -> battleId.equals(entry.getValue().state().battleId()));
+        if (battleId == null) return;
+        activeAreas.entrySet().removeIf(entry -> battleId.equals(entry.getValue().state().battleId()));
     }
 
     public List<ActionBattlePersistentAreaState> statesForBattle(UUID battleId) {
         if (battleId == null) return List.of();
         List<ActionBattlePersistentAreaState> result = new ArrayList<>();
-        for (ActiveArea active : activeAreas.values()) if (battleId.equals(active.state().battleId())) result.add(active.state());
+        for (UUID id : battleAreaIds(battleId)) {
+            ActiveArea active = activeAreas.get(id);
+            if (active != null) result.add(active.state());
+        }
         return List.copyOf(result);
+    }
+
+    private List<UUID> battleAreaIds(UUID battleId) {
+        if (battleId == null) return List.of();
+        List<UUID> ids = new ArrayList<>();
+        for (Map.Entry<UUID, ActiveArea> entry : activeAreas.entrySet()) {
+            if (battleId.equals(entry.getValue().state().battleId())) ids.add(entry.getKey());
+        }
+        return ids;
     }
 
     private record ActiveArea(ActionBattlePersistentAreaState state, Consumer<ActionBattlePersistentAreaState> pulse) {}

@@ -36,10 +36,8 @@ public final class ActionBattleParalysisController {
 
     public static void tickBattle(ActionBattleSession session, ServerLevel level) {
         if (session == null || level == null || session.state() != ActionBattleState.ACTIVE) return;
-        tickPokemon(session, level, session.playerActivePokemonUUID(), session.playerActiveEntityUUID(),
-                session.hasPlayerMoveTarget() || session.hasPlayerMoveCommand());
-        tickPokemon(session, level, session.trainerActivePokemonUUID(), session.trainerActiveEntityUUID(),
-                session.hasTrainerMoveCommand() || session.hasTrainerRepositionTarget());
+        tickPokemon(session, level, session.playerActivePokemonUUID(), session.playerActiveEntityUUID(), session.hasPlayerMovementIntent());
+        tickPokemon(session, level, session.trainerActivePokemonUUID(), session.trainerActiveEntityUUID(), session.hasTrainerMovementIntent());
     }
 
     public static void onAbilitySucceeded(UUID battleId, UUID pokemonUUID, long currentTick) {

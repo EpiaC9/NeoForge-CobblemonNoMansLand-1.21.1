@@ -55,8 +55,7 @@ public final class VillageBridgeBuilder {
 
         BlockState deckState =
                 VillageDataManager.resolveBridgeDeck(
-                        environment,
-                        level.registryAccess()
+                        environment
                 );
 
         if (deckState == null) {

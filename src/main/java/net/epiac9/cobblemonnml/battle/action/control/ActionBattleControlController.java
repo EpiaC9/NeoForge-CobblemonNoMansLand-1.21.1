@@ -73,24 +73,21 @@ public final class ActionBattleControlController {
         if (move == null) return false;
         PokemonControlState state = existing(battleId, pokemonUUID);
         if (state == null) return true;
-        ActionBattleControlEffect effect = state.control.activeEffect(currentTick);
+        ActionBattleControlEffect effect = activeEffectFor(state, currentTick);
         boolean damaging = FightOrFlightAdapter.isNativeDamageMove(move) || FightOrFlightAdapter.movePower(move) > 0;
         return ActionBattleControlRules.canUseMove(effect, move.getName(), damaging, state.lastCommittedMoveId);
     }
 
     public boolean blocksHealing(UUID battleId, UUID pokemonUUID, long currentTick) {
-        PokemonControlState state = existing(battleId, pokemonUUID);
-        return state != null && ActionBattleControlRules.blocksHealing(state.control.activeEffect(currentTick));
+        return ActionBattleControlRules.blocksHealing(activeEffectFor(battleId, pokemonUUID, currentTick));
     }
 
     public boolean blocksSwap(UUID battleId, UUID pokemonUUID, long currentTick) {
-        PokemonControlState state = existing(battleId, pokemonUUID);
-        return state != null && ActionBattleControlRules.blocksSwap(state.control.activeEffect(currentTick));
+        return ActionBattleControlRules.blocksSwap(activeEffectFor(battleId, pokemonUUID, currentTick));
     }
 
     public ActionBattleControlEffect activeEffect(UUID battleId, UUID pokemonUUID, long currentTick) {
-        PokemonControlState state = existing(battleId, pokemonUUID);
-        return state != null ? state.control.activeEffect(currentTick) : null;
+        return activeEffectFor(battleId, pokemonUUID, currentTick);
     }
 
     public long activeRemainingTicks(UUID battleId, UUID pokemonUUID, long currentTick) {
@@ -115,7 +112,7 @@ public final class ActionBattleControlController {
 
     public boolean endConditional(UUID battleId, UUID pokemonUUID, ActionBattleControlType expectedType, long currentTick) {
         PokemonControlState state = existing(battleId, pokemonUUID);
-        if (state == null || state.control.activeType(currentTick) != expectedType || expectedType == null || expectedType.timed()) return false;
+        if (state == null || expectedType == null || expectedType.timed() || state.control.activeType(currentTick) != expectedType) return false;
         return state.control.end(ActionBattleControlState.EndReason.CONDITION_ENDED, currentTick);
     }
 
@@ -154,6 +151,14 @@ public final class ActionBattleControlController {
         if (battleId == null || pokemonUUID == null) return null;
         Map<UUID, PokemonControlState> battleStates = statesByBattle.get(battleId);
         return battleStates != null ? battleStates.get(pokemonUUID) : null;
+    }
+
+    private ActionBattleControlEffect activeEffectFor(UUID battleId, UUID pokemonUUID, long currentTick) {
+        return activeEffectFor(existing(battleId, pokemonUUID), currentTick);
+    }
+
+    private static ActionBattleControlEffect activeEffectFor(PokemonControlState state, long currentTick) {
+        return state != null ? state.control.activeEffect(currentTick) : null;
     }
 
     private static final class PokemonControlState {

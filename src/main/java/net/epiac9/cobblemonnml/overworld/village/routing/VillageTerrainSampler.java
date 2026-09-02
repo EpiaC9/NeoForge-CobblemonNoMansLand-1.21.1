@@ -93,22 +93,4 @@ public class VillageTerrainSampler {
             );
         }
     }
-    public static String describe(
-            TerrainSample sample
-    ) {
-        if (sample == null) {
-            return "null";
-        }
-
-        return "TerrainSample{pos="
-                + sample.surfacePos()
-                + ", water="
-                + sample.water()
-                + ", majorObstacle="
-                + sample.majorObstacle()
-                + ", existingRoad="
-                + sample.existingRoad()
-                + "}";
-    }
-
 }

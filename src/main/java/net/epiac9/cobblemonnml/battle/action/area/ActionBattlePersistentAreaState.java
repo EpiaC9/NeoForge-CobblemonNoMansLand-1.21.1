@@ -21,7 +21,7 @@ public final class ActionBattlePersistentAreaState {
         this.effectId = effectId;
         this.anchor = anchor;
         this.preset = preset;
-        this.nextPulseTick = preset.pulseImmediately() ? preset.pulseIntervalTicks() : preset.pulseIntervalTicks();
+        this.nextPulseTick = preset.pulseIntervalTicks();
     }
 
     void advance() { ageTicks++; }

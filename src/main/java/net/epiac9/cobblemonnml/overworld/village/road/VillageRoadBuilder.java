@@ -116,10 +116,6 @@ public final class VillageRoadBuilder {
                             level.registryAccess()
                     );
 
-            if (roadState == null) {
-                roadState = original;
-            }
-
             clearLightVegetationAbove(
                     level,
                     surfacePos

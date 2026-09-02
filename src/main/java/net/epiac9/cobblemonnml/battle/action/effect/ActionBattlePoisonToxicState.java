@@ -65,8 +65,7 @@ public final class ActionBattlePoisonToxicState {
         if (stage == null || nextDotTick <= 0L || currentTick < nextDotTick) return null;
         while (nextDotTick <= currentTick) nextDotTick = ActionBattleTiming.safeAdd(nextDotTick, DOT_INTERVAL_TICKS);
         return switch (stage) {
-            case POISON -> new DotTick(0.03F, false);
-            case TOXIC_1 -> new DotTick(0.03F, false);
+            case POISON, TOXIC_1 -> new DotTick(0.03F, false);
             case TOXIC_2 -> new DotTick(0.06F, false);
             case TOXIC_3 -> new DotTick(0.09F, true);
         };

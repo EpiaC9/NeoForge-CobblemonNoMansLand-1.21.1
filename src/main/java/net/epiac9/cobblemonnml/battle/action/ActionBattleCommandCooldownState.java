@@ -61,8 +61,7 @@ final class ActionBattleCommandCooldownState {
 
     private static boolean start(Map<UUID, Long> ends, Map<UUID, Long> durations, UUID pokemonUUID, long currentTick, long durationTicks) {
         if (!valid(pokemonUUID, currentTick, durationTicks)) return false;
-        ends.put(pokemonUUID, ActionBattleTiming.safeAdd(currentTick, durationTicks));
-        durations.put(pokemonUUID, durationTicks);
+        storeCooldown(ends, durations, pokemonUUID, ActionBattleTiming.safeAdd(currentTick, durationTicks), durationTicks);
         return true;
     }
 
@@ -73,14 +72,18 @@ final class ActionBattleCommandCooldownState {
     private static long endTick(Map<UUID, Long> ends, UUID pokemonUUID) { return pokemonUUID != null ? ends.getOrDefault(pokemonUUID, 0L) : 0L; }
     private static long duration(Map<UUID, Long> durations, UUID pokemonUUID) { return pokemonUUID != null ? durations.getOrDefault(pokemonUUID, 0L) : 0L; }
 
+    private static void storeCooldown(Map<UUID, Long> ends, Map<UUID, Long> durations, UUID pokemonUUID, long endTick, long durationTicks) {
+        ends.put(pokemonUUID, endTick);
+        durations.put(pokemonUUID, durationTicks);
+    }
+
     private static void extend(Map<UUID, Long> ends, Map<UUID, Long> durations, UUID pokemonUUID, long currentTick, long penaltyTicks) {
         long currentEnd = ends.getOrDefault(pokemonUUID, 0L);
+        long currentDuration = durations.getOrDefault(pokemonUUID, Math.max(0L, currentEnd - currentTick));
         if (currentEnd > currentTick) {
-            ends.put(pokemonUUID, ActionBattleTiming.safeAdd(currentEnd, penaltyTicks));
-            durations.put(pokemonUUID, ActionBattleTiming.safeAdd(durations.getOrDefault(pokemonUUID, Math.max(0L, currentEnd - currentTick)), penaltyTicks));
+            storeCooldown(ends, durations, pokemonUUID, ActionBattleTiming.safeAdd(currentEnd, penaltyTicks), ActionBattleTiming.safeAdd(currentDuration, penaltyTicks));
         } else {
-            ends.put(pokemonUUID, ActionBattleTiming.safeAdd(currentTick, penaltyTicks));
-            durations.put(pokemonUUID, penaltyTicks);
+            storeCooldown(ends, durations, pokemonUUID, ActionBattleTiming.safeAdd(currentTick, penaltyTicks), penaltyTicks);
         }
     }
 

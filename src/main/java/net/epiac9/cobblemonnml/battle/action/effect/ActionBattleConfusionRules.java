@@ -1,5 +1,7 @@
 package net.epiac9.cobblemonnml.battle.action.effect;
 
+import com.cobblemon.mod.common.api.moves.Move;
+
 public final class ActionBattleConfusionRules {
     public static final long DURATION_TICKS = 180L;
     public static final long COOLDOWN_PENALTY_TICKS = 60L;
@@ -21,6 +23,16 @@ public final class ActionBattleConfusionRules {
 
     public static boolean shouldSelfCancelChannel(float roll) {
         return roll >= 0.0F && roll < CHANNEL_SELF_CANCEL_CHANCE;
+    }
+
+    public static CommandKind commandKindFor(Move move) {
+        if (move == null) return CommandKind.SUPPORT;
+        if (net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandler.isBalefulBunker(move)) return CommandKind.PROTECT;
+        if (net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler.isHail(move)
+                || net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler.isToxicSpikes(move)) return CommandKind.CHANNEL;
+        if (net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter.isMeleeMove(move)) return CommandKind.MELEE;
+        if (net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter.isRangedMove(move)) return CommandKind.RANGED;
+        return CommandKind.SUPPORT;
     }
 
     public enum CommandKind { MOVE_HERE, RANGED, MELEE, CHANNEL, SUPPORT, PROTECT, SWAP_OUT }

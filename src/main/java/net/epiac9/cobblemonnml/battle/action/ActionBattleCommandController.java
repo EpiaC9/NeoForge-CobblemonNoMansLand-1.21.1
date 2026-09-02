@@ -12,25 +12,20 @@ public final class ActionBattleCommandController {
 
     public static void onCommandIssued(ActionBattleSession session, UUID pokemonUUID) {
         if (!isActivePokemon(session, pokemonUUID)) return;
-        ActionBattleHailHandler.onCommand(pokemonUUID);
-        ActionBattleToxicSpikesHandler.onCommand(pokemonUUID);
+        applyCommandHooks(pokemonUUID);
     }
 
     public static boolean cancelPendingOrders(ActionBattleSession session, UUID pokemonUUID, InterruptReason reason) {
         Side side = sideOf(session, pokemonUUID);
         if (side == null || reason == null) return false;
-        if (reason == InterruptReason.CONTROL_EFFECT) {
-            ActionBattleHailHandler.onControlEffect(pokemonUUID);
-            ActionBattleToxicSpikesHandler.onControlEffect(pokemonUUID);
-        }
+        if (reason == InterruptReason.CONTROL_EFFECT) applyControlHooks(pokemonUUID);
         return cancelPendingOrders(session, side, reason);
     }
 
     public static boolean cancelPendingOrders(ActionBattleSession session, Side side, InterruptReason reason) {
         if (session == null || side == null || reason == null) return false;
-        if (side == Side.PLAYER) session.cancelPlayerOrders();
-        else session.cancelTrainerOrders();
-        return true;
+        if (reason == InterruptReason.CONTROL_EFFECT) applyControlEffect(session, side);
+        return cancelOrdersForSide(session, side);
     }
 
     public static boolean addCooldownPenalty(ActionBattleSession session, UUID pokemonUUID, long currentTick, long penaltyTicks) {
@@ -46,6 +41,34 @@ public final class ActionBattleCommandController {
         if (pokemonUUID.equals(session.playerActivePokemonUUID())) return Side.PLAYER;
         if (pokemonUUID.equals(session.trainerActivePokemonUUID())) return Side.TRAINER;
         return null;
+    }
+
+    private static void applyControlEffect(ActionBattleSession session, Side side) {
+        UUID pokemonUUID = side == Side.PLAYER ? session.playerActivePokemonUUID() : session.trainerActivePokemonUUID();
+        applyControlHooks(pokemonUUID);
+    }
+
+    private static void applyCommandHooks(UUID pokemonUUID) {
+        if (pokemonUUID == null) return;
+        ActionBattleHailHandler.onCommand(pokemonUUID);
+        ActionBattleToxicSpikesHandler.onCommand(pokemonUUID);
+    }
+
+    private static void applyControlHooks(UUID pokemonUUID) {
+        if (pokemonUUID == null) return;
+        ActionBattleHailHandler.onControlEffect(pokemonUUID);
+        ActionBattleToxicSpikesHandler.onControlEffect(pokemonUUID);
+    }
+
+    private static boolean cancelOrdersForSide(ActionBattleSession session, Side side) {
+        if (side == Side.PLAYER) {
+            if (!session.hasPlayerMovementIntent()) return false;
+            session.cancelPlayerOrders();
+            return true;
+        }
+        if (!session.hasTrainerMovementIntent()) return false;
+        session.cancelTrainerOrders();
+        return true;
     }
 
     private static boolean isActivePokemon(ActionBattleSession session, UUID pokemonUUID) { return sideOf(session, pokemonUUID) != null; }

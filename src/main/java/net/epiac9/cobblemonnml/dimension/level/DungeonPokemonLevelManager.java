@@ -22,23 +22,13 @@ public final class DungeonPokemonLevelManager {
     }
 
     public static int getMinimumLevel(DungeonTier tier) {
-        Config.TierConfig config = getTierConfig(tier);
-        if (config == null) {
-            return defaultMinimum(tier);
-        }
-        int configuredMin = config.minimumPokemonLevel().get();
-        int configuredMax = config.maximumPokemonLevel().get();
-        return Math.min(configuredMin, configuredMax);
+        LevelBounds bounds = getLevelBounds(tier);
+        return Math.min(bounds.minimum(), bounds.maximum());
     }
 
     public static int getMaximumLevel(DungeonTier tier) {
-        Config.TierConfig config = getTierConfig(tier);
-        if (config == null) {
-            return defaultMaximum(tier);
-        }
-        int configuredMin = config.minimumPokemonLevel().get();
-        int configuredMax = config.maximumPokemonLevel().get();
-        return Math.max(configuredMin, configuredMax);
+        LevelBounds bounds = getLevelBounds(tier);
+        return Math.max(bounds.minimum(), bounds.maximum());
     }
 
     public static int chooseLevel(DungeonTier tier, RandomSource random) {
@@ -119,15 +109,15 @@ public final class DungeonPokemonLevelManager {
     }
 
     private static Config.TierConfig getTierConfig(DungeonTier tier) {
-        if (tier == null) {
-            return null;
+        return tier != null ? tier.getConfig() : null;
+    }
+
+    private static LevelBounds getLevelBounds(DungeonTier tier) {
+        Config.TierConfig config = getTierConfig(tier);
+        if (config == null) {
+            return new LevelBounds(defaultMinimum(tier), defaultMaximum(tier));
         }
-        return switch (tier) {
-            case TIER_1 -> Config.TIER_1;
-            case TIER_2 -> Config.TIER_2;
-            case TIER_3 -> Config.TIER_3;
-            case TIER_4 -> Config.TIER_4;
-        };
+        return new LevelBounds(config.minimumPokemonLevel().get(), config.maximumPokemonLevel().get());
     }
 
     private static boolean isQuestGimmighoul(Pokemon pokemon) {
@@ -135,4 +125,6 @@ public final class DungeonPokemonLevelManager {
                 && pokemon.getSpecies() != null
                 && "gimmighoul".equalsIgnoreCase(pokemon.getSpecies().getName());
     }
+
+    private record LevelBounds(int minimum, int maximum) {}
 }

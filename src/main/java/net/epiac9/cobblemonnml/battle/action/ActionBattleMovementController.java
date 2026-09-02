@@ -52,11 +52,8 @@ final class ActionBattleMovementController {
         if (session == null || pokemonEntity == null || pokemonEntity.isRemoved()) return;
         pokemonEntity.getBrain().eraseMemory(MemoryModuleType.WALK_TARGET);
         pokemonEntity.getBrain().eraseMemory(MemoryModuleType.LOOK_TARGET);
-        UUID entityUUID = pokemonEntity.getUUID();
-        boolean explicitMovement = entityUUID.equals(session.playerActiveEntityUUID())
-                ? session.hasPlayerMoveCommand() || session.hasPlayerMoveTarget()
-                : entityUUID.equals(session.trainerActiveEntityUUID()) && session.hasTrainerMoveCommand();
-        if (!explicitMovement) pokemonEntity.getNavigation().stop();
+        if (hasExplicitMovementIntent(session, pokemonEntity.getUUID())) return;
+        pokemonEntity.getNavigation().stop();
     }
 
     static void stopActivePlayerNavigation(ActionBattleSession session, ServerLevel level) {
@@ -102,15 +99,25 @@ final class ActionBattleMovementController {
     }
 
     private static void suppressActiveBattlePokemonBrains(ActionBattleSession session, ServerLevel level) {
-        Entity playerEntity = session.playerActiveEntityUUID() != null ? level.getEntity(session.playerActiveEntityUUID()) : null;
-        if (playerEntity instanceof PokemonEntity pokemonEntity && !pokemonEntity.isRemoved()) suppressAutonomousMovementNow(session, pokemonEntity);
-        Entity trainerEntity = session.trainerActiveEntityUUID() != null ? level.getEntity(session.trainerActiveEntityUUID()) : null;
-        if (trainerEntity instanceof PokemonEntity pokemonEntity && !pokemonEntity.isRemoved()) suppressAutonomousMovementNow(session, pokemonEntity);
+        suppressActiveBattlePokemonBrain(session, level, session.playerActiveEntityUUID());
+        suppressActiveBattlePokemonBrain(session, level, session.trainerActiveEntityUUID());
+    }
+
+    private static void suppressActiveBattlePokemonBrain(ActionBattleSession session, ServerLevel level, UUID entityUUID) {
+        Entity rawEntity = entityUUID != null && level != null ? level.getEntity(entityUUID) : null;
+        if (rawEntity instanceof PokemonEntity pokemonEntity && !pokemonEntity.isRemoved()) suppressAutonomousMovementNow(session, pokemonEntity);
     }
 
     private static void clearBattlePokemonPathCooldown(UUID entityUUID, ServerLevel level) {
         Entity rawEntity = entityUUID != null && level != null ? level.getEntity(entityUUID) : null;
         if (rawEntity instanceof PokemonEntity pokemonEntity && !pokemonEntity.isRemoved()) pokemonEntity.getBrain().eraseMemory(CobblemonMemories.PATH_COOLDOWN);
+    }
+
+    private static boolean hasExplicitMovementIntent(ActionBattleSession session, UUID entityUUID) {
+        if (entityUUID == null || session == null) return false;
+        if (entityUUID.equals(session.playerActiveEntityUUID())) return session.hasPlayerMovementIntent();
+        if (entityUUID.equals(session.trainerActiveEntityUUID())) return session.hasTrainerMovementIntent();
+        return false;
     }
 
     private static void stopNavigation(UUID entityUUID, ServerLevel level) {

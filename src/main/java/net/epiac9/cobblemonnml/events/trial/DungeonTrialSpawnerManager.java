@@ -67,10 +67,7 @@ public final class DungeonTrialSpawnerManager {
         DebugLog.log( "Resolved builder entity: " + builder.getEntityId());
         DebugLog.log( "Position: " + pos );
         // FIND TRIALS EDITION CONFIG
-        boolean configExists =
-                builder
-                        .doesConfigurationExistForReplacement( CacheType.STRUCTURE );
-        if (!configExists) {
+        if (!builder.doesConfigurationExistForReplacement( CacheType.STRUCTURE )) {
             DebugLog.log( "FAILED to create " + theme.getDisplayName() + " " + type + " trial spawner." );
             DebugLog.log( "No Trials Edition configuration exists for:" );
             DebugLog.log( "Structure: " + structureId );

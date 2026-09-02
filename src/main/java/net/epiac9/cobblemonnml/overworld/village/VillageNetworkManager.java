@@ -2,7 +2,6 @@ package net.epiac9.cobblemonnml.overworld.village;
 
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.epiac9.cobblemonnml.overworld.village.data.VillageDataManager;
-import net.epiac9.cobblemonnml.overworld.village.data.VillageStructureDefinition;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -11,7 +10,6 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 public final class VillageNetworkManager {
@@ -31,10 +29,7 @@ public final class VillageNetworkManager {
             return null;
         }
 
-        Optional<VillageStructureDefinition> definitionOptional =
-                VillageDataManager.getStructure(structureId);
-
-        if (definitionOptional.isEmpty()) {
+        if (VillageDataManager.getStructure(structureId).isEmpty()) {
             DebugLog.log(
                     "[CobblemonNML] Village network ignored unregistered structure: "
                             + structureId

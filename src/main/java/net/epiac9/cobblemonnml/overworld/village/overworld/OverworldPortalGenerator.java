@@ -112,8 +112,7 @@ public final class OverworldPortalGenerator {
                     if (candidate == null) {
                         continue;
                     }
-                    boolean placed = placePortal( level, template, candidate, random );
-                    if (!placed) {
+                                        if (!placePortal( level, template, candidate, random )) {
                         continue;
                     }
 

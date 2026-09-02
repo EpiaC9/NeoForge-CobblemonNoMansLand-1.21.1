@@ -29,9 +29,7 @@ public final class ActionBattleChannelController {
 
     public void tick(UUID battleId, TargetTracker tracker) {
         if (battleId == null) return;
-        List<UUID> casters = new ArrayList<>();
-        for (Map.Entry<UUID, ActiveChannel> entry : activeByCaster.entrySet()) if (battleId.equals(entry.getValue().state().battleId())) casters.add(entry.getKey());
-        for (UUID caster : casters) {
+        for (UUID caster : castersForBattle(battleId)) {
             ActiveChannel active = activeByCaster.get(caster);
             if (active == null) continue;
             ActionBattleChannelState state = active.state();
@@ -57,8 +55,7 @@ public final class ActionBattleChannelController {
         if (active == null) return;
         ActionBattleChannelState state = active.state();
         if (currentHealth < state.lastObservedHealth() && state.preset().cancelOnDamage()) {
-            if (state.remainingTicks() <= 1) state.queueCancel(ActionBattleChannelCancelReason.DAMAGE);
-            else cancelNow(casterPokemonUUID, ActionBattleChannelCancelReason.DAMAGE);
+            interrupt(casterPokemonUUID, state, ActionBattleChannelCancelReason.DAMAGE);
             return;
         }
         state.setLastObservedHealth(currentHealth);
@@ -67,15 +64,13 @@ public final class ActionBattleChannelController {
     public void onDamage(UUID casterPokemonUUID) {
         ActiveChannel active = activeByCaster.get(casterPokemonUUID);
         if (active == null || !active.state().preset().cancelOnDamage()) return;
-        if (active.state().remainingTicks() <= 1) active.state().queueCancel(ActionBattleChannelCancelReason.DAMAGE);
-        else cancelNow(casterPokemonUUID, ActionBattleChannelCancelReason.DAMAGE);
+        interrupt(casterPokemonUUID, active.state(), ActionBattleChannelCancelReason.DAMAGE);
     }
 
     public void onCommand(UUID casterPokemonUUID) {
         ActiveChannel active = activeByCaster.get(casterPokemonUUID);
         if (active == null || !active.state().preset().cancelOnCommand()) return;
-        if (active.state().remainingTicks() <= 1) active.state().queueCancel(ActionBattleChannelCancelReason.COMMAND);
-        else cancelNow(casterPokemonUUID, ActionBattleChannelCancelReason.COMMAND);
+        interrupt(casterPokemonUUID, active.state(), ActionBattleChannelCancelReason.COMMAND);
     }
 
     public void queueCancel(UUID casterPokemonUUID, ActionBattleChannelCancelReason reason) {
@@ -95,11 +90,14 @@ public final class ActionBattleChannelController {
         return true;
     }
 
+    private void interrupt(UUID casterPokemonUUID, ActionBattleChannelState state, ActionBattleChannelCancelReason reason) {
+        if (state.remainingTicks() <= 1) state.queueCancel(reason);
+        else cancelNow(casterPokemonUUID, reason);
+    }
+
     public void clearBattle(UUID battleId) {
         if (battleId == null) return;
-        List<UUID> casters = new ArrayList<>();
-        for (Map.Entry<UUID, ActiveChannel> entry : activeByCaster.entrySet()) if (battleId.equals(entry.getValue().state().battleId())) casters.add(entry.getKey());
-        for (UUID caster : casters) cancelNow(caster, ActionBattleChannelCancelReason.BATTLE_END);
+        for (UUID caster : castersForBattle(battleId)) cancelNow(caster, ActionBattleChannelCancelReason.BATTLE_END);
     }
 
     public boolean isChanneling(UUID casterPokemonUUID) { return casterPokemonUUID != null && activeByCaster.containsKey(casterPokemonUUID); }
@@ -108,8 +106,20 @@ public final class ActionBattleChannelController {
     public List<ActionBattleChannelState> statesForBattle(UUID battleId) {
         if (battleId == null) return List.of();
         List<ActionBattleChannelState> result = new ArrayList<>();
-        for (ActiveChannel active : activeByCaster.values()) if (battleId.equals(active.state().battleId())) result.add(active.state());
+        for (UUID caster : castersForBattle(battleId)) {
+            ActiveChannel active = activeByCaster.get(caster);
+            if (active != null) result.add(active.state());
+        }
         return List.copyOf(result);
+    }
+
+    private List<UUID> castersForBattle(UUID battleId) {
+        if (battleId == null) return List.of();
+        List<UUID> casters = new ArrayList<>();
+        for (Map.Entry<UUID, ActiveChannel> entry : activeByCaster.entrySet()) {
+            if (battleId.equals(entry.getValue().state().battleId())) casters.add(entry.getKey());
+        }
+        return casters;
     }
 
     public record TargetUpdate(boolean reachable, ActionBattlePosition position) {}

@@ -87,30 +87,37 @@ public final class ActionBattleConfusionController {
 
     public static void tickBattle(ActionBattleSession session, ServerLevel level) {
         if (session == null || level == null) return;
-        DASHES.entrySet().removeIf(entry -> {
-            DashState state = entry.getValue();
-            if (!session.battleId().equals(state.battleId())) return false;
-            PokemonEntity attacker = activeEntity(session, level, state.pokemonUUID());
-            if (attacker == null || attacker.isRemoved() || level.getGameTime() >= state.expiresAtTick()) {
-                if (attacker != null) attacker.setDeltaMovement(Vec3.ZERO);
-                return true;
-            }
-            if (attacker.horizontalCollision) {
-                damageSelf(attacker, state.move());
-                attacker.setDeltaMovement(Vec3.ZERO);
-                return true;
-            }
-            AABB hitBox = attacker.getBoundingBox().inflate(0.20D);
-            for (Entity raw : level.getEntities(attacker, hitBox, e -> e instanceof LivingEntity && e.isAlive())) {
-                if (!(raw instanceof LivingEntity hit) || raw.getUUID().equals(attacker.getUUID())) continue;
-                damageCollision(attacker, hit, state.move());
-                attacker.setDeltaMovement(Vec3.ZERO);
-                return true;
-            }
-            Vec3 current = attacker.getDeltaMovement();
-            if (current.horizontalDistanceSqr() < 0.05D) return true;
-            return false;
-        });
+        DASHES.entrySet().removeIf(entry -> resolveDashState(session, level, entry.getValue()));
+    }
+
+    private static boolean resolveDashState(ActionBattleSession session, ServerLevel level, DashState state) {
+        if (!session.battleId().equals(state.battleId())) return false;
+        PokemonEntity attacker = activeEntity(session, level, state.pokemonUUID());
+        if (shouldExpireDash(level, attacker, state)) {
+            clearDashVelocity(attacker);
+            return true;
+        }
+        if (attacker.horizontalCollision) {
+            damageSelf(attacker, state.move());
+            clearDashVelocity(attacker);
+            return true;
+        }
+        AABB hitBox = attacker.getBoundingBox().inflate(0.20D);
+        for (Entity raw : level.getEntities(attacker, hitBox, e -> e instanceof LivingEntity && e.isAlive())) {
+            if (!(raw instanceof LivingEntity hit) || raw.getUUID().equals(attacker.getUUID())) continue;
+            damageCollision(attacker, hit, state.move());
+            clearDashVelocity(attacker);
+            return true;
+        }
+        return attacker.getDeltaMovement().horizontalDistanceSqr() < 0.05D;
+    }
+
+    private static boolean shouldExpireDash(ServerLevel level, PokemonEntity attacker, DashState state) {
+        return attacker == null || attacker.isRemoved() || level.getGameTime() >= state.expiresAtTick();
+    }
+
+    private static void clearDashVelocity(PokemonEntity attacker) {
+        if (attacker != null) attacker.setDeltaMovement(Vec3.ZERO);
     }
 
     public static void clearBattle(UUID battleId) { if (battleId != null) DASHES.entrySet().removeIf(e -> battleId.equals(e.getValue().battleId())); }
@@ -127,8 +134,9 @@ public final class ActionBattleConfusionController {
     }
 
     private static PokemonEntity activeEntity(ActionBattleSession session, ServerLevel level, UUID pokemonUUID) {
-        UUID entityUUID = pokemonUUID.equals(session.playerActivePokemonUUID()) ? session.playerActiveEntityUUID()
-                : pokemonUUID.equals(session.trainerActivePokemonUUID()) ? session.trainerActiveEntityUUID() : null;
+        UUID entityUUID = null;
+        if (pokemonUUID.equals(session.playerActivePokemonUUID())) entityUUID = session.playerActiveEntityUUID();
+        else if (pokemonUUID.equals(session.trainerActivePokemonUUID())) entityUUID = session.trainerActiveEntityUUID();
         Entity raw = entityUUID != null ? level.getEntity(entityUUID) : null;
         return raw instanceof PokemonEntity pokemon ? pokemon : null;
     }

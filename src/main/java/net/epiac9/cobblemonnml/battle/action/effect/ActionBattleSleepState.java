@@ -45,12 +45,12 @@ public final class ActionBattleSleepState {
         return wasSleeping;
     }
 
-    public boolean isDrowsy(long currentTick) { return currentTick >= 0L && drowsinessExpiresAtTick > currentTick; }
-    public boolean isSleeping(long currentTick) { return currentTick >= 0L && sleepExpiresAtTick > currentTick; }
-    public boolean hasDrowsinessGrace(long currentTick) { return currentTick >= 0L && graceExpiresAtTick > currentTick; }
-    public long drowsinessRemainingTicks(long currentTick) { return isDrowsy(currentTick) ? drowsinessExpiresAtTick - currentTick : 0L; }
-    public long sleepRemainingTicks(long currentTick) { return isSleeping(currentTick) ? sleepExpiresAtTick - currentTick : 0L; }
-    public long graceRemainingTicks(long currentTick) { return hasDrowsinessGrace(currentTick) ? graceExpiresAtTick - currentTick : 0L; }
+    public boolean isDrowsy(long currentTick) { return isActiveAt(currentTick, drowsinessExpiresAtTick); }
+    public boolean isSleeping(long currentTick) { return isActiveAt(currentTick, sleepExpiresAtTick); }
+    public boolean hasDrowsinessGrace(long currentTick) { return isActiveAt(currentTick, graceExpiresAtTick); }
+    public long drowsinessRemainingTicks(long currentTick) { return remainingTicks(currentTick, drowsinessExpiresAtTick); }
+    public long sleepRemainingTicks(long currentTick) { return remainingTicks(currentTick, sleepExpiresAtTick); }
+    public long graceRemainingTicks(long currentTick) { return remainingTicks(currentTick, graceExpiresAtTick); }
     public long drowsinessExpiresAtTick() { return drowsinessExpiresAtTick; }
 
 
@@ -86,6 +86,14 @@ public final class ActionBattleSleepState {
 
     private void prune(long currentTick) {
         if (graceExpiresAtTick > 0L && currentTick >= graceExpiresAtTick) graceExpiresAtTick = 0L;
+    }
+
+    private static boolean isActiveAt(long currentTick, long expiresAtTick) {
+        return currentTick >= 0L && expiresAtTick > currentTick;
+    }
+
+    private static long remainingTicks(long currentTick, long expiresAtTick) {
+        return isActiveAt(currentTick, expiresAtTick) ? expiresAtTick - currentTick : 0L;
     }
 
     private static long safeAdd(long left, long right) {

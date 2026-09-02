@@ -17,14 +17,12 @@ public final class ActionBattleDeterioratingShieldState {
 
     public void reduceForNonProtectMove() {
         if (!isActive()) return;
-        remainingTicks -= 100L;
-        normalize();
+        decay(100L);
     }
 
     public void tick(boolean recalled) {
         if (!isActive()) return;
-        remainingTicks -= recalled ? 2L : 1L;
-        normalize();
+        decay(recalled ? 2L : 1L);
     }
 
     public float damageTakenMultiplier() {
@@ -51,5 +49,10 @@ public final class ActionBattleDeterioratingShieldState {
 
     private void normalize() {
         if (remainingTicks <= 0L) clear();
+    }
+
+    private void decay(long ticks) {
+        remainingTicks -= ticks;
+        normalize();
     }
 }

@@ -41,7 +41,7 @@ public final class DungeonResetSavedData extends SavedData {
                 continue;
             }
             ResetState state = readResetState( resetTag, slot );
-            if (state == null || state.boxes.isEmpty()) {
+            if (!hasBoxes(state)) {
                 continue;
             }
             data.resets.put( slot, state );
@@ -63,7 +63,7 @@ public final class DungeonResetSavedData extends SavedData {
             DungeonSlotManager.Slot legacySlot = readSlot( tag );
             if (legacySlot != null) {
                 ResetState legacyState = readResetState( tag, legacySlot );
-                if (legacyState != null && !legacyState.boxes.isEmpty()) {
+                if (hasBoxes(legacyState)) {
                     data.resets.put( legacySlot, legacyState );
                     data.setDirty();
                 }
@@ -81,7 +81,7 @@ public final class DungeonResetSavedData extends SavedData {
          */
         for (DungeonSlotManager.Slot slot : DungeonSlotManager.Slot.values()) {
             ResetState state = resets.get( slot );
-            if (state == null || state.boxes.isEmpty()) {
+            if (!hasBoxes(state)) {
                 continue;
             }
             CompoundTag resetTag = createResetTag(slot, state);
@@ -272,6 +272,9 @@ public final class DungeonResetSavedData extends SavedData {
             );
         }
         return boxes;
+    }
+    private static boolean hasBoxes( ResetState state ) {
+        return state != null && !state.boxes.isEmpty();
     }
     // WRITE BOXES
     private static ListTag writeBoxes( List<BoundingBox> boxes ) {

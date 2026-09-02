@@ -96,20 +96,14 @@ public final class DungeonTrainerPresets {
         Set<String> types = new LinkedHashSet<>();
 
         for (ResourceLocation resourceLocation : resources.keySet()) {
-            String path = resourceLocation.getPath();
-            if (!path.startsWith(BASE_PREFIX)) {
+            TrainerPresetPath parsed = parsePresetPath(resourceLocation);
+            if (parsed == null) {
                 continue;
             }
 
-            String relativePath = path.substring(BASE_PREFIX.length());
-            String[] parts = relativePath.split("/");
-            if (parts.length != 3) {
-                continue;
-            }
-
-            String themeId = parts[0].trim().toLowerCase(Locale.ROOT);
-            String resourceTier = parts[1].trim().toLowerCase(Locale.ROOT);
-            String resourceTrainerName = stripNpcSuffix(parts[2]).trim().toLowerCase(Locale.ROOT);
+            String themeId = parsed.themeId().trim().toLowerCase(Locale.ROOT);
+            String resourceTier = parsed.tierFolder().trim().toLowerCase(Locale.ROOT);
+            String resourceTrainerName = stripNpcSuffix(parsed.trainerFileName()).trim().toLowerCase(Locale.ROOT);
 
             if (!resourceTier.equals(tierFolder) || !resourceTrainerName.equals(trainerName)) {
                 continue;
@@ -136,22 +130,9 @@ public final class DungeonTrainerPresets {
     }
 
     public static String getTrainerThemeId(ResourceLocation preset) {
-        if (preset == null) {
-            return null;
-        }
-
-        String path = preset.getPath();
-        if (!path.startsWith(BASE_PREFIX)) {
-            return null;
-        }
-
-        String relativePath = path.substring(BASE_PREFIX.length());
-        String[] parts = relativePath.split("/");
-        if (parts.length != 3) {
-            return null;
-        }
-
-        String themeId = parts[0].trim().toLowerCase(Locale.ROOT);
+        TrainerPresetPath parsed = parsePresetPath(preset);
+        if (parsed == null) return null;
+        String themeId = parsed.themeId().trim().toLowerCase(Locale.ROOT);
         return isPokemonType(themeId) ? themeId : null;
     }
 
@@ -188,19 +169,13 @@ public final class DungeonTrainerPresets {
         List<ResourceLocation> trainers = new ArrayList<>();
 
         for (ResourceLocation resourceLocation : resources.keySet()) {
-            String path = resourceLocation.getPath();
-            if (!path.startsWith(BASE_PREFIX)) {
+            TrainerPresetPath parsed = parsePresetPath(resourceLocation);
+            if (parsed == null) {
                 continue;
             }
 
-            String relativePath = path.substring(BASE_PREFIX.length());
-            String[] parts = relativePath.split("/");
-            if (parts.length != 3) {
-                continue;
-            }
-
-            String resourceTheme = parts[0];
-            String resourceTier = parts[1];
+            String resourceTheme = parsed.themeId();
+            String resourceTier = parsed.tierFolder();
 
             if (!resourceTheme.equalsIgnoreCase(activeTheme)
                     || !resourceTier.equals(tierFolder)) {
@@ -215,22 +190,16 @@ public final class DungeonTrainerPresets {
     }
 
     private static String getTrainerBaseName(ResourceLocation preset) {
-        if (preset == null) {
-            return null;
-        }
+        TrainerPresetPath parsed = parsePresetPath(preset);
+        return parsed == null ? null : stripNpcSuffix(parsed.trainerFileName()).trim().toLowerCase(Locale.ROOT);
+    }
 
+    private static TrainerPresetPath parsePresetPath(ResourceLocation preset) {
+        if (preset == null) return null;
         String path = preset.getPath();
-        if (!path.startsWith(BASE_PREFIX)) {
-            return null;
-        }
-
-        String relativePath = path.substring(BASE_PREFIX.length());
-        String[] parts = relativePath.split("/");
-        if (parts.length != 3) {
-            return null;
-        }
-
-        return stripNpcSuffix(parts[2]).trim().toLowerCase(Locale.ROOT);
+        if (!path.startsWith(BASE_PREFIX)) return null;
+        String[] parts = path.substring(BASE_PREFIX.length()).split("/");
+        return parts.length == 3 ? new TrainerPresetPath(parts[0], parts[1], parts[2]) : null;
     }
 
     private static String stripNpcSuffix(String fileName) {
@@ -259,4 +228,6 @@ public final class DungeonTrainerPresets {
             case TIER_4 -> "tier_4";
         };
     }
+
+    private record TrainerPresetPath(String themeId, String tierFolder, String trainerFileName) {}
 }

@@ -2,9 +2,6 @@ package net.epiac9.cobblemonnml.overworld.village;
 
 import net.epiac9.cobblemonnml.CobblemonNML;
 
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
-
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
@@ -19,14 +16,8 @@ public final class VillageGenerationEvents {
     public static void onServerTick(
             ServerTickEvent.Post event
     ) {
-        MinecraftServer server =
-                event.getServer();
-
-        ServerLevel overworld =
-                server.overworld();
-
         VillageGenerationQueue.tick(
-                overworld
+                event.getServer().overworld()
         );
     }
     // SERVER STOPPING

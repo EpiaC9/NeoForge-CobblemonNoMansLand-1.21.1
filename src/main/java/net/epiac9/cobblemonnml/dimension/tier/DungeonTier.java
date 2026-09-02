@@ -26,6 +26,9 @@ public enum DungeonTier {
     public int getMaxDistance() {
         return maxDistance;
     }
+    public Config.TierConfig getConfig() {
+        return config;
+    }
     public int getTimerSeconds() {
         return config
                 .timerSeconds()

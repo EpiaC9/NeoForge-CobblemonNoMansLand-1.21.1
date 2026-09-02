@@ -77,13 +77,15 @@ public final class VillageEntrancePairSelector {
                                 networkData
                         );
 
-                if (result.isEmpty()
-                        || !result.get().isUsable()) {
+                                if (result.isEmpty()) {
                     continue;
                 }
 
                 VillagePathfinder.PathResult path =
                         result.get();
+                                if (!path.isUsable()) {
+                                        continue;
+                                }
 
                 VillageRoute candidate =
                         new VillageRoute(

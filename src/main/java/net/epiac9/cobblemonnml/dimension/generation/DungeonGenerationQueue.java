@@ -1811,12 +1811,7 @@ public final class DungeonGenerationQueue {
         if (generatingTier == null) {
             return Config.TIER_1;
         }
-        return switch (generatingTier) {
-            case TIER_1 -> Config.TIER_1;
-            case TIER_2 -> Config.TIER_2;
-            case TIER_3 -> Config.TIER_3;
-            case TIER_4 -> Config.TIER_4;
-        };
+        return generatingTier.getConfig();
     }
     // ROOM CATEGORY WEIGHT
     private static int getRoomCategoryWeight( RoomCategory category ) {

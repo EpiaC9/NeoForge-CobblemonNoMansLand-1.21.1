@@ -102,11 +102,7 @@ public final class OverworldPortalMapManager {
                 MapDecorationTypes.TARGET_X
         );
         // GIVE TO PLAYER
-        boolean added =
-                player
-                        .getInventory()
-                        .add( map );
-        if (!added) {
+        if (!player.getInventory().add( map )) {
             player.drop( map, false );
         }
         // MARK PLAYER AS HAVING RECEIVED IT

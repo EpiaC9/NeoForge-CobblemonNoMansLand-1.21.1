@@ -100,12 +100,8 @@ public final class ActionBattlePersistentController {
                 removeIfEmpty(battleId, pokemonUUID, own);
             }
         }
-        List<UUID> emptied = new ArrayList<>();
-        for (Map.Entry<UUID, ActionBattlePersistentState> entry : battleStates.entrySet()) {
-            if (entry.getKey().equals(pokemonUUID)) continue;
-            if (entry.getValue().onSourceUnavailable(pokemonUUID) && entry.getValue().isEmpty()) emptied.add(entry.getKey());
-        }
-        for (UUID target : emptied) battleStates.remove(target);
+        battleStates.entrySet().removeIf(entry -> !entry.getKey().equals(pokemonUUID)
+            && entry.getValue().onSourceUnavailable(pokemonUUID) && entry.getValue().isEmpty());
         if (battleStates.isEmpty()) statesByBattle.remove(battleId);
     }
 
