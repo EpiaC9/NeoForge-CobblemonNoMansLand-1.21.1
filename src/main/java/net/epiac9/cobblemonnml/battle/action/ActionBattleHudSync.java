@@ -14,6 +14,11 @@ import net.epiac9.cobblemonnml.battle.action.network.ActionBattleHudPayload;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentType;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectState;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireState;
+import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -70,7 +75,7 @@ public final class ActionBattleHudSync {
         for (ActionBattleStatus status : ActionBattleStatus.values()) {
             long remaining = controller.statusRemainingTicks(battleId, pokemonUUID, status, currentTick);
             if (remaining <= 0L) continue;
-            long duration = controller.statusDurationTicks(status);
+            long duration = controller.statusDurationTicks(battleId, pokemonUUID, status, currentTick);
             states.add(new ActionBattleHudPayload.StatusState(status.name(), remaining, duration));
         }
         ActionBattleControlController controls = ActionBattleControlController.global();
@@ -82,8 +87,6 @@ public final class ActionBattleHudSync {
             long shownDuration = controlDuration == Long.MAX_VALUE ? 1L : Math.max(1L, controlDuration);
             states.add(new ActionBattleHudPayload.StatusState("CONTROL_" + activeControl.type().name(), shownRemaining, shownDuration));
         }
-        long graceRemaining = controls.graceRemainingTicks(battleId, pokemonUUID, currentTick);
-        if (graceRemaining > 0L) states.add(new ActionBattleHudPayload.StatusState("CONTROL_GRACE", graceRemaining, 60L));
         ActionBattlePersistentController persistent = ActionBattlePersistentController.global();
         for (ActionBattlePersistentType type : ActionBattlePersistentType.values()) {
             long persistentRemaining = persistent.remainingTicks(battleId, pokemonUUID, type, currentTick);
@@ -95,19 +98,35 @@ public final class ActionBattleHudSync {
             }
             states.add(new ActionBattleHudPayload.StatusState("PERSISTENT_" + type.name(), persistentRemaining, Math.max(1L, persistentDuration)));
         }
+        fireStatusState(pokemonUUID, currentTick).ifPresent(states::add);
         return List.copyOf(states);
+    }
+
+    private static java.util.Optional<ActionBattleHudPayload.StatusState> fireStatusState(UUID pokemonUUID, long currentTick) {
+        UUID sessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
+        if (sessionId == null) return java.util.Optional.empty();
+        return ActionBattleTypeEffectController.global().fireView(sessionId, pokemonUUID, currentTick)
+                .map(ActionBattleHudSync::toFireStatusState);
+    }
+
+    private static ActionBattleHudPayload.StatusState toFireStatusState(ActionBattleTypeEffectState.FireView fire) {
+        if (fire.phase() == ActionBattleFireState.Phase.BURN) {
+            return new ActionBattleHudPayload.StatusState("TYPE_FIRE_BURN", fire.burnRemainingTicks(), ActionBattleFireRules.BURN_DURATION_TICKS);
+        }
+        long pressure = Math.clamp(Math.round(fire.pressure()), 1L, Math.round(ActionBattleFireRules.BURN_THRESHOLD));
+        String statusId = fire.phase() == ActionBattleFireState.Phase.CINDERS ? "TYPE_FIRE_CINDERS" : "TYPE_FIRE_BUILDUP";
+        return new ActionBattleHudPayload.StatusState(statusId, pressure, Math.round(ActionBattleFireRules.BURN_THRESHOLD));
     }
 
 
     private static ActionBattleHudPayload.StatStageState statStages(UUID battleId, UUID pokemonUUID, long currentTick) {
-        ActionBattleEffectController controller = ActionBattleEffectController.global();
         return new ActionBattleHudPayload.StatStageState(
-                controller.effectiveStage(battleId, pokemonUUID, ActionBattleStat.ATTACK, currentTick),
-                controller.effectiveStage(battleId, pokemonUUID, ActionBattleStat.DEFENSE, currentTick),
-                controller.effectiveStage(battleId, pokemonUUID, ActionBattleStat.SPECIAL_ATTACK, currentTick),
-                controller.effectiveStage(battleId, pokemonUUID, ActionBattleStat.SPECIAL_DEFENSE, currentTick),
-                controller.effectiveStage(battleId, pokemonUUID, ActionBattleStat.SPEED, currentTick),
-                controller.effectiveStage(battleId, pokemonUUID, ActionBattleStat.ACCURACY, currentTick)
+                ActionBattleStatResolver.effectiveStage(battleId, pokemonUUID, ActionBattleStat.ATTACK, currentTick),
+                ActionBattleStatResolver.effectiveStage(battleId, pokemonUUID, ActionBattleStat.DEFENSE, currentTick),
+                ActionBattleStatResolver.effectiveStage(battleId, pokemonUUID, ActionBattleStat.SPECIAL_ATTACK, currentTick),
+                ActionBattleStatResolver.effectiveStage(battleId, pokemonUUID, ActionBattleStat.SPECIAL_DEFENSE, currentTick),
+                ActionBattleStatResolver.effectiveStage(battleId, pokemonUUID, ActionBattleStat.SPEED, currentTick),
+                ActionBattleStatResolver.effectiveStage(battleId, pokemonUUID, ActionBattleStat.ACCURACY, currentTick)
         );
     }
 

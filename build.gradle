@@ -141,6 +141,32 @@ dependencies {
     implementation files('libs/OctoLib-NEOFORGE-0.6.2+1.21.jar')
 }
 
+def fireStateTest = tasks.register('fireStateTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the Fire type-effect state and rules regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireStateTest'
+}
+
+def typeEffectControllerTest = tasks.register('typeEffectControllerTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the type-effect session ownership regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectControllerTest'
+}
+
+def iceTypeEffectTest = tasks.register('iceTypeEffectTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the Ice type-effect state, timing, and reapplication tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceStateTest'
+}
+
+tasks.named('test') {
+    dependsOn fireStateTest, typeEffectControllerTest, iceTypeEffectTest
+    failOnNoDiscoveredTests = false
+}
+
 var generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
     var replaceProperties = [
             minecraft_version      : minecraft_version,

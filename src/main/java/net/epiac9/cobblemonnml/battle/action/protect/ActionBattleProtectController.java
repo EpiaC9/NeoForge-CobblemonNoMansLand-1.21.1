@@ -115,6 +115,13 @@ public final class ActionBattleProtectController {
         return new ControlBreakResult(true);
     }
 
+    public double effectPenetrationMultiplier(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleProtectStance stance = activeStance(battleId, pokemonUUID, currentTick);
+        if (stance == null) return 1.0D;
+        ActionBattleDeterioratingShieldState state = state(battleId, pokemonUUID);
+        return state != null ? state.effectPenetrationMultiplier() : 1.0D;
+    }
+
     public record ControlBreakResult(boolean protectedHit) {}
 
     public void clearBattle(UUID battleId) {

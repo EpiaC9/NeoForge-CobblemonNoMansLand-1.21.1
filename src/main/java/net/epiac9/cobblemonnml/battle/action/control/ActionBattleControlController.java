@@ -100,10 +100,6 @@ public final class ActionBattleControlController {
         return state != null ? state.control.activeDurationTicks(currentTick) : 0L;
     }
 
-    public long graceRemainingTicks(UUID battleId, UUID pokemonUUID, long currentTick) {
-        PokemonControlState state = existing(battleId, pokemonUUID);
-        return state != null ? state.control.graceRemainingTicks(currentTick) : 0L;
-    }
 
     public boolean endActive(UUID battleId, UUID pokemonUUID, ActionBattleControlState.EndReason reason, long currentTick) {
         PokemonControlState state = existing(battleId, pokemonUUID);

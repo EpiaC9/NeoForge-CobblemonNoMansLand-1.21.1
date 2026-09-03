@@ -10,17 +10,19 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSleepController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleEvasionController;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleStatResolver;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatRules;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionBattleProjectileEntity;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionProjectileProfile;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
 import me.rufia.fightorflight.utils.PokemonUtils;
 import net.minecraft.world.entity.LivingEntity;
 
@@ -50,7 +52,7 @@ public final class FightOrFlightAdapter {
         if (attacker == null || attacker.level().isClientSide) return 1.0D;
         ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(attacker.getUUID());
         if (session == null) return 1.0D;
-        return ActionBattleEffectController.global().accuracyProjectileMultiplier(
+        return ActionBattleStatResolver.accuracyProjectileMultiplier(
                 session.battleId(), attacker.getPokemon().getUuid(), attacker.level().getGameTime());
     }
 
@@ -62,11 +64,11 @@ public final class FightOrFlightAdapter {
         boolean special = isSpecialDamageCategory(move);
         ActionBattleStat offense = special ? ActionBattleStat.SPECIAL_ATTACK : ActionBattleStat.ATTACK;
         ActionBattleStat defense = special ? ActionBattleStat.SPECIAL_DEFENSE : ActionBattleStat.DEFENSE;
-        ActionBattleEffectController effects = ActionBattleEffectController.global();
-        int offenseStage = effects.effectiveStage(battleId, attacker.getPokemon().getUuid(), offense, tick);
-        int defenseStage = effects.effectiveStage(battleId, pokemonTarget.getPokemon().getUuid(), defense, tick);
+        int offenseStage = ActionBattleStatResolver.effectiveStage(battleId, attacker.getPokemon().getUuid(), offense, tick);
+        int defenseStage = ActionBattleStatResolver.effectiveStage(battleId, pokemonTarget.getPokemon().getUuid(), defense, tick);
         double multiplier = ActionBattleStatRules.damageMultiplier(offenseStage, defenseStage);
-        return Math.max(0.0F, (float) (baseDamage * multiplier));
+        float stageScaledDamage = Math.max(0.0F, (float) (baseDamage * multiplier));
+        return ActionBattleFireController.modifyDamage(attacker, target, move, stageScaledDamage);
     }
 
     private static void applyPostHitActionStatScaling(PokemonEntity attacker, PokemonEntity target, Move move, int beforeHp) {
@@ -240,6 +242,7 @@ public final class FightOrFlightAdapter {
             if (pokemonTarget != null) {
                 if (success) applyPostHitActionStatScaling(attacker, pokemonTarget, move, beforeHp);
                 applyProtectImpact(attacker, pokemonTarget, move, beforeHp, success);
+                if (success) ActionBattleFireController.onSuccessfulMoveHit(attacker, pokemonTarget, move, ActionBattleFireRules.NORMAL_PRESSURE);
                 if (success) ActionBattleSleepController.applyWakeDamageAndWake(sleepSession, pokemonTarget, currentTick, beforeHp, wakePlan);
                 UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
                 if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(pokemonTarget.getUUID());

@@ -116,13 +116,12 @@ public final class ActionBattleEffectController {
         return remaining;
     }
 
-    public long statusDurationTicks(ActionBattleStatus status) {
-        if (status == null) return 0L;
-        return switch (status) {
-            case SLEEP -> ActionBattleSleepState.SLEEP_MAX_DURATION_TICKS;
-            case CONFUSION -> ActionBattleConfusionRules.DURATION_TICKS;
-            case EVASION -> ActionBattleEvasionState.DURATION_TICKS;
-        };
+    public long statusDurationTicks(UUID battleId, UUID pokemonUUID, ActionBattleStatus status, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        if (state == null) return 0L;
+        long duration = state.statusDurationTicks(status, currentTick);
+        removeIfEmpty(state, currentTick);
+        return duration;
     }
 
     public void clearStatuses(UUID battleId, UUID pokemonUUID, long currentTick) {

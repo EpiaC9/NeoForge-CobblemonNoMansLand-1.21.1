@@ -6,6 +6,7 @@ import de.markusbordihn.easynpc.api.handler.EasyNPCEntityHandler;
 import de.markusbordihn.easynpc.data.npc.NPCRemovalReason;
 
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectRuntime;
 import net.epiac9.cobblemonnml.dimension.*;
 import net.epiac9.cobblemonnml.dimension.encounter.DungeonEncounterManager;
 import net.epiac9.cobblemonnml.dimension.reset.DungeonResetQueue;
@@ -50,6 +51,8 @@ public final class DungeonGenerationEvents {
         DungeonPortalSelectionManager.tick( server );
         // TIMER
         DungeonTimer.tick( server );
+        // DUNGEON-SCOPED ACTION TYPE EFFECTS
+        ActionBattleTypeEffectRuntime.tick(server);
         // DUNGEON GENERATION
         DungeonGenerationQueue.tick();
         // OMINOUS VAULT PROXIMITY
@@ -144,7 +147,9 @@ public final class DungeonGenerationEvents {
         // CLEAR PENDING ENCOUNTER RETRIES
         DungeonEncounterManager.clearPendingRetries();
         // END ACTIVE SESSION
+        UUID oldSessionId = DungeonSession.getSessionId();
         DungeonSession.end();
+        ActionBattleTypeEffectRuntime.clearSession(oldSessionId);
         // CLOSE OVERWORLD PORTAL
         DungeonPortalManager.deactivateTrackedPortals( server );
         // STOP UNFINISHED GENERATION
@@ -199,6 +204,7 @@ public final class DungeonGenerationEvents {
          */
         DungeonEncounterManager.clearPendingRetries();
         ActionBattleManager.clearAll();
+        ActionBattleTypeEffectRuntime.clearAll();
         DungeonTrainerBattleEvents.clear();
         QuestNpcTracker.clear();
         DungeonQuestItemMarkerManager.clearAll();

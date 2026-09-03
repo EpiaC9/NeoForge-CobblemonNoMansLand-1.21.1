@@ -13,12 +13,12 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual CONTROL_TORMENT = visual("control_torment", 0xFF8B5AD6);
     private static final StatusVisual CONTROL_IMPRISON = visual("control_imprison", 0xFF6B79C8);
     private static final StatusVisual CONTROL_TRAPPED = visual("control_trapped", 0xFF8C8C8C);
-    private static final StatusVisual CONTROL_GRACE = visual("control_grace", 0xFFE7E7A3);
-    private static final StatusVisual PERSISTENT_LEECH_SEED = visual("persistent_leech_seed", 0xFF67B84A);
-    private static final StatusVisual PERSISTENT_GHOST_CURSE = visual("persistent_ghost_curse", 0xFF8A55B5);
     private static final StatusVisual PERSISTENT_PERISH_SONG = visual("persistent_perish_song", 0xFFE9E9E9);
     private static final StatusVisual PERSISTENT_BOUND = visual("persistent_bound", 0xFFB58B5A);
     private static final StatusVisual PERSISTENT_NIGHTMARE = visual("persistent_nightmare", 0xFF5C3E86);
+    private static final StatusVisual TYPE_FIRE_BUILDUP = typeEffectVisual("fire_build_up", 0xFFFFA24A);
+    private static final StatusVisual TYPE_FIRE_CINDERS = typeEffectVisual("cinders", 0xFFB97857);
+    private static final StatusVisual TYPE_FIRE_BURN = typeEffectVisual("burn", 0xFFFF5A32);
     private static final StatusVisual[] DETERIORATING_SHIELD = {
             visual("deteriorating_shield_1", 0xFFD8E7EC), visual("deteriorating_shield_2", 0xFFD0DFE5), visual("deteriorating_shield_3", 0xFFC5D5DC),
             visual("deteriorating_shield_4", 0xFFBACAD2), visual("deteriorating_shield_5", 0xFFADBFC8), visual("deteriorating_shield_6", 0xFFA0B4BE),
@@ -49,18 +49,22 @@ public final class ActionBattleStatusVisualRegistry {
             case "CONTROL_TORMENT" -> CONTROL_TORMENT;
             case "CONTROL_IMPRISON" -> CONTROL_IMPRISON;
             case "CONTROL_TRAPPED" -> CONTROL_TRAPPED;
-            case "CONTROL_GRACE" -> CONTROL_GRACE;
-            case "PERSISTENT_LEECH_SEED" -> PERSISTENT_LEECH_SEED;
-            case "PERSISTENT_GHOST_CURSE" -> PERSISTENT_GHOST_CURSE;
             case "PERSISTENT_PERISH_SONG" -> PERSISTENT_PERISH_SONG;
             case "PERSISTENT_BOUND" -> PERSISTENT_BOUND;
             case "PERSISTENT_NIGHTMARE" -> PERSISTENT_NIGHTMARE;
+            case "TYPE_FIRE_BUILDUP" -> TYPE_FIRE_BUILDUP;
+            case "TYPE_FIRE_CINDERS" -> TYPE_FIRE_CINDERS;
+            case "TYPE_FIRE_BURN" -> TYPE_FIRE_BURN;
             default -> null;
         };
     }
 
     private static StatusVisual visual(String name, int ringArgb) {
         return new StatusVisual(ResourceLocation.fromNamespaceAndPath("cobblemonnml", "textures/gui/action/status/" + name + ".png"), ringArgb);
+    }
+
+    private static StatusVisual typeEffectVisual(String name, int ringArgb) {
+        return new StatusVisual(ResourceLocation.fromNamespaceAndPath("cobblemonnml", "textures/gui/action/type_effect/" + name + ".png"), ringArgb);
     }
 
     public record StatusVisual(ResourceLocation icon, int ringArgb) {}

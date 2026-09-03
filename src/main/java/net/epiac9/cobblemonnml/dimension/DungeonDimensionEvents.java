@@ -1,5 +1,6 @@
 package net.epiac9.cobblemonnml.dimension;
 
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectRuntime;
 import net.epiac9.cobblemonnml.dimension.timer.DungeonTimer;
 import net.epiac9.cobblemonnml.events.quest.QuestRuntimeManager;
 import net.epiac9.cobblemonnml.util.DebugLog;
@@ -32,6 +33,7 @@ public final class DungeonDimensionEvents {
         }
         // LEFT DUNGEON
         if (event.getFrom().equals(DungeonDimension.DUNGEON_DIMENSION)) {
+            ActionBattleTypeEffectRuntime.clearPlayer(player);
             QuestRuntimeManager.failAllDungeonQuests(player);
             requestResetIfDungeonEmpty(player.getServer(), player.getUUID() );
         }
@@ -51,6 +53,7 @@ public final class DungeonDimensionEvents {
             return;
         }
         DebugLog.log( "Player " + player .getGameProfile() .getName() + " logged out inside dungeon." );
+        ActionBattleTypeEffectRuntime.clearPlayer(player);
         QuestRuntimeManager.failAllDungeonQuests(player);
         // SINGLE-PLAYER OWNER IS QUITTING WORLD
         /*

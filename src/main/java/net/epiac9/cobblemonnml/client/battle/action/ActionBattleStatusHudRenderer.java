@@ -54,7 +54,9 @@ public final class ActionBattleStatusHudRenderer {
     }
 
     private static int priorityFor(String statusId) {
-        return statusId != null && statusId.startsWith("DETERIORATING_SHIELD_") ? 0 : 100;
+        if (statusId == null) return Integer.MAX_VALUE;
+        if (statusId.startsWith("DETERIORATING_SHIELD_")) return 0;
+        return statusId.startsWith("TYPE_") ? 200 : 100;
     }
 
     private static void renderTimerRing(GuiGraphics graphics, int centerX, int centerY, float progress, int color) {

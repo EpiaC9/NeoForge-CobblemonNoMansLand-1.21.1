@@ -9,14 +9,10 @@ import java.util.UUID;
 public final class ActionBattlePersistentState {
     public static final long DOT_INTERVAL_TICKS = 40L;
     public static final long PERISH_DURATION_TICKS = 480L;
-    private static final float LEECH_SEED_FRACTION = 0.02F;
-    private static final float GHOST_CURSE_FRACTION = 0.03F;
     private static final float BOUND_FRACTION = 0.02F;
     private static final float NIGHTMARE_FRACTION = 0.03F;
     private final Map<ActionBattlePersistentType, Instance> effects = new EnumMap<>(ActionBattlePersistentType.class);
 
-    public boolean applyLeechSeed(UUID sourcePokemonUUID, long currentTick) { return applyUntimed(ActionBattlePersistentType.LEECH_SEED, sourcePokemonUUID, currentTick); }
-    public boolean applyGhostCurse(UUID sourcePokemonUUID, long currentTick) { return applyUntimed(ActionBattlePersistentType.GHOST_CURSE, sourcePokemonUUID, currentTick); }
     public boolean applyNightmare(UUID sourcePokemonUUID, long currentTick) { return applyUntimed(ActionBattlePersistentType.NIGHTMARE, sourcePokemonUUID, currentTick); }
 
     public boolean applyPerishSong(UUID sourcePokemonUUID, long currentTick) {
@@ -58,8 +54,6 @@ public final class ActionBattlePersistentState {
     public List<ActionBattlePersistentEvent> tick(long currentTick) {
         if (currentTick < 0L || effects.isEmpty()) return List.of();
         List<ActionBattlePersistentEvent> events = new ArrayList<>();
-        tickDot(ActionBattlePersistentType.LEECH_SEED, LEECH_SEED_FRACTION, currentTick, events);
-        tickDot(ActionBattlePersistentType.GHOST_CURSE, GHOST_CURSE_FRACTION, currentTick, events);
         tickDot(ActionBattlePersistentType.NIGHTMARE, NIGHTMARE_FRACTION, currentTick, events);
         tickBound(currentTick, events);
         Instance perish = effects.get(ActionBattlePersistentType.PERISH_SONG);
@@ -71,8 +65,6 @@ public final class ActionBattlePersistentState {
     }
 
     public void onPokemonRecalled(long currentTick) {
-        effects.remove(ActionBattlePersistentType.LEECH_SEED);
-        effects.remove(ActionBattlePersistentType.GHOST_CURSE);
         effects.remove(ActionBattlePersistentType.PERISH_SONG);
         effects.remove(ActionBattlePersistentType.NIGHTMARE);
     }

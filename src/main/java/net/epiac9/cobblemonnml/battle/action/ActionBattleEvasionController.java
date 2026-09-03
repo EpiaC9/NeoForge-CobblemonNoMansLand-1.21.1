@@ -23,7 +23,7 @@ public final class ActionBattleEvasionController {
     public static ActionBattleStatusApplication apply(ActionBattleSession session, PokemonEntity target, long currentTick) {
         if (session == null || target == null || currentTick < 0L) return null;
         ActionBattleStatusApplication result = ActionBattleEffectController.global().applyEvasion(session.battleId(), target.getPokemon().getUuid(), currentTick);
-        if (result != null && target.level() instanceof net.minecraft.server.level.ServerLevel level) ActionBattleStatusParticleController.emitEvasionBurst(level, target);
+        if (result == ActionBattleStatusApplication.EVASION_APPLIED && target.level() instanceof net.minecraft.server.level.ServerLevel level) ActionBattleStatusParticleController.emitEvasionBurst(level, target);
         return result;
     }
 

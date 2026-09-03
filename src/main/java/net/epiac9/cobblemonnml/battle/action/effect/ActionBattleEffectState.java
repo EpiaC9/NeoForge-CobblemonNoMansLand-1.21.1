@@ -56,14 +56,14 @@ public final class ActionBattleEffectState {
         if (currentTick < 0L) return null;
         if (evasion == null) evasion = new ActionBattleEvasionState();
         ActionBattleEvasionState.ApplyResult result = evasion.apply(currentTick);
-        return result == ActionBattleEvasionState.ApplyResult.APPLIED ? ActionBattleStatusApplication.EVASION_APPLIED : ActionBattleStatusApplication.EVASION_REFRESHED;
+        return result == ActionBattleEvasionState.ApplyResult.APPLIED ? ActionBattleStatusApplication.EVASION_APPLIED : ActionBattleStatusApplication.EVASION_IGNORED_ACTIVE;
     }
 
     ActionBattleStatusApplication applyConfusion(long currentTick) {
         if (currentTick < 0L) return null;
         if (confusion == null) confusion = new ActionBattleConfusionState();
         ActionBattleConfusionState.ApplyResult result = confusion.apply(currentTick);
-        return result == ActionBattleConfusionState.ApplyResult.APPLIED ? ActionBattleStatusApplication.CONFUSION_APPLIED : ActionBattleStatusApplication.CONFUSION_REFRESHED;
+        return result == ActionBattleConfusionState.ApplyResult.APPLIED ? ActionBattleStatusApplication.CONFUSION_APPLIED : ActionBattleStatusApplication.CONFUSION_IGNORED_ACTIVE;
     }
 
     boolean hasStatus(ActionBattleStatus status, long currentTick) {
@@ -84,6 +84,16 @@ public final class ActionBattleEffectState {
         };
     }
 
+
+    long statusDurationTicks(ActionBattleStatus status, long currentTick) {
+        if (status == null || currentTick < 0L) return 0L;
+        return switch (status) {
+            case SLEEP -> sleep != null && sleep.isSleeping(currentTick) ? ActionBattleSleepState.SLEEP_MAX_DURATION_TICKS : 0L;
+            case CONFUSION -> confusion != null ? confusion.durationTicks(currentTick) : 0L;
+            case EVASION -> evasion != null ? evasion.durationTicks(currentTick) : 0L;
+        };
+    }
+
     List<ActionBattleDotEvent> tick(long currentTick) {
         if (currentTick >= 0L) pruneStatContributions(currentTick);
         return List.of();
@@ -94,10 +104,8 @@ public final class ActionBattleEffectState {
             sleep.cleanse(currentTick);
             if (sleep.isEmpty(currentTick)) sleep = null;
         }
-        if (confusion != null) confusion.clear();
-        confusion = null;
-        if (evasion != null) evasion.clear();
-        evasion = null;
+        if (confusion != null) confusion.clear(currentTick);
+        if (evasion != null) evasion.clear(currentTick);
     }
 
     void onPokemonRecalled(long currentTick) {
@@ -105,10 +113,8 @@ public final class ActionBattleEffectState {
         statContributions.clear();
         if (sleep != null) sleep.clearAll();
         sleep = null;
-        if (confusion != null) confusion.clear();
-        confusion = null;
-        if (evasion != null) evasion.clear();
-        evasion = null;
+        if (confusion != null) confusion.clear(currentTick);
+        if (evasion != null) evasion.clear(currentTick);
     }
 
     boolean prune(long currentTick) {

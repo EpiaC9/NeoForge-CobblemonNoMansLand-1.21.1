@@ -39,8 +39,6 @@ public final class ActionBattleStatusParticleController {
         if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.EVASION, tick) && tick % EVASION_INTERVAL_TICKS == 0L) emitEvasionAmbient(level, entity);
         if (tick % PERSISTENT_INTERVAL_TICKS == 0L) {
             ActionBattlePersistentController persistent = ActionBattlePersistentController.global();
-            if (persistent.has(session.battleId(), pokemon.getUuid(), ActionBattlePersistentType.LEECH_SEED, tick)) emitAcrossBody(level, entity, 2, ParticleTypes.HAPPY_VILLAGER, 0.005D);
-            if (persistent.has(session.battleId(), pokemon.getUuid(), ActionBattlePersistentType.GHOST_CURSE, tick)) emitAcrossBody(level, entity, 2, ParticleTypes.SOUL, 0.01D);
             if (persistent.has(session.battleId(), pokemon.getUuid(), ActionBattlePersistentType.PERISH_SONG, tick)) emitAcrossBody(level, entity, 1, ParticleTypes.NOTE, 0.005D);
             if (persistent.has(session.battleId(), pokemon.getUuid(), ActionBattlePersistentType.BOUND, tick)) emitAcrossBody(level, entity, 2, ParticleTypes.ASH, 0.005D);
             if (persistent.has(session.battleId(), pokemon.getUuid(), ActionBattlePersistentType.NIGHTMARE, tick)) emitAcrossBody(level, entity, 2, ParticleTypes.PORTAL, 0.01D);

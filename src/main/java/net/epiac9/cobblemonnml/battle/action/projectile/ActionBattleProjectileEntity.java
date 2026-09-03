@@ -13,6 +13,8 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleEvasionController;
 import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectResolver;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.registry.ModEntities;
 import net.minecraft.core.BlockPos;
@@ -152,7 +154,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             return;
         }
         boolean nativeDamageMove = FightOrFlightAdapter.isNativeDamageMove(move);
-        if (confusedShot && nativeDamageMove) setDamage(FightOrFlightAdapter.scaleActionDamage(attacker, target, move, PokemonAttackEffect.calculatePokemonDamage(attacker, target, move)));
+        if (nativeDamageMove) setDamage(FightOrFlightAdapter.scaleActionDamage(attacker, target, move, PokemonAttackEffect.calculatePokemonDamage(attacker, target, move)));
         PokemonEntity pokemonTarget = target instanceof PokemonEntity value ? value : null;
         int beforeHp = pokemonTarget != null ? pokemonTarget.getPokemon().getCurrentHealth() : 0;
         ActionBattleSession sleepSession = pokemonTarget != null ? ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID()) : null;
@@ -169,6 +171,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         if (nativeDamageMove) FightOrFlightAdapter.applyPostEffectsWithoutActionStatuses(attacker, target, move, success);
         if (pokemonTarget != null) {
             FightOrFlightAdapter.applyProtectImpact(attacker, pokemonTarget, move, beforeHp, success);
+            if (nativeDamageMove && success) ActionBattleFireController.onSuccessfulMoveHit(attacker, pokemonTarget, move, ActionBattleFireRules.NORMAL_PRESSURE);
             if (nativeDamageMove && success) ActionBattleSleepController.applyWakeDamageAndWake(sleepSession, pokemonTarget, currentTick, beforeHp, wakePlan);
             UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
             if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(pokemonTarget.getUUID());

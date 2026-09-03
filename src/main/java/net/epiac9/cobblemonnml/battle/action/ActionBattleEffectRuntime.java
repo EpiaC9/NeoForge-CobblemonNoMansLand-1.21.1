@@ -20,6 +20,8 @@ import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentTi
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentType;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleProtectVisuals;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -143,20 +145,8 @@ final class ActionBattleEffectRuntime {
         target.setCurrentHealth(after);
         int actualDamage = Math.max(0, before - after);
         ActionBattleDamageFeedbackController.global().recordDamage(session.battleId(), target.getUuid(), before, after, ActionBattleDamageFeedbackCategory.DOT);
-        if (event.type() == ActionBattlePersistentType.LEECH_SEED && actualDamage > 0) healLeechRecipient(session, level, target.getUuid(), actualDamage, currentTick);
         DebugLog.log("[CobblemonNML] Action battle persistent tick. Battle=" + session.battleId() + ", effect=" + event.type()
                 + ", pokemon=" + target.getUuid() + ", damage=" + actualDamage + ", hp=" + after + "/" + maxHealth);
-    }
-
-    private static void healLeechRecipient(ActionBattleSession session, ServerLevel level, UUID seededPokemonUUID, int amount, long currentTick) {
-        UUID recipientUUID = session.playerActivePokemonUUID();
-        if (seededPokemonUUID.equals(recipientUUID)) recipientUUID = session.trainerActivePokemonUUID();
-        if (recipientUUID == null || amount <= 0) return;
-        Pokemon recipient = findBattlePokemon(session, level, recipientUUID);
-        if (recipient == null || recipient.isFainted() || ActionBattleControlController.global().blocksHealing(session.battleId(), recipientUUID, currentTick)) return;
-        int before = recipient.getCurrentHealth();
-        int after = Math.min(recipient.getMaxHealth(), before + amount);
-        if (after > before) recipient.setCurrentHealth(after);
     }
 
     private static Pokemon findBattlePokemon(ActionBattleSession session, ServerLevel level, UUID pokemonUUID) {
@@ -199,6 +189,9 @@ final class ActionBattleEffectRuntime {
         Entity raw = entityUUID != null ? level.getEntity(entityUUID) : null;
         boolean inside = isInsideHazeZone(session, raw, hazeActive);
         ActionBattleEffectController.global().setHazeProtected(session.battleId(), pokemonUUID, inside, currentTick);
+        if (inside && DungeonSession.isActive()) {
+            ActionBattleTypeEffectController.global().suppressFireBonusByHaze(DungeonSession.getSessionId(), pokemonUUID);
+        }
     }
 
     private static boolean isInsideHazeZone(ActionBattleSession session, Entity entity, boolean hazeActive) {

@@ -36,7 +36,7 @@ public final class ActionBattleConfusionController {
         var interception = ActionBattleProtectController.global().interceptTimedEffect(session.battleId(), pokemonUUID, currentTick, "confusion", (int) ActionBattleConfusionRules.DURATION_TICKS);
         if (!interception.allowed()) return null;
         ActionBattleStatusApplication result = ActionBattleEffectController.global().applyConfusion(session.battleId(), pokemonUUID, currentTick);
-        if (result != null && target.level() instanceof ServerLevel level) ActionBattleStatusParticleController.emitConfusionBurst(level, target);
+        if (result == ActionBattleStatusApplication.CONFUSION_APPLIED && target.level() instanceof ServerLevel level) ActionBattleStatusParticleController.emitConfusionBurst(level, target);
         return result;
     }
 

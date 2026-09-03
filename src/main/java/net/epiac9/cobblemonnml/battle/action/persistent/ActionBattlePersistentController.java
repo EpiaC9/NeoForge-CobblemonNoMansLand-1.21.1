@@ -19,17 +19,6 @@ public final class ActionBattlePersistentController {
     private ActionBattlePersistentController() {}
     public static ActionBattlePersistentController global() { return GLOBAL; }
 
-    public boolean applyLeechSeed(UUID battleId, UUID targetPokemonUUID, UUID sourcePokemonUUID, String primaryType, String secondaryType, long currentTick) {
-        if (ActionBattlePersistentRules.leechSeedImmune(primaryType, secondaryType)) return false;
-        ActionBattlePersistentState state = state(battleId, targetPokemonUUID);
-        return state != null && state.applyLeechSeed(sourcePokemonUUID, currentTick);
-    }
-
-    public boolean applyGhostCurse(UUID battleId, UUID targetPokemonUUID, UUID sourcePokemonUUID, long currentTick) {
-        ActionBattlePersistentState state = state(battleId, targetPokemonUUID);
-        return state != null && state.applyGhostCurse(sourcePokemonUUID, currentTick);
-    }
-
     public boolean applyPerishSong(UUID battleId, UUID targetPokemonUUID, UUID sourcePokemonUUID, long currentTick) {
         ActionBattlePersistentState state = state(battleId, targetPokemonUUID);
         return state != null && state.applyPerishSong(sourcePokemonUUID, currentTick);
