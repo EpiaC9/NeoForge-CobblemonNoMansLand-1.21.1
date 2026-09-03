@@ -11,7 +11,6 @@ import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCo
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleDotDamage;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleDotEvent;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
@@ -78,7 +77,6 @@ final class ActionBattleEffectRuntime {
         ActionBattlePersistentController.global().clearBattle(battleId);
         ActionBattleControlController.global().clearBattle(battleId);
         ActionBattleDamageFeedbackController.global().clearBattle(battleId);
-        ActionBattleParalysisController.clearBattle(battleId);
         ActionBattleEvasionController.clearBattle(battleId);
     }
 
@@ -95,15 +93,8 @@ final class ActionBattleEffectRuntime {
         int damage = ActionBattleDotDamage.calculate(maxHealth, pokemon.getCurrentHealth(), event.maxHealthFraction());
         int newHealth = Math.max(event.canKo() ? 0 : 1, beforeHealth - damage);
         pokemon.setCurrentHealth(newHealth);
-        boolean poisonDot = isPoison(event.status());
         ActionBattleDamageFeedbackController.global().recordDamage(session.battleId(), pokemon.getUuid(), beforeHealth, newHealth,
-                poisonDot ? ActionBattleDamageFeedbackCategory.POISON_DOT : ActionBattleDamageFeedbackCategory.DOT);
-        PokemonEntity entity = pokemon.getEntity();
-        if (entity != null && !entity.isRemoved() && entity.level() == level) {
-            if (event.status() == ActionBattleStatus.BURN) ActionBattleStatusParticleController.emitBurnDotBurst(level, entity);
-            else if (event.status() == ActionBattleStatus.FROSTBITE) ActionBattleStatusParticleController.emitFrostbiteDotBurst(level, entity);
-            else if (poisonDot) ActionBattleStatusParticleController.emitPoisonDotBurst(level, entity, toxicLevel(event.status()));
-        }
+                ActionBattleDamageFeedbackCategory.DOT);
         DebugLog.log("[CobblemonNML] Action battle DOT tick. Battle=" + session.battleId() + ", status=" + event.status()
                 + ", pokemon=" + event.pokemonUUID() + ", damage=" + damage + ", hp=" + newHealth + "/" + maxHealth);
     }
@@ -222,17 +213,4 @@ final class ActionBattleEffectRuntime {
         if (refs.trainerPokemon() != null) feedback.observePokemon(session.battleId(), refs.trainerPokemon().getUuid(), refs.trainerPokemon().getCurrentHealth());
     }
 
-    private static boolean isPoison(ActionBattleStatus status) {
-        return status == ActionBattleStatus.POISON || status == ActionBattleStatus.TOXIC_1
-                || status == ActionBattleStatus.TOXIC_2 || status == ActionBattleStatus.TOXIC_3;
-    }
-
-    private static int toxicLevel(ActionBattleStatus status) {
-        return switch (status) {
-            case TOXIC_1 -> 1;
-            case TOXIC_2 -> 2;
-            case TOXIC_3 -> 3;
-            default -> 0;
-        };
-    }
 }

@@ -33,13 +33,13 @@ public final class FightOrFlightAdapter {
     private FightOrFlightAdapter() {}
 
     public static boolean supports(Move move) {
-        return move != null && (ActionBattleBalefulBunkerHandler.isBalefulBunker(move) || ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFreezeOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedPoisonOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedDrowsinessOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move))));
+        return move != null && (ActionBattleBalefulBunkerHandler.isBalefulBunker(move) || ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move))));
     }
 
     public static boolean isMeleeMove(Move move) { return move != null && PokemonUtils.isMeleeAttackMove(move); }
 
     public static boolean isRangedMove(Move move) {
-        return move != null && (ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFreezeOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedPoisonOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedDrowsinessOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move))));
+        return move != null && (ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move))));
     }
 
     public static boolean isNativeDamageMove(Move move) {
@@ -202,9 +202,6 @@ public final class FightOrFlightAdapter {
                     battleId, target.getPokemon().getUuid(), currentTick, actualDamage);
             target.getPokemon().setCurrentHealth(Math.max(0, beforeHp - protectedDamage));
         }
-        if (stance.contactPoisonRetaliation() && makesContact(move)) {
-            ActionBattleEffectController.global().applyPoison(battleId, attacker.getPokemon().getUuid(), 1, currentTick);
-        }
     }
 
     public static boolean executeConfusedRanged(PokemonEntity attacker, Move move, net.minecraft.world.phys.Vec3 direction) {
@@ -247,17 +244,12 @@ public final class FightOrFlightAdapter {
                 UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
                 if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(pokemonTarget.getUUID());
                 if (battleId != null) ActionBattleDamageFeedbackController.global().recordDamage(battleId, pokemonTarget.getPokemon().getUuid(), beforeHp, pokemonTarget.getPokemon().getCurrentHealth(), ActionBattleDamageFeedbackCategory.NORMAL);
-                ActionBattleMoveEffectResolver.applyDeclaredBurnOnHit(attacker, pokemonTarget, move, success);
-                ActionBattleMoveEffectResolver.applyDeclaredFreezeOnHit(attacker, pokemonTarget, move, success);
-                ActionBattleMoveEffectResolver.applyDeclaredPoisonOnHit(attacker, pokemonTarget, move, success);
                 ActionBattleMoveEffectResolver.applyDeclaredFlinchOnHit(attacker, pokemonTarget, move, success);
-                ActionBattleMoveEffectResolver.applyDeclaredParalysisOnHit(attacker, pokemonTarget, move, success);
-                ActionBattleMoveEffectResolver.applyDeclaredDrowsinessOnHit(attacker, pokemonTarget, move, success);
                 ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, pokemonTarget, move, success);
             }
             return true;
         }
-        if (PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedBurnOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFreezeOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedPoisonOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedDrowsinessOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move)))) {
+        if (PokemonUtils.isRangeAttackMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move)))) {
             PokemonUtils.sendAnimationPacket(attacker, "special");
             ActionBattleProjectileEntity projectile = new ActionBattleProjectileEntity(attacker.level(), attacker, target, move);
             attacker.level().addFreshEntity(projectile);

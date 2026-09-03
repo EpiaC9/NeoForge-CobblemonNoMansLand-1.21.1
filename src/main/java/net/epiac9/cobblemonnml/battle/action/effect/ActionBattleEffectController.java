@@ -69,45 +69,6 @@ public final class ActionBattleEffectController {
         return active;
     }
 
-    public ActionBattleStatusApplication applyBurnCapableHit(UUID battleId, UUID pokemonUUID, long currentTick) {
-        return applyBurnCapableHit(battleId, pokemonUUID, currentTick, 1.0F);
-    }
-
-    public ActionBattleStatusApplication applyBurnCapableHit(UUID battleId, UUID pokemonUUID, long currentTick, float durationMultiplier) {
-        if (!validIds(battleId, pokemonUUID) || currentTick < 0L || !(durationMultiplier > 0.0F)) return null;
-        return state(battleId, pokemonUUID).applyBurnCapableHit(currentTick, durationMultiplier);
-    }
-
-    public ActionBattleStatusApplication applyFreezeCapableHit(UUID battleId, UUID pokemonUUID, long currentTick) {
-        return applyFreezeCapableHit(battleId, pokemonUUID, currentTick, 1.0F);
-    }
-
-    public ActionBattleStatusApplication applyFreezeCapableHit(UUID battleId, UUID pokemonUUID, long currentTick, float durationMultiplier) {
-        if (!validIds(battleId, pokemonUUID) || currentTick < 0L || !(durationMultiplier > 0.0F)) return null;
-        return state(battleId, pokemonUUID).applyFreezeCapableHit(currentTick, durationMultiplier);
-    }
-
-    public ActionBattleStatusApplication applyPoison(UUID battleId, UUID pokemonUUID, int strength, long currentTick) {
-        return applyPoison(battleId, pokemonUUID, strength, currentTick, 1.0F);
-    }
-
-    public ActionBattleStatusApplication applyPoison(UUID battleId, UUID pokemonUUID, int strength, long currentTick, float durationMultiplier) {
-        if (!validIds(battleId, pokemonUUID) || currentTick < 0L || (strength != 1 && strength != 2) || !(durationMultiplier > 0.0F)) return null;
-        return state(battleId, pokemonUUID).applyPoison(strength, currentTick, durationMultiplier);
-    }
-
-
-    public ActionBattleStatusApplication applyParalysis(UUID battleId, UUID pokemonUUID, long currentTick, float durationMultiplier) {
-        if (!validIds(battleId, pokemonUUID) || currentTick < 0L || !(durationMultiplier > 0.0F)) return null;
-        return state(battleId, pokemonUUID).applyParalysis(currentTick, durationMultiplier);
-    }
-
-
-    public ActionBattleStatusApplication applyDrowsiness(UUID battleId, UUID pokemonUUID, long currentTick) {
-        if (!validIds(battleId, pokemonUUID) || currentTick < 0L) return null;
-        return state(battleId, pokemonUUID).applyDrowsiness(currentTick);
-    }
-
     public ActionBattleStatusApplication applyEvasion(UUID battleId, UUID pokemonUUID, long currentTick) {
         if (!validIds(battleId, pokemonUUID) || currentTick < 0L) return null;
         return state(battleId, pokemonUUID).applyEvasion(currentTick);
@@ -116,11 +77,6 @@ public final class ActionBattleEffectController {
     public ActionBattleStatusApplication applyConfusion(UUID battleId, UUID pokemonUUID, long currentTick) {
         if (!validIds(battleId, pokemonUUID) || currentTick < 0L) return null;
         return state(battleId, pokemonUUID).applyConfusion(currentTick);
-    }
-
-    public boolean shouldBeginSleep(UUID battleId, UUID pokemonUUID, long currentTick) {
-        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
-        return state != null && state.shouldBeginSleep(currentTick);
     }
 
     public boolean beginSleep(UUID battleId, UUID pokemonUUID, long currentTick, long durationTicks) {
@@ -144,29 +100,6 @@ public final class ActionBattleEffectController {
         return result;
     }
 
-    public float paralysisCheckChance(UUID battleId, UUID pokemonUUID, long currentTick) {
-        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
-        if (state == null) return 0.0F;
-        float chance = state.paralysisCheckChance(currentTick);
-        removeIfEmpty(state, currentTick);
-        return chance;
-    }
-
-    public float advanceParalysisChecks(UUID battleId, UUID pokemonUUID, int count, long currentTick) {
-        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
-        if (state == null) return 0.0F;
-        float chance = state.advanceParalysisChecks(count, currentTick);
-        removeIfEmpty(state, currentTick);
-        return chance;
-    }
-
-    public void resetParalysisBuildup(UUID battleId, UUID pokemonUUID, long currentTick) {
-        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
-        if (state == null) return;
-        state.resetParalysisBuildup(currentTick);
-        removeIfEmpty(state, currentTick);
-    }
-
     public boolean hasStatus(UUID battleId, UUID pokemonUUID, ActionBattleStatus status, long currentTick) {
         ActionBattleEffectState state = existingState(battleId, pokemonUUID);
         if (state == null) return false;
@@ -183,39 +116,10 @@ public final class ActionBattleEffectController {
         return remaining;
     }
 
-    public long poisonToxicRemainingTicks(UUID battleId, UUID pokemonUUID, long currentTick) {
-        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
-        if (state == null) return 0L;
-        long remaining = state.poisonToxicRemainingTicks(currentTick);
-        removeIfEmpty(state, currentTick);
-        return remaining;
-    }
-
-    public int poisonToxicReapplicationCount(UUID battleId, UUID pokemonUUID, long currentTick) {
-        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
-        if (state == null) return 0;
-        int count = state.poisonToxicReapplicationCount(currentTick);
-        removeIfEmpty(state, currentTick);
-        return count;
-    }
-
-    public long poisonToxicNextDotTick(UUID battleId, UUID pokemonUUID, long currentTick) {
-        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
-        if (state == null) return 0L;
-        long tick = state.poisonToxicNextDotTick(currentTick);
-        removeIfEmpty(state, currentTick);
-        return tick;
-    }
-
     public long statusDurationTicks(ActionBattleStatus status) {
         if (status == null) return 0L;
         return switch (status) {
-            case CINDERS, BURN, FREEZE, FROSTBITE -> ActionBattleEffectState.BASE_STATUS_DURATION_TICKS;
-            case POISON, TOXIC_1, TOXIC_2, TOXIC_3 -> ActionBattlePoisonToxicState.BASE_DURATION_TICKS;
-            case PARALYSIS -> ActionBattleParalysisState.BASE_DURATION_TICKS;
-            case DROWSINESS -> ActionBattleSleepState.DROWSINESS_DURATION_TICKS;
             case SLEEP -> ActionBattleSleepState.SLEEP_MAX_DURATION_TICKS;
-            case DROWSINESS_GRACE -> ActionBattleSleepState.DROWSINESS_GRACE_DURATION_TICKS;
             case CONFUSION -> ActionBattleConfusionRules.DURATION_TICKS;
             case EVASION -> ActionBattleEvasionState.DURATION_TICKS;
         };

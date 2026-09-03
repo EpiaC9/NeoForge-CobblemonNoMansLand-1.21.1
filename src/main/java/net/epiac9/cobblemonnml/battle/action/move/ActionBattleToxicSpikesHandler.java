@@ -3,7 +3,6 @@ package net.epiac9.cobblemonnml.battle.action.move;
 import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.ActionBattlePosition;
-import net.epiac9.cobblemonnml.battle.action.ActionBattleParalysisController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleConfusionController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.area.ActionBattlePersistentAreaController;
@@ -14,8 +13,6 @@ import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelControll
 import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelPreset;
 import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelState;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
-import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleChannelVisuals;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.particles.ParticleTypes;
@@ -133,7 +130,6 @@ public final class ActionBattleToxicSpikesHandler {
         CastContext context = CASTS.remove(state.casterPokemonUUID());
         if (context == null || state.lastTargetablePosition() == null) return;
         AREAS.create(state.battleId(), state.casterPokemonUUID(), MOVE_ID, state.lastTargetablePosition(), AREA, area -> pulse(context, area));
-        ActionBattleParalysisController.onAbilitySucceeded(state.battleId(), state.casterPokemonUUID(), context.level().getGameTime());
         DebugLog.log("[CobblemonNML] Toxic Spikes channel completed. Battle=" + state.battleId() + ", caster=" + state.casterPokemonUUID() + ", anchor=" + state.lastTargetablePosition());
     }
 
@@ -152,17 +148,6 @@ public final class ActionBattleToxicSpikesHandler {
     private static void pulse(CastContext context, ActionBattlePersistentAreaState area) {
         if (context == null || area == null) return;
         emitPulse(context.level(), area);
-        PokemonEntity enemy = context.playerSide()
-                ? ActionBattleAreaEffectSupport.activePokemonEntity(context.session(), context.level(), context.session().trainerActivePokemonUUID())
-                : ActionBattleAreaEffectSupport.activePokemonEntity(context.session(), context.level(), context.session().playerActivePokemonUUID());
-        if (enemy == null || enemy.isRemoved() || !area.contains(enemy.getX(), enemy.getY(), enemy.getZ())) return;
-        long currentTick = context.level().getGameTime();
-        ActionBattleProtectController.EffectInterception interception = ActionBattleProtectController.global()
-                .interceptTimedEffect(area.battleId(), enemy.getPokemon().getUuid(), currentTick, "poison", 360);
-        if (!interception.allowed()) return;
-        float durationMultiplier = interception.durationTicks() / 360.0F;
-        ActionBattleEffectController.global().applyPoison(area.battleId(), enemy.getPokemon().getUuid(), 1, context.level().getGameTime(), durationMultiplier);
-        DebugLog.log("[CobblemonNML] Toxic Spikes pulse applied +1 Poison. Battle=" + area.battleId() + ", area=" + area.areaId() + ", target=" + enemy.getPokemon().getUuid());
     }
 
     private static void emitAreaAmbient(ServerLevel level, ActionBattlePersistentAreaState area) {

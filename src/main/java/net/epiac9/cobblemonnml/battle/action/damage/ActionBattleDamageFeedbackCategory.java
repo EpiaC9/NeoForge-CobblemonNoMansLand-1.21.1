@@ -1,2 +1,2 @@
 package net.epiac9.cobblemonnml.battle.action.damage;
-public enum ActionBattleDamageFeedbackCategory { NORMAL, DOT, POISON_DOT }
+public enum ActionBattleDamageFeedbackCategory { NORMAL, DOT }

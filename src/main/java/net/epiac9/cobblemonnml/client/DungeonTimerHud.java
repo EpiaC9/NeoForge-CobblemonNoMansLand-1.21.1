@@ -2,259 +2,168 @@ package net.epiac9.cobblemonnml.client;
 
 import net.epiac9.cobblemonnml.dimension.DungeonDimension;
 import net.epiac9.cobblemonnml.dimension.theme.DungeonTheme;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 
 public final class DungeonTimerHud {
-    // SIDEBAR TIMER BOX
-    private static final int BOX_WIDTH = 66;
-    private static final int BOX_HEIGHT = 46;
-    private static final int BOX_RIGHT_MARGIN = 2;
-    private static final int BOX_TOP = 105;
-    private static final int BOX_BACKGROUND_COLOR = 0x40202020;
-    private static final int BOX_BORDER_COLOR = 0x60202020;
-    // TYPE ICON
-    private static final int ICON_SIZE = 18;
+    private static final ResourceLocation EXPERIENCE_BAR_BACKGROUND = ResourceLocation.withDefaultNamespace("hud/experience_bar_background");
+    private static final ResourceLocation BAD_OMEN_TEXTURE = ResourceLocation.withDefaultNamespace("textures/mob_effect/bad_omen.png");
+    private static final ResourceLocation TYPE_ICON_TEXTURE = ResourceLocation.fromNamespaceAndPath("cobblemon", "textures/gui/types.png");
+    private static final int BAR_WIDTH = 182;
+    private static final int BAR_HEIGHT = 5;
+    private static final int SEGMENT_COUNT = 18;
+    private static final int SEGMENT_GAP = 1;
+    private static final int SHIMMER_WIDTH = 18;
+    private static final double SHIMMER_CYCLE_SECONDS = 2.85D;
+    private static final double WARNING_START_SECONDS = 60.0D;
+    private static final double CRITICAL_START_SECONDS = 10.0D;
+    private static final int TYPE_CURSOR_SIZE = 7;
+    private static final int TIER_ICON_SIZE = 12;
     private static final int COBBLEMON_TYPE_ICON_SIZE = 36;
     private static final int COBBLEMON_TYPE_ATLAS_WIDTH = 648;
     private static final int COBBLEMON_TYPE_ATLAS_HEIGHT = 36;
-    // DANGER COUNTDOWN
-    private static final int DANGER_START_SECONDS = 60;
-    // COLOURS
-    private static final int TEXT_COLOR = 0xFFFFFFFF;
-    private static final int DANGER_RED = 0xFFFF3030;
-    // RENDER
-    public static void render( GuiGraphics graphics ) {
+
+    private DungeonTimerHud() {}
+
+    public static boolean shouldReplaceExperienceHud() {
         Minecraft minecraft = Minecraft.getInstance();
-        // CLIENT READY?
-        if (minecraft.player == null) {
-            return;
-        }
-        // HIDE WITH F1
-        if (minecraft.options.hideGui) {
-            return;
-        }
-        // TIMER ACTIVE?
-        if (!DungeonTimerClientState .isVisible()) {
-            return;
-        }
-        // ONLY SHOW IN DUNGEON
-        if (!minecraft.player .level() .dimension() .equals( DungeonDimension .DUNGEON_DIMENSION )) {
-            return;
-        }
-        // THEME
-        DungeonTheme theme =
-                DungeonTimerClientState
-                        .getTheme();
-        // TIER
-        int tierIndex =
-                DungeonTimerClientState
-                        .getTierIndex();
-        // TIME
-        int totalSeconds =
-                DungeonTimerClientState
-                        .getDisplayedSeconds();
-        int minutes =
-                totalSeconds
-                        / 60;
-        int seconds =
-                totalSeconds
-                        % 60;
-        String timerText = String.format( "%02d:%02d", minutes, seconds );
-        // DANGER STATE
-        double dangerUrgency = getDangerUrgency( totalSeconds );
-        double dangerPulse = getDangerPulse( totalSeconds );
-        // FONT
-        Font font = minecraft.font;
-        // SIDEBAR BOX POSITION
-        int boxRight = graphics.guiWidth() - BOX_RIGHT_MARGIN;
-        int boxLeft = boxRight - BOX_WIDTH;
-        int boxTop = BOX_TOP;
-        int boxBottom = boxTop + BOX_HEIGHT;
-        int boxCenterX = (boxLeft + boxRight) / 2;
-        // BOX SHADOW
-        graphics.fill( boxLeft + 2, boxTop + 2, boxRight + 2, boxBottom + 2, 0x60000000 );
-        // BOX BORDER
-        graphics.fill( boxLeft, boxTop, boxRight, boxBottom, BOX_BORDER_COLOR );
-        // BOX BACKGROUND
-        graphics.fill( boxLeft + 1, boxTop + 1, boxRight - 1, boxBottom - 1, BOX_BACKGROUND_COLOR );
-        // TOP ICON ROW
-        int iconCenterY = boxTop + 14;
-        if (theme != null) {
-            int themeIconX =
-                    tierIndex >= 2
-                            ? boxCenterX - 10
-                            : boxCenterX;
-            renderSidebarTypeIcon( graphics, theme, themeIconX, iconCenterY );
-        }
-        if (tierIndex >= 2) {
-            int difficultyIconX = boxCenterX + 10;
-            renderDifficultyIcon( graphics, tierIndex, difficultyIconX, iconCenterY );
-        }
-        // TIMER COLOUR
-        int timerColor = getTimerColor( totalSeconds, dangerUrgency, dangerPulse );
-        // TIMER TEXT
-        int timerY = boxTop + 30;
-        graphics.drawCenteredString( font, timerText, boxCenterX, timerY, timerColor );
-    }
-    // DANGER URGENCY
-    private static double getDangerUrgency( int secondsRemaining ) {
-        if (secondsRemaining > DANGER_START_SECONDS) {
-            return 0.0D;
-        }
-        if (secondsRemaining <= 0) {
-            return 1.0D;
-        }
-        return 1.0D
-                - ( (double) secondsRemaining / (double) DANGER_START_SECONDS );
-    }
-    // DANGER PULSE
-    private static double getDangerPulse( int secondsRemaining ) {
-        if (secondsRemaining > DANGER_START_SECONDS) {
-            return 0.0D;
-        }
-        if (secondsRemaining <= 0) {
-            return 1.0D;
-        }
-        double remaining = DungeonTimerClientState.getEstimatedRemainingSeconds();
-        double fraction = remaining - Math.floor(remaining);
-
-        /*
-         * Strongest pulse immediately when the displayed second changes, then fades back down during that second.
-         */
-        return 1.0D - fraction;
-    }
-    // TIMER TEXT COLOUR
-    private static int getTimerColor( int secondsRemaining, double urgency, double pulse ) {
-        if (secondsRemaining > DANGER_START_SECONDS) {
-            return TEXT_COLOR;
-        }
-        if (secondsRemaining <= 0) {
-            return DANGER_RED;
-        }
-        double minimumStrength = 0.15D + urgency * 0.35D;
-        double redAmount = getRedAmount(urgency, pulse, minimumStrength);
-        return blendColor( redAmount );
+        if (minecraft.player == null || minecraft.options.hideGui || !DungeonTimerClientState.isActive()) return false;
+        if (minecraft.player.level().dimension().equals(DungeonDimension.DUNGEON_DIMENSION)) return true;
+        DungeonTimerClientState.clear();
+        return false;
     }
 
-    private static double getRedAmount(double urgency, double pulse, double minimumStrength) {
-        var pulseStrength = pulse * (0.30D + urgency * 0.70D);
-        double redAmount = Math.max( minimumStrength, pulseStrength );
-        redAmount = Math.clamp(redAmount, 0.0D, 1.0D);
-        return redAmount;
+    public static void renderExperienceTimer(GuiGraphics graphics) {
+        if (!shouldReplaceExperienceHud()) return;
+        DungeonTheme theme = DungeonTimerClientState.getTheme();
+        int barX = graphics.guiWidth() / 2 - 91;
+        int barY = graphics.guiHeight() - 29;
+        renderTimerBar(graphics, theme, barX, barY);
+        renderTierIcon(graphics, DungeonTimerClientState.getTierIndex(), graphics.guiWidth() / 2, graphics.guiHeight() - 39);
     }
-    // BLEND COLOURS
-    private static int blendColor( double amount ) {
-        amount = Math.clamp(amount, 0.0D, 1.0D);
 
-        int fromA = (DungeonTimerHud.TEXT_COLOR >> 24) & 0xFF;
-        int fromR = (DungeonTimerHud.TEXT_COLOR >> 16) & 0xFF;
-        int fromG = (DungeonTimerHud.TEXT_COLOR >> 8) & 0xFF;
-        int fromB = DungeonTimerHud.TEXT_COLOR & 0xFF;
-        int toA = (DungeonTimerHud.DANGER_RED >> 24) & 0xFF;
-        int toR = (DungeonTimerHud.DANGER_RED >> 16) & 0xFF;
-        int toG = (DungeonTimerHud.DANGER_RED >> 8)   & 0xFF;
-        int toB = DungeonTimerHud.DANGER_RED & 0xFF;
-        int a = (int) Math.round(leap(fromA, toA, amount));
-        int r = (int) Math.round(leap(fromR, toR, amount));
-        int g = (int) Math.round(leap(fromG, toG, amount));
-        int b = (int) Math.round(leap(fromB, toB, amount));
-        return (a << 24) | (r << 16) | (g << 8) | b;
-    }
-    // LERP
-    private static double leap( double start, double end, double amount ) {
-        return start + (end - start) * amount;
-    }
-    // DIFFICULTY ICON
-    private static void renderDifficultyIcon( GuiGraphics graphics, int tierIndex, int centerX, int centerY ) {
-        if (tierIndex < 2) {
-            return;
+    private static void renderTimerBar(GuiGraphics graphics, DungeonTheme theme, int x, int y) {
+        graphics.blitSprite(EXPERIENCE_BAR_BACKGROUND, x, y, BAR_WIDTH, BAR_HEIGHT);
+        double remainingSeconds = DungeonTimerClientState.getEstimatedRemainingSeconds();
+        double progress = DungeonTimerClientState.getProgress(remainingSeconds);
+        int fillWidth = (int) Math.round(progress * BAR_WIDTH);
+        if (fillWidth > 0) {
+            renderSegmentedFill(graphics, x, y, fillWidth, theme.getPortalColor());
+            renderShimmer(graphics, x, y, fillWidth, remainingSeconds);
         }
-        ResourceLocation badOmenTexture =
-                ResourceLocation.fromNamespaceAndPath( "minecraft", "textures/mob_effect/bad_omen.png" );
-        int iconSize = 18;
-        int iconX =
-                centerX
-                        - iconSize / 2;
-        int iconY =
-                centerY
-                        - iconSize / 2;
-        graphics.blit( badOmenTexture, iconX, iconY, 0.0F, 0.0F, iconSize, iconSize, iconSize, iconSize );
-        // ROMAN NUMERAL
-        String numeral =
-                switch (tierIndex) {
-                    case 2 -> "I";
-                    case 3 -> "II";
-                    case 4 -> "III";
-                    default -> "";
-                };
-        if (numeral.isEmpty()) {
-            return;
-        }
-        Minecraft minecraft = Minecraft.getInstance();
-        Font font = minecraft.font;
-        int numeralWidth = font.width( numeral );
-
-        /*
-         * Bottom-right corner of the Bad Omen icon.
-         */
-        int numeralX = iconX + iconSize - numeralWidth + 1;
-
-        int numeralY = iconY + iconSize - font.lineHeight + 2;
-
-        // Small dark backing/shadow for readability.
-        graphics.drawString( font, numeral, numeralX + 1, numeralY + 1, 0xFF000000, false );
-        graphics.drawString( font, numeral, numeralX, numeralY, 0xFFFFFFFF, false );
+        int halfCursor = TYPE_CURSOR_SIZE / 2;
+        int markerCenterX = x + (int) Math.round(progress * BAR_WIDTH);
+        markerCenterX = Math.clamp(markerCenterX, x + halfCursor, x + BAR_WIDTH - halfCursor);
+        renderTypeIcon(graphics, theme, markerCenterX, y + BAR_HEIGHT / 2);
     }
-    // SIDEBAR TYPE ICON
-    private static void renderSidebarTypeIcon( GuiGraphics graphics, DungeonTheme theme, int centerX, int centerY ) {
-        if (theme == null) {
-            return;
-        }
-        int typeIndex =
-                switch (theme.getId()) {
-                    case "fire" -> 1;
-                    case "water" -> 2;
-                    case "grass" -> 3;
-                    case "electric" -> 4;
-                    case "ice" -> 5;
-                    case "fighting" -> 6;
-                    case "poison" -> 7;
-                    case "ground" -> 8;
-                    case "flying" -> 9;
-                    case "psychic" -> 10;
-                    case "bug" -> 11;
-                    case "rock" -> 12;
-                    case "ghost" -> 13;
-                    case "dragon" -> 14;
-                    case "dark" -> 15;
-                    case "steel" -> 16;
-                    case "fairy" -> 17;
-                    default -> 0;
-                };
-        int iconX = centerX - ICON_SIZE / 2;
-        int iconY = centerY - ICON_SIZE / 2;
-        int sourceX = typeIndex * COBBLEMON_TYPE_ICON_SIZE;
 
-        ResourceLocation iconTexture = ResourceLocation.fromNamespaceAndPath( "cobblemon", "textures/gui/types.png" );
-        float scale = ICON_SIZE / (float) COBBLEMON_TYPE_ICON_SIZE;
+    private static void renderSegmentedFill(GuiGraphics graphics, int x, int y, int fillWidth, int color) {
+        int fillEnd = x + Math.clamp(fillWidth, 0, BAR_WIDTH);
+        for (int i = 0; i < SEGMENT_COUNT; i++) {
+            int segmentStart = x + (i * BAR_WIDTH) / SEGMENT_COUNT;
+            int segmentEnd = x + ((i + 1) * BAR_WIDTH) / SEGMENT_COUNT;
+            if (i < SEGMENT_COUNT - 1) segmentEnd -= SEGMENT_GAP;
+            int visibleEnd = Math.min(segmentEnd, fillEnd);
+            if (visibleEnd > segmentStart) graphics.fill(segmentStart, y + 1, visibleEnd, y + BAR_HEIGHT - 1, color);
+            if (segmentStart >= fillEnd) break;
+        }
+    }
+
+    private static void renderShimmer(GuiGraphics graphics, int x, int y, int fillWidth, double remainingSeconds) {
+        if (fillWidth <= 0) return;
+        double cycle = (System.nanoTime() / 1_000_000_000.0D) % SHIMMER_CYCLE_SECONDS;
+        double normalized = cycle / SHIMMER_CYCLE_SECONDS;
+        int shimmerLeft = x - SHIMMER_WIDTH + (int) Math.round(normalized * (fillWidth + SHIMMER_WIDTH));
+        int shimmerRight = shimmerLeft + SHIMMER_WIDTH;
+        double warning = warningPulse(remainingSeconds);
+        int shimmerColor;
+        if (remainingSeconds <= WARNING_START_SECONDS) {
+            int alpha = Math.clamp((int) Math.round(30.0D + warning * 190.0D), 0, 235);
+            shimmerColor = (alpha << 24) | 0x00FF3030;
+        } else {
+            shimmerColor = 0x58FFFFFF;
+        }
+        int fillEnd = x + fillWidth;
+        for (int i = 0; i < SEGMENT_COUNT; i++) {
+            int segmentStart = x + (i * BAR_WIDTH) / SEGMENT_COUNT;
+            int segmentEnd = x + ((i + 1) * BAR_WIDTH) / SEGMENT_COUNT;
+            if (i < SEGMENT_COUNT - 1) segmentEnd -= SEGMENT_GAP;
+            int left = Math.max(segmentStart, shimmerLeft);
+            int right = Math.min(Math.min(segmentEnd, fillEnd), shimmerRight);
+            if (right > left) graphics.fill(left, y + 1, right, y + BAR_HEIGHT - 1, shimmerColor);
+            if (segmentStart >= fillEnd) break;
+        }
+    }
+
+    private static double warningPulse(double remainingSeconds) {
+        if (remainingSeconds > WARNING_START_SECONDS) return 0.0D;
+        if (remainingSeconds <= CRITICAL_START_SECONDS) {
+            double fraction = remainingSeconds - Math.floor(remainingSeconds);
+            double distanceToSecond = Math.min(fraction, 1.0D - fraction);
+            return Math.clamp(1.0D - distanceToSecond * 6.0D, 0.0D, 1.0D);
+        }
+        double urgency = Math.clamp((WARNING_START_SECONDS - remainingSeconds) / (WARNING_START_SECONDS - CRITICAL_START_SECONDS), 0.0D, 1.0D);
+        double periodSeconds = 2.0D - 1.35D * urgency;
+        double timeSeconds = System.nanoTime() / 1_000_000_000.0D;
+        double wave = (Math.sin((timeSeconds / periodSeconds) * Math.PI * 2.0D) + 1.0D) * 0.5D;
+        return wave * (0.20D + 0.65D * urgency);
+    }
+
+    private static void renderTierIcon(GuiGraphics graphics, int tierIndex, int centerX, int centerY) {
+        if (tierIndex <= 0) return;
+        int iconX = centerX - TIER_ICON_SIZE / 2;
+        int iconY = centerY - TIER_ICON_SIZE / 2;
+        graphics.blit(BAD_OMEN_TEXTURE, iconX, iconY, 0.0F, 0.0F, TIER_ICON_SIZE, TIER_ICON_SIZE, TIER_ICON_SIZE, TIER_ICON_SIZE);
+        String numeral = switch (tierIndex) {
+            case 1 -> "I";
+            case 2 -> "II";
+            case 3 -> "III";
+            case 4 -> "IV";
+            default -> "";
+        };
+        if (numeral.isEmpty()) return;
+        Font font = Minecraft.getInstance().font;
+        float scale = 0.55F;
+        int width = font.width(numeral);
         graphics.pose().pushPose();
-        graphics.pose().translate( iconX, iconY, 0.0F );
-        graphics.pose().scale( scale, scale, 1.0F );
-        graphics.blit(
-                iconTexture,
-                0,
-                0,
-                (float) sourceX,
-                0.0F,
-                COBBLEMON_TYPE_ICON_SIZE,
-                COBBLEMON_TYPE_ICON_SIZE,
-                COBBLEMON_TYPE_ATLAS_WIDTH,
-                COBBLEMON_TYPE_ATLAS_HEIGHT
-        );
+        graphics.pose().translate(iconX + TIER_ICON_SIZE - 1, iconY + TIER_ICON_SIZE - 5, 0.0F);
+        graphics.pose().scale(scale, scale, 1.0F);
+        graphics.drawString(font, numeral, -width, 0, 0xFF000000, false);
+        graphics.drawString(font, numeral, -width - 1, -1, 0xFFFFFFFF, false);
+        graphics.pose().popPose();
+    }
+
+    private static void renderTypeIcon(GuiGraphics graphics, DungeonTheme theme, int centerX, int centerY) {
+        int typeIndex = switch (theme.getId()) {
+            case "fire" -> 1;
+            case "water" -> 2;
+            case "grass" -> 3;
+            case "electric" -> 4;
+            case "ice" -> 5;
+            case "fighting" -> 6;
+            case "poison" -> 7;
+            case "ground" -> 8;
+            case "flying" -> 9;
+            case "psychic" -> 10;
+            case "bug" -> 11;
+            case "rock" -> 12;
+            case "ghost" -> 13;
+            case "dragon" -> 14;
+            case "dark" -> 15;
+            case "steel" -> 16;
+            case "fairy" -> 17;
+            default -> 0;
+        };
+        int sourceX = typeIndex * COBBLEMON_TYPE_ICON_SIZE;
+        int iconX = centerX - TYPE_CURSOR_SIZE / 2;
+        int iconY = centerY - TYPE_CURSOR_SIZE / 2;
+        float scale = TYPE_CURSOR_SIZE / (float) COBBLEMON_TYPE_ICON_SIZE;
+        graphics.pose().pushPose();
+        graphics.pose().translate(iconX, iconY, 0.0F);
+        graphics.pose().scale(scale, scale, 1.0F);
+        graphics.blit(TYPE_ICON_TEXTURE, 0, 0, (float) sourceX, 0.0F, COBBLEMON_TYPE_ICON_SIZE, COBBLEMON_TYPE_ICON_SIZE, COBBLEMON_TYPE_ATLAS_WIDTH, COBBLEMON_TYPE_ATLAS_HEIGHT);
         graphics.pose().popPose();
     }
 }

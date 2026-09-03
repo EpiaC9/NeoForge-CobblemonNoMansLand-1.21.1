@@ -3,7 +3,6 @@ package net.epiac9.cobblemonnml.battle.action.move;
 import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.ActionBattlePosition;
-import net.epiac9.cobblemonnml.battle.action.ActionBattleParalysisController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleConfusionController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.area.ActionBattlePersistentAreaController;
@@ -14,8 +13,6 @@ import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelControll
 import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelPreset;
 import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelState;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
-import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleHailVisuals;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleChannelVisuals;
 import net.epiac9.cobblemonnml.util.DebugLog;
@@ -157,7 +154,6 @@ public final class ActionBattleHailHandler {
                     .orElse(null);
             if (area != null) spawnCeilingCloud(context.level(), area);
         }
-        ActionBattleParalysisController.onAbilitySucceeded(state.battleId(), state.casterPokemonUUID(), context.level().getGameTime());
         DebugLog.log("[CobblemonNML] Hail channel completed. Battle=" + state.battleId() + ", caster=" + state.casterPokemonUUID()
                 + ", anchor=" + state.lastTargetablePosition() + ", durationTicks=" + preset.durationTicks());
     }
@@ -177,18 +173,6 @@ public final class ActionBattleHailHandler {
     private static void pulse(HailCastContext context, ActionBattlePersistentAreaState area) {
         if (context == null || area == null) return;
         ActionBattleHailVisuals.emitPulse(context.level(), area);
-        PokemonEntity enemy = context.playerSide()
-                ? ActionBattleAreaEffectSupport.activePokemonEntity(context.session(), context.level(), context.session().trainerActivePokemonUUID())
-                : ActionBattleAreaEffectSupport.activePokemonEntity(context.session(), context.level(), context.session().playerActivePokemonUUID());
-        if (enemy == null || enemy.isRemoved() || !area.contains(enemy.getX(), enemy.getY(), enemy.getZ())) return;
-        long currentTick = context.level().getGameTime();
-        ActionBattleProtectController.EffectInterception interception = ActionBattleProtectController.global()
-                .interceptTimedEffect(area.battleId(), enemy.getPokemon().getUuid(), currentTick, "freeze", 120);
-        if (!interception.allowed()) return;
-        float durationMultiplier = interception.durationTicks() / 120.0F;
-        ActionBattleEffectController.global().applyFreezeCapableHit(area.battleId(), enemy.getPokemon().getUuid(), context.level().getGameTime(), durationMultiplier);
-        DebugLog.log("[CobblemonNML] Hail pulse applied Freeze-capable effect. Battle=" + area.battleId() + ", area=" + area.areaId()
-                + ", target=" + enemy.getPokemon().getUuid());
     }
 
     private static void spawnCeilingCloud(ServerLevel level, ActionBattlePersistentAreaState area) {

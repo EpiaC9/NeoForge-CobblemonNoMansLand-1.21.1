@@ -20,7 +20,7 @@ public final class ActionBattleProtectController {
         int level = shield.increaseLevel();
         ActionBattleProtectStance stance = new ActionBattleProtectStance(
                 battleId, pokemonUUID, currentTick, currentTick + STANCE_TICKS, level,
-                shield.damageTakenMultiplier(), shield.timedEffectDurationMultiplier(), shield.allowsDrowsiness(), true
+                shield.damageTakenMultiplier(), shield.timedEffectDurationMultiplier()
         );
         stances.put(key, stance);
         return stance;
@@ -100,10 +100,6 @@ public final class ActionBattleProtectController {
         if (normalDurationTicks <= 0) return new EffectInterception(false, 0);
         ActionBattleProtectStance stance = activeStance(battleId, pokemonUUID, currentTick);
         if (stance == null) return new EffectInterception(true, normalDurationTicks);
-        boolean drowsiness = effectId != null && effectId.equalsIgnoreCase("drowsiness");
-        if (drowsiness) return stance.allowsDrowsiness()
-                ? new EffectInterception(true, normalDurationTicks)
-                : new EffectInterception(false, 0);
         float multiplier = stance.timedEffectDurationMultiplier();
         if (multiplier <= 0.0F) return new EffectInterception(false, 0);
         int duration = Math.max(1, Math.round(normalDurationTicks * multiplier));
@@ -114,13 +110,12 @@ public final class ActionBattleProtectController {
 
     public ControlBreakResult breakForControl(UUID battleId, UUID pokemonUUID, long currentTick, boolean contact) {
         ActionBattleProtectStance stance = activeStance(battleId, pokemonUUID, currentTick);
-        if (stance == null) return new ControlBreakResult(false, false);
-        boolean retaliate = contact && stance.contactPoisonRetaliation();
+        if (stance == null) return new ControlBreakResult(false);
         breakStance(battleId, pokemonUUID);
-        return new ControlBreakResult(true, retaliate);
+        return new ControlBreakResult(true);
     }
 
-    public record ControlBreakResult(boolean protectedHit, boolean contactRetaliation) {}
+    public record ControlBreakResult(boolean protectedHit) {}
 
     public void clearBattle(UUID battleId) {
         if (battleId == null) return;

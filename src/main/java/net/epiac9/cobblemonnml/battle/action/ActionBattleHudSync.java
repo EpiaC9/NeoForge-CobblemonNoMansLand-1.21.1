@@ -23,8 +23,6 @@ import java.util.List;
 import java.util.UUID;
 
 public final class ActionBattleHudSync {
-    private static final long POISON_TOXIC_HUD_DURATION_TICKS = 360L;
-
     private ActionBattleHudSync() {}
 
     public static void send(ServerPlayer player, ActionBattleSession session, Pokemon playerPokemon, Pokemon trainerPokemon) {
@@ -72,7 +70,7 @@ public final class ActionBattleHudSync {
         for (ActionBattleStatus status : ActionBattleStatus.values()) {
             long remaining = controller.statusRemainingTicks(battleId, pokemonUUID, status, currentTick);
             if (remaining <= 0L) continue;
-            long duration = isPoisonToxic(status) ? POISON_TOXIC_HUD_DURATION_TICKS : controller.statusDurationTicks(status);
+            long duration = controller.statusDurationTicks(status);
             states.add(new ActionBattleHudPayload.StatusState(status.name(), remaining, duration));
         }
         ActionBattleControlController controls = ActionBattleControlController.global();
@@ -111,10 +109,6 @@ public final class ActionBattleHudSync {
                 controller.effectiveStage(battleId, pokemonUUID, ActionBattleStat.SPEED, currentTick),
                 controller.effectiveStage(battleId, pokemonUUID, ActionBattleStat.ACCURACY, currentTick)
         );
-    }
-
-    private static boolean isPoisonToxic(ActionBattleStatus status) {
-        return status == ActionBattleStatus.POISON || status == ActionBattleStatus.TOXIC_1 || status == ActionBattleStatus.TOXIC_2 || status == ActionBattleStatus.TOXIC_3;
     }
 
     private static List<ActionBattleHudPayload.DamageState> damageStates(List<ActionBattleDamageFeedbackEvent> events) {

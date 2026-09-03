@@ -204,7 +204,7 @@ public final class ActionBattleManager {
         if (ActionBattleBalefulBunkerHandler.isBalefulBunker(move)) {
             clearPlayerMoveAttempt(session, pokemonEntity);
             ActionBattleBalefulBunkerHandler.StartResult result = ActionBattleBalefulBunkerHandler.tryStart(session, pokemonEntity, move);
-            if (result == ActionBattleBalefulBunkerHandler.StartResult.STARTED) { ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), refs.playerPokemon().getUuid(), move); ActionBattleParalysisController.onAbilitySucceeded(session.battleId(), refs.playerPokemon().getUuid(), currentTick); }
+            if (result == ActionBattleBalefulBunkerHandler.StartResult.STARTED) ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), refs.playerPokemon().getUuid(), move);
             DebugLog.log("[CobblemonNML] Baleful Bunker ACTION start result. Battle=" + session.battleId() + ", result=" + result);
             return result == ActionBattleBalefulBunkerHandler.StartResult.STARTED;
         }
@@ -318,7 +318,6 @@ public final class ActionBattleManager {
         ActionBattleEffectController.global().onPokemonRecalled(session.battleId(), previous.getUuid(), currentTick);
         ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), previous.getUuid(), false, currentTick);
         ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), previous.getUuid(), false, currentTick);
-        ActionBattleParalysisController.onPokemonRecalled(session.battleId(), previous.getUuid());
         ActionBattleProtectController.global().onPokemonRecalled(session.battleId(), previous.getUuid());
         ActionBattlePokemonRuntime.recall(previous);
         session.clearPlayerActivePokemon();
@@ -346,7 +345,6 @@ public final class ActionBattleManager {
         ActionBattleEffectRuntime.tickBattle(session, level, runtimeRefs);
         if (handleFaintState(player, session, level)) return;
         ActionBattleMovementController.tickPlayerBattleZone(session, player, level);
-        ActionBattleParalysisController.tickBattle(session, level);
         ActionBattleConfusionController.tickBattle(session, level);
         if (level.getGameTime() % ActionBattleTiming.HUD_SYNC_INTERVAL_TICKS == 0L) syncHud(player, session);
         ActionBattleTrainerAiController.tick(session, level, ActionBattleRegistry.pokemonRefs(session.battleId()));
@@ -429,7 +427,6 @@ public final class ActionBattleManager {
                     session.startPokemonMoveCooldown(pokemonUUID, currentTick, cooldownTicks);
                     ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), pokemonUUID);
                     ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), pokemonUUID, move);
-                    ActionBattleParalysisController.onAbilitySucceeded(session.battleId(), pokemonUUID, currentTick);
                     session.clearPlayerMoveCommand();
                     DebugLog.log("[CobblemonNML] Action move committed through Fight or Flight. Battle=" + session.battleId() + ", move=" + move.getName() + ", cooldownTicks=" + cooldownTicks);
                 } else {

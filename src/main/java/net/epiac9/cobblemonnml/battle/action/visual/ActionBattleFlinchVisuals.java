@@ -14,8 +14,7 @@ public final class ActionBattleFlinchVisuals {
     public static void emit(PokemonEntity entity, ActionBattleFlinchVisualType visualType) {
         if (entity == null || entity.isRemoved() || !(entity.level() instanceof ServerLevel level)) return;
         ActionBattleFlinchVisualType type = visualType != null ? visualType : ActionBattleFlinchVisualType.NORMAL;
-        if (type == ActionBattleFlinchVisualType.PARALYSIS) ActionBattleStatusParticleController.emitParalysisTriggerBurst(level, entity);
-        else emitNormalImpactBurst(level, entity);
+        emitNormalImpactBurst(level, entity);
         ActionBattleFlinchVisualPayload payload = new ActionBattleFlinchVisualPayload(entity.getId(), entity.getPokemon().getUuid().toString(), type.name());
         for (ServerPlayer player : level.players()) PacketDistributor.sendToPlayer(player, payload);
     }

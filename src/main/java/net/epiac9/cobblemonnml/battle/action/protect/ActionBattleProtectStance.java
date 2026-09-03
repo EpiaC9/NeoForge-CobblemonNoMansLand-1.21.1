@@ -9,9 +9,7 @@ public record ActionBattleProtectStance(
         long endTick,
         int deterioratingShieldLevel,
         float damageTakenMultiplier,
-        float timedEffectDurationMultiplier,
-        boolean allowsDrowsiness,
-        boolean contactPoisonRetaliation
+        float timedEffectDurationMultiplier
 ) {
     public boolean isActive(long currentTick) {
         return currentTick >= startTick && currentTick < endTick;

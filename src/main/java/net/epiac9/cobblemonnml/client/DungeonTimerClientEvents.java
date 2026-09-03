@@ -1,27 +1,24 @@
 package net.epiac9.cobblemonnml.client;
 
 import net.epiac9.cobblemonnml.CobblemonNML;
-
-import net.minecraft.resources.ResourceLocation;
-
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
-@EventBusSubscriber( modid = CobblemonNML.MOD_ID, value = Dist.CLIENT )
+@EventBusSubscriber(modid = CobblemonNML.MOD_ID, value = Dist.CLIENT)
 public final class DungeonTimerClientEvents {
-    // HUD LAYER ID
-    private static final ResourceLocation DUNGEON_TIMER_LAYER =
-            ResourceLocation.fromNamespaceAndPath( CobblemonNML.MOD_ID, "dungeon_timer" );
-    // REGISTER HUD
+    private DungeonTimerClientEvents() {}
+
     @SubscribeEvent
-    public static void registerGuiLayers( RegisterGuiLayersEvent event ) {
-        event.registerAboveAll(
-                DUNGEON_TIMER_LAYER,
-                ( graphics, deltaTracker ) ->
-                        DungeonTimerHud
-                                .render( graphics )
-        );
+    public static void registerGuiLayers(RegisterGuiLayersEvent event) {
+        event.wrapLayer(VanillaGuiLayers.EXPERIENCE_BAR, original -> (graphics, deltaTracker) -> {
+            if (DungeonTimerHud.shouldReplaceExperienceHud()) DungeonTimerHud.renderExperienceTimer(graphics);
+            else original.render(graphics, deltaTracker);
+        });
+        event.wrapLayer(VanillaGuiLayers.EXPERIENCE_LEVEL, original -> (graphics, deltaTracker) -> {
+            if (!DungeonTimerHud.shouldReplaceExperienceHud()) original.render(graphics, deltaTracker);
+        });
     }
 }

@@ -40,8 +40,6 @@ public final class ActionBattleDeterioratingShieldState {
         };
     }
 
-    public boolean allowsDrowsiness() { return isActive() && level == 9; }
-
     public void clear() {
         level = 0;
         remainingTicks = 0L;

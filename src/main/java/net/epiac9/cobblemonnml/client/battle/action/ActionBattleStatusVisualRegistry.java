@@ -3,18 +3,7 @@ package net.epiac9.cobblemonnml.client.battle.action;
 import net.minecraft.resources.ResourceLocation;
 
 public final class ActionBattleStatusVisualRegistry {
-    private static final StatusVisual CINDERS = visual("cinders", 0xFFE08A36);
-    private static final StatusVisual BURN = visual("burn", 0xFFFF5A24);
-    private static final StatusVisual FREEZE = visual("freeze", 0xFF8FE8F7);
-    private static final StatusVisual FROSTBITE = visual("frostbite", 0xFF5FA8FF);
-    private static final StatusVisual POISON = visual("poison", 0xFF6BBE45);
-    private static final StatusVisual TOXIC_1 = visual("toxic_1", 0xFF7B9B54);
-    private static final StatusVisual TOXIC_2 = visual("toxic_2", 0xFF8E5DB2);
-    private static final StatusVisual TOXIC_3 = visual("toxic_3", 0xFFA04AC0);
-    private static final StatusVisual PARALYSIS = visual("paralysis", 0xFFFFD83D);
-    private static final StatusVisual DROWSINESS = visual("drowsiness", 0xFFB9A7E8);
     private static final StatusVisual SLEEP = visual("sleep", 0xFF7E73C7);
-    private static final StatusVisual DROWSINESS_GRACE = visual("drowsiness_grace", 0xFFFFE48A);
     private static final StatusVisual CONFUSION = visual("confusion", 0xFFC56BFF);
     private static final StatusVisual EVASION = visual("evasion", 0xFF8FD7E8);
     private static final StatusVisual CONTROL_TAUNT = visual("control_taunt", 0xFFE56A54);
@@ -50,18 +39,7 @@ public final class ActionBattleStatusVisualRegistry {
             case "DETERIORATING_SHIELD_7" -> DETERIORATING_SHIELD[6];
             case "DETERIORATING_SHIELD_8" -> DETERIORATING_SHIELD[7];
             case "DETERIORATING_SHIELD_9" -> DETERIORATING_SHIELD[8];
-            case "CINDERS" -> CINDERS;
-            case "BURN" -> BURN;
-            case "FREEZE" -> FREEZE;
-            case "FROSTBITE" -> FROSTBITE;
-            case "POISON" -> POISON;
-            case "TOXIC_1" -> TOXIC_1;
-            case "TOXIC_2" -> TOXIC_2;
-            case "TOXIC_3" -> TOXIC_3;
-            case "PARALYSIS" -> PARALYSIS;
-            case "DROWSINESS" -> DROWSINESS;
             case "SLEEP" -> SLEEP;
-            case "DROWSINESS_GRACE" -> DROWSINESS_GRACE;
             case "CONFUSION" -> CONFUSION;
             case "EVASION" -> EVASION;
             case "CONTROL_TAUNT" -> CONTROL_TAUNT;

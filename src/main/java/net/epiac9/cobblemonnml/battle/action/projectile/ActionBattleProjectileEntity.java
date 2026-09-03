@@ -173,12 +173,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
             if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(pokemonTarget.getUUID());
             if (battleId != null) ActionBattleDamageFeedbackController.global().recordDamage(battleId, pokemonTarget.getPokemon().getUuid(), beforeHp, pokemonTarget.getPokemon().getCurrentHealth(), ActionBattleDamageFeedbackCategory.NORMAL);
-            ActionBattleMoveEffectResolver.applyDeclaredBurnOnHit(attacker, pokemonTarget, move, success);
-            ActionBattleMoveEffectResolver.applyDeclaredFreezeOnHit(attacker, pokemonTarget, move, success);
-            ActionBattleMoveEffectResolver.applyDeclaredPoisonOnHit(attacker, pokemonTarget, move, success);
             ActionBattleMoveEffectResolver.applyDeclaredFlinchOnHit(attacker, pokemonTarget, move, success);
-            ActionBattleMoveEffectResolver.applyDeclaredParalysisOnHit(attacker, pokemonTarget, move, success);
-            ActionBattleMoveEffectResolver.applyDeclaredDrowsinessOnHit(attacker, pokemonTarget, move, success);
             ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, pokemonTarget, move, success);
         }
         discard();

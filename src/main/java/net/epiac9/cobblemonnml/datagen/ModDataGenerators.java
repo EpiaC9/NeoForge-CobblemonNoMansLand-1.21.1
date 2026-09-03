@@ -22,6 +22,7 @@ public final class ModDataGenerators {
         generator.addProvider( event.includeClient(), new ModBlockStateProvider( output, existingFileHelper ) );
         generator.addProvider( event.includeClient(), new ModItemModelProvider( output, existingFileHelper ) );
         generator.addProvider( event.includeClient(), new ModLanguageProvider( output ) );
+        generator.addProvider( event.includeClient(), new ModActionStatusAnimationProvider( output ) );
         // SERVER DATA
         generator.addProvider(
                 event.includeServer(),

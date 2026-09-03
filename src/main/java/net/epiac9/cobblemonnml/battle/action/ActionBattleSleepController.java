@@ -5,8 +5,6 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleSleepState;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleSleepWakeRules;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatusApplication;
-import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
 import net.epiac9.cobblemonnml.util.DebugLog;
@@ -16,32 +14,13 @@ import java.util.UUID;
 public final class ActionBattleSleepController {
     private ActionBattleSleepController() {}
 
-    public static ActionBattleStatusApplication applyDrowsiness(ActionBattleSession session, PokemonEntity target, long currentTick) {
-        if (session == null || target == null || target.isRemoved() || currentTick < 0L) return null;
-        UUID pokemonUUID = target.getPokemon().getUuid();
-        ActionBattleProtectController.EffectInterception interception = ActionBattleProtectController.global().interceptTimedEffect(
-                session.battleId(), pokemonUUID, currentTick, "drowsiness", (int) ActionBattleSleepState.DROWSINESS_DURATION_TICKS);
-        if (!interception.allowed()) return ActionBattleStatusApplication.DROWSINESS_BLOCKED;
-        ActionBattleEffectController effects = ActionBattleEffectController.global();
-        ActionBattleStatusApplication result = effects.applyDrowsiness(session.battleId(), pokemonUUID, currentTick);
-        if (result == ActionBattleStatusApplication.DROWSINESS_SHORTENED && effects.shouldBeginSleep(session.battleId(), pokemonUUID, currentTick)) {
-            beginSleep(session, target, currentTick);
-        }
-        return result;
-    }
-
     public static void tickPokemon(ActionBattleSession session, PokemonEntity target, long currentTick) {
         if (session == null || target == null || target.isRemoved() || currentTick < 0L) return;
         UUID pokemonUUID = target.getPokemon().getUuid();
-        ActionBattleEffectController effects = ActionBattleEffectController.global();
-        if (effects.shouldBeginSleep(session.battleId(), pokemonUUID, currentTick)) {
-            beginSleep(session, target, currentTick);
-            return;
-        }
-        if (effects.tickSleepState(session.battleId(), pokemonUUID, currentTick) == ActionBattleSleepState.NaturalWakeResult.WOKE_NATURALLY) {
+        if (ActionBattleEffectController.global().tickSleepState(session.battleId(), pokemonUUID, currentTick) == ActionBattleSleepState.NaturalWakeResult.WOKE_NATURALLY) {
             ActionBattlePersistentController.global().onSleepEnded(session.battleId(), pokemonUUID);
             if (target.level() instanceof net.minecraft.server.level.ServerLevel level) ActionBattleStatusParticleController.emitWakeBurst(level, target);
-            DebugLog.log("[CobblemonNML] Action battle Pokemon woke naturally. Battle=" + session.battleId() + ", pokemon=" + pokemonUUID + ", graceTicks=" + ActionBattleSleepState.DROWSINESS_GRACE_DURATION_TICKS);
+            DebugLog.log("[CobblemonNML] Action battle Pokemon woke naturally. Battle=" + session.battleId() + ", pokemon=" + pokemonUUID);
         }
     }
 
@@ -68,22 +47,9 @@ public final class ActionBattleSleepController {
             ActionBattlePersistentController.global().onSleepEnded(session.battleId(), target.getPokemon().getUuid());
             if (target.level() instanceof net.minecraft.server.level.ServerLevel level) ActionBattleStatusParticleController.emitWakeBurst(level, target);
             DebugLog.log("[CobblemonNML] Action battle Pokemon woke from ability damage. Battle=" + session.battleId() + ", pokemon=" + target.getPokemon().getUuid()
-                    + ", explicitWake=" + plan.explicitWake() + ", multiplier=" + plan.damageMultiplier() + ", graceTicks=" + ActionBattleSleepState.DROWSINESS_GRACE_DURATION_TICKS);
+                    + ", explicitWake=" + plan.explicitWake() + ", multiplier=" + plan.damageMultiplier());
         }
         return woke;
-    }
-
-    private static boolean beginSleep(ActionBattleSession session, PokemonEntity target, long currentTick) {
-        int seconds = 3 + target.getRandom().nextInt(7);
-        long durationTicks = seconds * 20L;
-        UUID pokemonUUID = target.getPokemon().getUuid();
-        if (!ActionBattleEffectController.global().beginSleep(session.battleId(), pokemonUUID, currentTick, durationTicks)) return false;
-        target.getNavigation().stop();
-        ActionBattleCommandController.cancelPendingOrders(session, pokemonUUID, ActionBattleCommandController.InterruptReason.CONTROL_EFFECT);
-        ActionBattleProtectController.global().breakForControl(session.battleId(), pokemonUUID, currentTick, false);
-        if (target.level() instanceof net.minecraft.server.level.ServerLevel level) ActionBattleStatusParticleController.emitSleepTransitionBurst(level, target);
-        DebugLog.log("[CobblemonNML] Action battle Sleep started. Battle=" + session.battleId() + ", pokemon=" + pokemonUUID + ", durationSeconds=" + seconds);
-        return true;
     }
 
     public record WakePlan(boolean wakesTarget, float damageMultiplier, boolean explicitWake) {

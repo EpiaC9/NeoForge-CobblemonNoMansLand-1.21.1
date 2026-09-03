@@ -81,7 +81,7 @@ final class ActionBattleTrainerAiController {
         if (!onCooldown && ActionBattleBalefulBunkerHandler.isBalefulBunker(move)) {
             trainerPokemonEntity.getNavigation().stop();
             ActionBattleBalefulBunkerHandler.StartResult result = ActionBattleBalefulBunkerHandler.tryStart(session, trainerPokemonEntity, move);
-            finishTrainerMove(session, trainerPokemon, move, currentTick, result == ActionBattleBalefulBunkerHandler.StartResult.STARTED, () -> ActionBattleParalysisController.onAbilitySucceeded(session.battleId(), trainerPokemon.getUuid(), currentTick));
+            finishTrainerMove(session, trainerPokemon, move, currentTick, result == ActionBattleBalefulBunkerHandler.StartResult.STARTED, () -> {});
             DebugLog.log("[CobblemonNML] Trainer Baleful Bunker ACTION start result. Battle=" + session.battleId() + ", result=" + result);
             return;
         }
@@ -110,7 +110,6 @@ final class ActionBattleTrainerAiController {
                 session.startPokemonMoveCooldown(trainerPokemon.getUuid(), currentTick, cooldownTicks);
                 ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), trainerPokemon.getUuid());
                 ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), trainerPokemon.getUuid(), move);
-                ActionBattleParalysisController.onAbilitySucceeded(session.battleId(), trainerPokemon.getUuid(), currentTick);
                 session.clearTrainerMoveState();
                 DebugLog.log("[CobblemonNML] Trainer AI move committed through Fight or Flight. Battle=" + session.battleId()
                         + ", move=" + move.getName() + ", cooldownTicks=" + cooldownTicks);
@@ -233,7 +232,6 @@ final class ActionBattleTrainerAiController {
         ActionBattleEffectController.global().onPokemonRecalled(session.battleId(), trainerPokemon.getUuid(), currentTick);
         ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), trainerPokemon.getUuid(), false, currentTick);
         ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), trainerPokemon.getUuid(), false, currentTick);
-        ActionBattleParalysisController.onPokemonRecalled(session.battleId(), trainerPokemon.getUuid());
         ActionBattleProtectController.global().onPokemonRecalled(session.battleId(), trainerPokemon.getUuid());
         ActionBattlePokemonRuntime.recall(trainerPokemon);
         session.clearTrainerActivePokemon();

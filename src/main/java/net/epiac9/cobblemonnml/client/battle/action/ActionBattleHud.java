@@ -1,5 +1,8 @@
 package net.epiac9.cobblemonnml.client.battle.action;
 
+import com.cobblemon.mod.common.api.gui.GuiUtilsKt;
+import com.cobblemon.mod.common.client.render.models.blockbench.FloatingState;
+import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleHudPayload;
 import net.epiac9.cobblemonnml.dimension.DungeonDimension;
@@ -7,6 +10,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Entity;
+
+import java.util.UUID;
 
 public final class ActionBattleHud {
     private static final ResourceLocation BATTLE_INFO = cobblemon("textures/gui/battle/battle_info_base.png");
@@ -30,20 +36,25 @@ public final class ActionBattleHud {
     public static void render(GuiGraphics graphics) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null || minecraft.options.hideGui || !ActionBattleHudClientState.isVisible()) return;
-        if (!minecraft.player.level().dimension().equals(DungeonDimension.DUNGEON_DIMENSION)) return;
+        if (!minecraft.player.level().dimension().equals(DungeonDimension.DUNGEON_DIMENSION)) {
+            ActionBattleHudClientState.clear();
+            return;
+        }
         ActionBattleHudPayload state = ActionBattleHudClientState.get();
         Font font = minecraft.font;
         ActionBattleHudLayout layout = ActionBattleHudLayout.forScreen(graphics.guiWidth(), graphics.guiHeight());
-        ActionBattleDamageHudState.RenderSnapshot enemyDamage = ActionBattleHudClientState.enemyDamage();
-        ActionBattleDamageHudState.RenderSnapshot allyDamage = ActionBattleHudClientState.allyDamage();
-        renderPokemonPanel(graphics, font, layout.enemyPanel(), false, state.trainerPokemonName(), state.trainerPokemonLevel(), state.trainerCurrentHp(), state.trainerMaxHp(), enemyDamage.trailingHp());
-        renderPokemonPanel(graphics, font, layout.allyPanel(), true, state.playerPokemonName(), state.playerPokemonLevel(), state.playerCurrentHp(), state.playerMaxHp(), allyDamage.trailingHp());
-        ActionBattleStatStageHudRenderer.render(graphics, font, layout.enemyPanel(), state.trainerStatStages(), false);
-        ActionBattleStatStageHudRenderer.render(graphics, font, layout.allyPanel(), state.playerStatStages(), true);
-        ActionBattleStatusHudRenderer.renderEnemy(graphics, layout.enemyPanel(), state.trainerStatuses());
-        ActionBattleStatusHudRenderer.renderAlly(graphics, layout.allyPanel(), state.playerStatuses());
-        ActionBattleDamageHudRenderer.renderFloating(graphics, font, layout.enemyPanel(), false, enemyDamage);
-        ActionBattleDamageHudRenderer.renderFloating(graphics, font, layout.allyPanel(), true, allyDamage);
+        ActionBattleDamageHudState.RenderSnapshot playerDamage = ActionBattleHudClientState.allyDamage();
+        ActionBattleDamageHudState.RenderSnapshot trainerDamage = ActionBattleHudClientState.enemyDamage();
+        ActionBattleHudLayout.Rect playerPanel = layout.playerPanel();
+        ActionBattleHudLayout.Rect trainerPanel = layout.trainerPanel();
+        renderPokemonPanel(graphics, font, playerPanel, false, state.playerPokemonName(), state.playerPokemonUuid(), state.playerPokemonLevel(), state.playerCurrentHp(), state.playerMaxHp(), playerDamage.trailingHp());
+        renderPokemonPanel(graphics, font, trainerPanel, true, state.trainerPokemonName(), state.trainerPokemonUuid(), state.trainerPokemonLevel(), state.trainerCurrentHp(), state.trainerMaxHp(), trainerDamage.trailingHp());
+        ActionBattleStatStageHudRenderer.render(graphics, font, playerPanel, state.playerStatStages(), false);
+        ActionBattleStatStageHudRenderer.render(graphics, font, trainerPanel, state.trainerStatStages(), true);
+        ActionBattleStatusHudRenderer.renderEnemy(graphics, playerPanel, state.playerStatuses());
+        ActionBattleStatusHudRenderer.renderAlly(graphics, trainerPanel, state.trainerStatuses());
+        ActionBattleDamageHudRenderer.renderFloating(graphics, font, playerPanel, false, playerDamage);
+        ActionBattleDamageHudRenderer.renderFloating(graphics, font, trainerPanel, true, trainerDamage);
         renderCommand(graphics, font, layout.commandButton(0), "Swap", "G", state.playerSwapCooldownRemainingTicks(), state.playerSwapCooldownDurationTicks());
         renderCommand(graphics, font, layout.commandButton(1), "Move Here", "V", state.playerMoveHereCooldownRemainingTicks(), state.playerMoveHereCooldownDurationTicks());
         for (int slot = 0; slot < 4; slot++) renderMove(graphics, font, layout.moveButton(slot), slot, state.move(slot));
@@ -51,10 +62,11 @@ public final class ActionBattleHud {
 
     public static ActionBattleHudLayout layoutForScreen(int width, int height) { return ActionBattleHudLayout.forScreen(width, height); }
 
-    private static void renderPokemonPanel(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect, boolean flipped, String rawName, int level, int hp, int maxHp, double trailingHp) {
+    private static void renderPokemonPanel(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect, boolean flipped, String rawName, String pokemonUuid, int level, int hp, int maxHp, double trailingHp) {
         int x = rect.x();
         int y = rect.y();
         graphics.blit(flipped ? BATTLE_INFO_FLIPPED : BATTLE_INFO, x, y, 0.0F, 0.0F, rect.width(), rect.height(), rect.width(), rect.height());
+        renderPokemonPortrait(graphics, rect, flipped, pokemonUuid);
         int infoX = flipped ? x + 7 : x + 40;
         String name = displayName(rawName);
         drawScaled(graphics, font, name, infoX, y + 7, 0.75F, TEXT, false);
@@ -70,6 +82,52 @@ public final class ActionBattleHud {
         String hpText = Math.max(0, hp) + "/" + Math.max(1, maxHp);
         int centerX = flipped ? infoX + 49 : infoX + 48;
         drawScaledCentered(graphics, font, hpText, centerX, y + 22, 0.50F, TEXT);
+    }
+
+    private static void renderPokemonPortrait(GuiGraphics graphics, ActionBattleHudLayout.Rect panel, boolean flipped, String pokemonUuid) {
+        PokemonEntity pokemonEntity = activePokemonEntity(pokemonUuid);
+        if (pokemonEntity == null) return;
+        int left = flipped ? panel.x() + 106 : panel.x() + 4;
+        int top = panel.y() + 4;
+        int size = 30;
+        graphics.enableScissor(left, top, left + size, top + size);
+        graphics.pose().pushPose();
+        graphics.pose().translate(left + size / 2.0D, top - 11.0D, 120.0D);
+        FloatingState portraitState = new FloatingState();
+        portraitState.setCurrentAspects(pokemonEntity.getPokemon().getAspects());
+        GuiUtilsKt.drawPosablePortrait(
+                pokemonEntity.getPokemon().getSpecies().getResourceIdentifier(),
+                graphics.pose(),
+                13.0F,
+                pokemonEntity.getPokemon().getForm().getBaseScale(),
+                false,
+                portraitState,
+                0.0F,
+                0.0F,
+                0.0F,
+                0.0F,
+                0.0F,
+                0.0F,
+                false,
+                1.0F,
+                1.0F,
+                1.0F,
+                1.0F
+        );
+        graphics.pose().popPose();
+        graphics.disableScissor();
+    }
+
+    private static PokemonEntity activePokemonEntity(String pokemonUuid) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level == null || pokemonUuid == null || pokemonUuid.isBlank()) return null;
+        UUID wanted;
+        try { wanted = UUID.fromString(pokemonUuid); }
+        catch (IllegalArgumentException exception) { return null; }
+        for (Entity entity : minecraft.level.entitiesForRendering()) {
+            if (entity instanceof PokemonEntity pokemonEntity && !pokemonEntity.isRemoved() && pokemonEntity.getPokemon().getUuid().equals(wanted)) return pokemonEntity;
+        }
+        return null;
     }
 
     private static void renderCommand(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect, String label, String key, long cooldownRemainingTicks, long cooldownDurationTicks) {
