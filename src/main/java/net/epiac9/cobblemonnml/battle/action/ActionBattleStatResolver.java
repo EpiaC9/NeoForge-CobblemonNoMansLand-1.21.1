@@ -15,9 +15,14 @@ public final class ActionBattleStatResolver {
         int genericStages = ActionBattleEffectController.global().effectiveStage(battleId, pokemonUUID, stat, currentTick);
         int typeEffectStages = 0;
         UUID dungeonSessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
-        if (dungeonSessionId != null && stat == ActionBattleStat.ATTACK) {
-            typeEffectStages = ActionBattleTypeEffectController.global()
-                    .fireAttackStages(dungeonSessionId, pokemonUUID, currentTick);
+        if (dungeonSessionId != null) {
+            if (stat == ActionBattleStat.ATTACK) {
+                typeEffectStages = ActionBattleTypeEffectController.global()
+                        .fireAttackStages(dungeonSessionId, pokemonUUID, currentTick);
+            } else if (stat == ActionBattleStat.DEFENSE) {
+                typeEffectStages = ActionBattleTypeEffectController.global()
+                        .iceDefenseStages(dungeonSessionId, pokemonUUID, currentTick);
+            }
         }
         return combineStages(stat, genericStages, typeEffectStages);
     }

@@ -55,6 +55,21 @@ public final class ActionBattleDeterioratingShieldState {
         };
     }
 
+    public double effectPenetrationChance() {
+        if (!isActive()) return 1.0D;
+        return switch (level) {
+            case 1 -> 0.00D;
+            case 2 -> 0.05D;
+            case 3 -> 0.10D;
+            case 4 -> 0.20D;
+            case 5 -> 0.30D;
+            case 6 -> 0.60D;
+            case 7 -> 0.70D;
+            case 8 -> 0.80D;
+            default -> 0.90D;
+        };
+    }
+
     public void clear() {
         level = 0;
         remainingTicks = 0L;

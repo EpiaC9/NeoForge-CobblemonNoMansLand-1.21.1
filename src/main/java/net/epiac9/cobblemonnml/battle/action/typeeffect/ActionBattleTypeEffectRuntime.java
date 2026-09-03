@@ -6,6 +6,7 @@ import com.cobblemon.mod.common.pokemon.Pokemon;
 import net.epiac9.cobblemonnml.dimension.DungeonDimension;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireParticleController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceVisuals;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,6 +25,7 @@ public final class ActionBattleTypeEffectRuntime {
         controller.guardSession(sessionId);
         controller.tickSession(sessionId, level.getGameTime());
         ActionBattleFireParticleController.tick(level);
+        ActionBattleIceVisuals.tick(level);
     }
 
     public static void clearPlayer(ServerPlayer player) {

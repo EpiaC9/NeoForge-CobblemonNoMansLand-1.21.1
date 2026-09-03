@@ -14,6 +14,8 @@ import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectResolv
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.registry.ModEntities;
@@ -172,6 +174,9 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         if (pokemonTarget != null) {
             FightOrFlightAdapter.applyProtectImpact(attacker, pokemonTarget, move, beforeHp, success);
             if (nativeDamageMove && success) ActionBattleFireController.onSuccessfulMoveHit(attacker, pokemonTarget, move, ActionBattleFireRules.NORMAL_PRESSURE);
+            if (nativeDamageMove && ActionBattleIceRules.isQualifyingDamagingHit(success, beforeHp, pokemonTarget.getPokemon().getCurrentHealth())) {
+                ActionBattleIceController.onSuccessfulMoveHit(attacker, pokemonTarget, move);
+            }
             if (nativeDamageMove && success) ActionBattleSleepController.applyWakeDamageAndWake(sleepSession, pokemonTarget, currentTick, beforeHp, wakePlan);
             UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
             if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(pokemonTarget.getUUID());

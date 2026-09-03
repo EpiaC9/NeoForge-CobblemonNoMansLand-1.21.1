@@ -22,6 +22,8 @@ import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectControll
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionBattleProjectileEntity;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionProjectileProfile;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
 import me.rufia.fightorflight.utils.PokemonUtils;
 import net.minecraft.world.entity.LivingEntity;
@@ -68,7 +70,8 @@ public final class FightOrFlightAdapter {
         int defenseStage = ActionBattleStatResolver.effectiveStage(battleId, pokemonTarget.getPokemon().getUuid(), defense, tick);
         double multiplier = ActionBattleStatRules.damageMultiplier(offenseStage, defenseStage);
         float stageScaledDamage = Math.max(0.0F, (float) (baseDamage * multiplier));
-        return ActionBattleFireController.modifyDamage(attacker, target, move, stageScaledDamage);
+        float fireModifiedDamage = ActionBattleFireController.modifyDamage(attacker, target, move, stageScaledDamage);
+        return ActionBattleIceController.modifyDamage(attacker, target, move, fireModifiedDamage);
     }
 
     private static void applyPostHitActionStatScaling(PokemonEntity attacker, PokemonEntity target, Move move, int beforeHp) {
@@ -243,6 +246,9 @@ public final class FightOrFlightAdapter {
                 if (success) applyPostHitActionStatScaling(attacker, pokemonTarget, move, beforeHp);
                 applyProtectImpact(attacker, pokemonTarget, move, beforeHp, success);
                 if (success) ActionBattleFireController.onSuccessfulMoveHit(attacker, pokemonTarget, move, ActionBattleFireRules.NORMAL_PRESSURE);
+                if (ActionBattleIceRules.isQualifyingDamagingHit(success, beforeHp, pokemonTarget.getPokemon().getCurrentHealth())) {
+                    ActionBattleIceController.onSuccessfulMoveHit(attacker, pokemonTarget, move);
+                }
                 if (success) ActionBattleSleepController.applyWakeDamageAndWake(sleepSession, pokemonTarget, currentTick, beforeHp, wakePlan);
                 UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
                 if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(pokemonTarget.getUUID());

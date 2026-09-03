@@ -19,6 +19,9 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual TYPE_FIRE_BUILDUP = typeEffectVisual("fire_build_up", 0xFFFFA24A);
     private static final StatusVisual TYPE_FIRE_CINDERS = typeEffectVisual("cinders", 0xFFB97857);
     private static final StatusVisual TYPE_FIRE_BURN = typeEffectVisual("burn", 0xFFFF5A32);
+    private static final StatusVisual TYPE_ICE_CHILL = typeEffectVisual("chill", 0xFF9EDFFF);
+    private static final StatusVisual TYPE_ICE_FREEZE = typeEffectVisual("freeze", 0xFF63BDEB);
+    private static final StatusVisual TYPE_ICE_FROSTBITE = typeEffectVisual("frostbite", 0xFF4A8FCB);
     private static final StatusVisual[] DETERIORATING_SHIELD = {
             visual("deteriorating_shield_1", 0xFFD8E7EC), visual("deteriorating_shield_2", 0xFFD0DFE5), visual("deteriorating_shield_3", 0xFFC5D5DC),
             visual("deteriorating_shield_4", 0xFFBACAD2), visual("deteriorating_shield_5", 0xFFADBFC8), visual("deteriorating_shield_6", 0xFFA0B4BE),
@@ -55,6 +58,9 @@ public final class ActionBattleStatusVisualRegistry {
             case "TYPE_FIRE_BUILDUP" -> TYPE_FIRE_BUILDUP;
             case "TYPE_FIRE_CINDERS" -> TYPE_FIRE_CINDERS;
             case "TYPE_FIRE_BURN" -> TYPE_FIRE_BURN;
+            case "TYPE_ICE_CHILL" -> TYPE_ICE_CHILL;
+            case "TYPE_ICE_FREEZE" -> TYPE_ICE_FREEZE;
+            case "TYPE_ICE_FROSTBITE" -> TYPE_ICE_FROSTBITE;
             default -> null;
         };
     }

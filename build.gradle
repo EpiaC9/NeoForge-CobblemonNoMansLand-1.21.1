@@ -162,8 +162,22 @@ def iceTypeEffectTest = tasks.register('iceTypeEffectTest', JavaExec) {
     mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceStateTest'
 }
 
+def iceTypeEffectDeliveryTest = tasks.register('iceTypeEffectDeliveryTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the Ice shield penetration and delivery regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceDeliveryTest'
+}
+
+def iceTypeEffectHudTest = tasks.register('iceTypeEffectHudTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the Ice HUD progress and timer regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceHudTest'
+}
+
 tasks.named('test') {
-    dependsOn fireStateTest, typeEffectControllerTest, iceTypeEffectTest
+    dependsOn fireStateTest, typeEffectControllerTest, iceTypeEffectTest, iceTypeEffectDeliveryTest, iceTypeEffectHudTest
     failOnNoDiscoveredTests = false
 }
 

@@ -18,6 +18,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectCo
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireState;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -99,6 +100,7 @@ public final class ActionBattleHudSync {
             states.add(new ActionBattleHudPayload.StatusState("PERSISTENT_" + type.name(), persistentRemaining, Math.max(1L, persistentDuration)));
         }
         fireStatusState(pokemonUUID, currentTick).ifPresent(states::add);
+        iceStatusState(pokemonUUID, currentTick).ifPresent(states::add);
         return List.copyOf(states);
     }
 
@@ -116,6 +118,20 @@ public final class ActionBattleHudSync {
         long pressure = Math.clamp(Math.round(fire.pressure()), 1L, Math.round(ActionBattleFireRules.BURN_THRESHOLD));
         String statusId = fire.phase() == ActionBattleFireState.Phase.CINDERS ? "TYPE_FIRE_CINDERS" : "TYPE_FIRE_BUILDUP";
         return new ActionBattleHudPayload.StatusState(statusId, pressure, Math.round(ActionBattleFireRules.BURN_THRESHOLD));
+    }
+
+    private static java.util.Optional<ActionBattleHudPayload.StatusState> iceStatusState(UUID pokemonUUID, long currentTick) {
+        UUID sessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
+        if (sessionId == null) return java.util.Optional.empty();
+        return ActionBattleTypeEffectController.global().iceView(sessionId, pokemonUUID, currentTick)
+                .map(ActionBattleHudSync::toIceStatusState);
+    }
+
+    private static ActionBattleHudPayload.StatusState toIceStatusState(ActionBattleTypeEffectState.IceView ice) {
+        return new ActionBattleHudPayload.StatusState(
+                ActionBattleIceRules.hudStatusId(ice.phase()),
+                ActionBattleIceRules.hudRemaining(ice.phase(), ice.currentHits(), ice.frostbiteRemainingTicks()),
+                ActionBattleIceRules.hudDuration(ice.phase(), ice.hitsRequired()));
     }
 
 

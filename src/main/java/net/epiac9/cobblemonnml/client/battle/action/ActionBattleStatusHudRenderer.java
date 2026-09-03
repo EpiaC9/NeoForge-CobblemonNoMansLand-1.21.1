@@ -2,6 +2,7 @@ package net.epiac9.cobblemonnml.client.battle.action;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleHudPayload;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
 import net.minecraft.client.gui.GuiGraphics;
 
 import java.util.ArrayList;
@@ -36,7 +37,7 @@ public final class ActionBattleStatusHudRenderer {
         if (statuses == null || statuses.isEmpty()) return;
         List<ActionBattleStatusHudEntry> entries = new ArrayList<>();
         for (ActionBattleHudPayload.StatusState state : statuses) {
-            if (state == null || state.remainingTicks() <= 0L) continue;
+            if (state == null || !ActionBattleIceRules.shouldDisplayHudState(state.statusId(), state.remainingTicks())) continue;
             ActionBattleStatusVisualRegistry.StatusVisual visual = ActionBattleStatusVisualRegistry.visualFor(state.statusId());
             if (visual != null) entries.add(new ActionBattleStatusHudEntry(state, visual));
         }

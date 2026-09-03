@@ -191,6 +191,7 @@ final class ActionBattleEffectRuntime {
         ActionBattleEffectController.global().setHazeProtected(session.battleId(), pokemonUUID, inside, currentTick);
         if (inside && DungeonSession.isActive()) {
             ActionBattleTypeEffectController.global().suppressFireBonusByHaze(DungeonSession.getSessionId(), pokemonUUID);
+            ActionBattleTypeEffectController.global().suppressIceDefenseByHaze(DungeonSession.getSessionId(), pokemonUUID);
         }
     }
 

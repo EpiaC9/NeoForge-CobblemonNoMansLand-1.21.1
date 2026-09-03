@@ -15,6 +15,8 @@ import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelState;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleHailVisuals;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleChannelVisuals;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -173,6 +175,19 @@ public final class ActionBattleHailHandler {
     private static void pulse(HailCastContext context, ActionBattlePersistentAreaState area) {
         if (context == null || area == null) return;
         ActionBattleHailVisuals.emitPulse(context.level(), area);
+        applyIcePulse(context, area, context.session().playerActivePokemonUUID());
+        UUID trainerPokemonUUID = context.session().trainerActivePokemonUUID();
+        if (!java.util.Objects.equals(trainerPokemonUUID, context.session().playerActivePokemonUUID())) {
+            applyIcePulse(context, area, trainerPokemonUUID);
+        }
+    }
+
+    private static void applyIcePulse(HailCastContext context, ActionBattlePersistentAreaState area, UUID pokemonUUID) {
+        PokemonEntity pokemon = ActionBattleAreaEffectSupport.activePokemonEntity(context.session(), context.level(), pokemonUUID);
+        if (pokemon == null || pokemon.isRemoved()
+                || !ActionBattleIceRules.isValidAreaApplication(area, context.session().battleId(), pokemonUUID,
+                pokemon.getX(), pokemon.getY(), pokemon.getZ())) return;
+        ActionBattleIceController.applyIceApplication(pokemon, context.level().getGameTime());
     }
 
     private static void spawnCeilingCloud(ServerLevel level, ActionBattlePersistentAreaState area) {
