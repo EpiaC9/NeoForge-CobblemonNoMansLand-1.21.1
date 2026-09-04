@@ -28,6 +28,9 @@ public final class ActionBattleStatResolver {
             } else if (stat == ActionBattleStat.SPECIAL_ATTACK) {
                 typeEffectStages = ActionBattleTypeEffectController.global()
                         .poisonSpecialAttackStages(dungeonSessionId, pokemonUUID, currentTick);
+            } else if (stat == ActionBattleStat.SPEED) {
+                typeEffectStages = ActionBattleTypeEffectController.global()
+                        .electricSpeedStages(dungeonSessionId, pokemonUUID, currentTick);
             }
         }
         return combineStages(stat, genericStages, typeEffectStages);

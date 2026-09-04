@@ -18,13 +18,24 @@ public final class ActionBattleFlinchController {
     }
 
     public static boolean apply(ActionBattleSession session, UUID targetPokemonUUID, long currentTick, boolean contact, ActionBattleFlinchVisualType visualType) {
+        return applyInternal(session, targetPokemonUUID, currentTick, contact, visualType, true);
+    }
+
+    public static boolean applyWithoutVisuals(ActionBattleSession session, UUID targetPokemonUUID,
+                                               long currentTick, boolean contact) {
+        return applyInternal(session, targetPokemonUUID, currentTick, contact,
+                ActionBattleFlinchVisualType.NORMAL, false);
+    }
+
+    private static boolean applyInternal(ActionBattleSession session, UUID targetPokemonUUID, long currentTick,
+                                         boolean contact, ActionBattleFlinchVisualType visualType, boolean emitVisuals) {
         if (session == null || targetPokemonUUID == null || currentTick < 0L) return false;
         if (!ActionBattleCommandController.cancelPendingOrders(
                 session, targetPokemonUUID, ActionBattleCommandController.InterruptReason.CONTROL_EFFECT)) return false;
         if (!ActionBattleCommandController.addCooldownPenalty(session, targetPokemonUUID, currentTick, COOLDOWN_PENALTY_TICKS)) return false;
         ActionBattleProtectController.global().breakForControl(session.battleId(), targetPokemonUUID, currentTick, contact);
         PokemonEntity targetEntity = findTargetEntity(session, targetPokemonUUID);
-        if (targetEntity != null) ActionBattleFlinchVisuals.emit(targetEntity, visualType);
+        if (emitVisuals && targetEntity != null) ActionBattleFlinchVisuals.emit(targetEntity, visualType);
         return true;
     }
 

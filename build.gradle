@@ -232,6 +232,55 @@ def poisonHudTest = tasks.register('poisonHudTest', JavaExec) {
     mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonHudTest'
 }
 
+def electricStateTest = tasks.register('electricStateTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the Electric Charge and Paralysis state regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricStateTest'
+}
+
+def electricTrackerTest = tasks.register('electricTrackerTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the persistent Electric tracker lifecycle tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricTrackerTest'
+}
+
+def electricIntegrationTest = tasks.register('electricIntegrationTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs shared Electric type-effect integration tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricIntegrationTest'
+}
+
+def electricDeliveryTest = tasks.register('electricDeliveryTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Electric immunity and Protect penetration tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricDeliveryTest'
+}
+
+def electricHudTest = tasks.register('electricHudTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Electric HUD identity and resource tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricHudTest'
+}
+
+def electricParalysisControllerTest = tasks.register('electricParalysisControllerTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs explicit-amount Paralysis contribution and movement tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisControllerTest'
+}
+
+def electricParalysisResolverTest = tasks.register('electricParalysisResolverTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Electric-owned Paralysis metadata routing tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisResolverTest'
+}
+
 tasks.named('test') {
     dependsOn fireStateTest, typeEffectControllerTest, iceTypeEffectTest, iceTypeEffectDeliveryTest, iceTypeEffectHudTest,
             fairyDrowsyStateTest
@@ -242,6 +291,11 @@ tasks.named('test') {
     dependsOn poisonDeliveryTest
     dependsOn poisonRuntimeTest
     dependsOn poisonHudTest
+    dependsOn electricStateTest
+    dependsOn electricTrackerTest
+    dependsOn electricIntegrationTest, electricDeliveryTest, electricHudTest
+    dependsOn electricParalysisControllerTest
+    dependsOn electricParalysisResolverTest
     failOnNoDiscoveredTests = false
 }
 

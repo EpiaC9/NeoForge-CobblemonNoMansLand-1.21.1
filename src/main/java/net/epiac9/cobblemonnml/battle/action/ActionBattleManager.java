@@ -14,6 +14,7 @@ import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectRuntime;
 import net.epiac9.cobblemonnml.dimension.DungeonDimension;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.events.trainer.DungeonTrainerBattleResultHandler;
@@ -317,6 +318,7 @@ public final class ActionBattleManager {
         session.setPlayerSendOutPending(true);
         Pokemon previous = refs.playerPokemon();
         ActionBattleFairyController.onPokemonRecalled(previous.getUuid(), currentTick);
+        ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), previous.getUuid());
         ActionBattleEffectController.global().onPokemonRecalled(session.battleId(), previous.getUuid(), currentTick);
         ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), previous.getUuid(), false, currentTick);
         ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), previous.getUuid(), false, currentTick);
@@ -345,6 +347,7 @@ public final class ActionBattleManager {
         }
         ActionBattlePokemonRefs runtimeRefs = ActionBattleRegistry.pokemonRefs(session.battleId());
         ActionBattleEffectRuntime.tickBattle(session, level, runtimeRefs);
+        ActionBattleMovementController.observeElectricParalysisMovement(session, level);
         if (handleFaintState(player, session, level)) return;
         ActionBattleMovementController.tickPlayerBattleZone(session, player, level);
         ActionBattleConfusionController.tickBattle(session, level);
@@ -494,6 +497,7 @@ public final class ActionBattleManager {
         ActionBattleMovementController.stopActivePlayerNavigation(session, level);
         ActionBattleMovementController.stopActiveTrainerNavigation(session, level);
         if (playerFainted) {
+            ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), playerPokemon.getUuid());
             ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), playerPokemon.getUuid(), true, level.getGameTime());
             ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), playerPokemon.getUuid(), true, level.getGameTime());
             int previousSlot = session.playerActivePartyIndex();
@@ -506,6 +510,7 @@ public final class ActionBattleManager {
             DebugLog.log("[CobblemonNML] Player faint replacement started. Battle=" + session.battleId() + ", fromSlot=" + previousSlot + ", toSlot=" + playerReplacement.slot());
         }
         if (trainerFainted) {
+            ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), trainerPokemon.getUuid());
             ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), trainerPokemon.getUuid(), true, level.getGameTime());
             ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), trainerPokemon.getUuid(), true, level.getGameTime());
             int previousSlot = session.trainerActivePartyIndex();
@@ -544,6 +549,12 @@ public final class ActionBattleManager {
         ActionBattleEffectRuntime.clearBattle(session.battleId());
         ActionBattlePokemonRefs refs = ActionBattleRegistry.removePokemonRefs(session.battleId());
         if (refs != null) {
+            if (refs.playerPokemon() != null) {
+                ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), refs.playerPokemon().getUuid());
+            }
+            if (refs.trainerPokemon() != null) {
+                ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), refs.trainerPokemon().getUuid());
+            }
             ActionBattlePokemonRuntime.recall(refs.playerPokemon());
             ActionBattlePokemonRuntime.recall(refs.trainerPokemon());
         }

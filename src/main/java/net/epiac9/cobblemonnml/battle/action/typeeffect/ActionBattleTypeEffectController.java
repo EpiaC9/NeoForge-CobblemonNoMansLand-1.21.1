@@ -7,6 +7,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyR
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonRules;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricTracker;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisState;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +30,7 @@ public final class ActionBattleTypeEffectController {
         }
         if (sessionId.equals(activeSessionId)) return;
         states.clear();
+        net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisController.global().clearSession(activeSessionId);
         activeSessionId = sessionId;
     }
 
@@ -77,6 +80,35 @@ public final class ActionBattleTypeEffectController {
         return applied;
     }
 
+    public ActionBattleElectricTracker.ApplyChargeResult addElectricCharge(UUID sessionId, UUID pokemonUUID,
+                                                                            int amount, long currentTick,
+                                                                            boolean electricTyped, boolean hazeActive) {
+        if (!validSession(sessionId) || pokemonUUID == null || currentTick < 0L || amount <= 0) {
+            return ActionBattleElectricTracker.ApplyChargeResult.IGNORED;
+        }
+        ActionBattleTypeEffectState state = states.computeIfAbsent(pokemonUUID, ActionBattleTypeEffectState::new);
+        ActionBattleElectricTracker.ApplyChargeResult result = state.addElectricCharge(amount, currentTick, electricTyped, hazeActive);
+        if (state.isEmpty()) states.remove(pokemonUUID);
+        return result;
+    }
+
+    public boolean applyExternalElectricParalysis(UUID sessionId, UUID pokemonUUID, long currentTick,
+                                                    boolean electricTyped, boolean hazeActive) {
+        if (!validSession(sessionId) || pokemonUUID == null || currentTick < 0L) return false;
+        ActionBattleTypeEffectState state = states.computeIfAbsent(pokemonUUID, ActionBattleTypeEffectState::new);
+        boolean result = state.applyExternalElectricParalysis(currentTick, electricTyped, hazeActive);
+        if (state.isEmpty()) states.remove(pokemonUUID);
+        return result;
+    }
+
+    public ActionBattleParalysisState.FlinchContributionResult addElectricParalysisFlinch(UUID sessionId,
+                                                                                            UUID pokemonUUID,
+                                                                                            int amount, long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state == null ? ActionBattleParalysisState.FlinchContributionResult.IGNORED
+                : state.addElectricParalysisFlinch(amount, currentTick);
+    }
+
     public void tickSession(UUID sessionId, long currentTick) {
         if (!validSession(sessionId) || currentTick < 0L) return;
         for (Map.Entry<UUID, ActionBattleTypeEffectState> entry : states.entrySet()) {
@@ -114,6 +146,29 @@ public final class ActionBattleTypeEffectController {
         Optional<ActionBattleTypeEffectState.PoisonView> view = state.poisonView(currentTick);
         if (state.isEmpty()) states.remove(pokemonUUID);
         return view;
+    }
+
+    public Optional<ActionBattleTypeEffectState.ElectricChargeView> electricChargeView(UUID sessionId, UUID pokemonUUID,
+                                                                                        long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state == null ? Optional.empty() : state.electricChargeView(currentTick);
+    }
+
+    public Optional<ActionBattleTypeEffectState.ElectricParalysisView> electricParalysisView(UUID sessionId, UUID pokemonUUID,
+                                                                                              long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state == null ? Optional.empty() : state.electricParalysisView(currentTick);
+    }
+
+    public int electricSpeedStages(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state == null ? 0 : state.electricSpeedStages(currentTick);
+    }
+
+    public double modifyOutgoingElectricDamage(UUID sessionId, UUID pokemonUUID, boolean electricMove,
+                                               boolean damaging, double damage, long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state == null ? damage : state.modifyOutgoingElectricDamage(electricMove, damaging, damage, currentTick);
     }
 
     public boolean hasActiveDrowsy(UUID sessionId, UUID pokemonUUID, long currentTick) {
@@ -189,6 +244,11 @@ public final class ActionBattleTypeEffectController {
         if (state != null) state.suppressPoisonSpecialAttackByHaze();
     }
 
+    public void suppressElectricSpeedByHaze(UUID sessionId, UUID pokemonUUID) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        if (state != null) state.suppressElectricSpeedByHaze();
+    }
+
     public boolean cancelDrowsyOnRecall(UUID sessionId, UUID pokemonUUID, long currentTick) {
         ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
         return state != null && state.cancelDrowsyOnRecall(currentTick);
@@ -215,17 +275,22 @@ public final class ActionBattleTypeEffectController {
     }
 
     public void clearPokemon(UUID sessionId, UUID pokemonUUID) {
-        if (validSession(sessionId) && pokemonUUID != null) states.remove(pokemonUUID);
+        if (validSession(sessionId) && pokemonUUID != null) {
+            states.remove(pokemonUUID);
+            net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisController.global().clearPokemon(sessionId, pokemonUUID);
+        }
     }
 
     public void clearSession(UUID sessionId) {
         if (!validSession(sessionId)) return;
         states.clear();
+        net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisController.global().clearSession(sessionId);
         activeSessionId = null;
     }
 
     public void clearAll() {
         states.clear();
+        net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisController.global().clearSession(activeSessionId);
         activeSessionId = null;
     }
 

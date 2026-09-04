@@ -16,4 +16,9 @@ public record ActionBattleMoveEffectData(String effect, String trigger, String t
                 && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
     }
 
+    public boolean isSupportedParalysisOnHit() {
+        return ("paralysis".equals(effect) || "paralyze".equals(effect) || "paralyzed".equals(effect))
+                && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
+    }
+
 }

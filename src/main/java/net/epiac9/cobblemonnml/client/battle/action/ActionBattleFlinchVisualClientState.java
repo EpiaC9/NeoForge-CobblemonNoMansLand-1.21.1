@@ -20,6 +20,12 @@ public final class ActionBattleFlinchVisualClientState {
         if (payload == null || client.level == null) return;
         Entity raw = client.level.getEntity(payload.entityId());
         if (!(raw instanceof PokemonEntity entity) || entity.isRemoved()) return;
+        if ("ELECTRIC_PARALYSIS".equals(payload.visualType())) {
+            ActiveVisual previousElectric = ACTIVE.remove(payload.entityId());
+            if (previousElectric != null) previousElectric.restore(entity);
+            entity.animateHurt(0.0F);
+            return;
+        }
         ActiveVisual previous = ACTIVE.remove(payload.entityId());
         if (previous != null) previous.restore(entity);
         ActiveVisual visual = new ActiveVisual(client.level.getGameTime());

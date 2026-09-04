@@ -5,6 +5,10 @@ import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricContributionSource;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisState;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -90,6 +94,23 @@ final class ActionBattleMovementController {
         return ACTION_MOVEMENT_SPEED * ActionBattleStatRules.standardMultiplier(stage);
     }
 
+    static ActionBattleParalysisState.FlinchContributionResult observeElectricParalysisMovement(
+            ActionBattleSession session, PokemonEntity pokemonEntity, int suppliedAmount) {
+        if (session == null || pokemonEntity == null || pokemonEntity.isRemoved() || suppliedAmount <= 0) {
+            return ActionBattleParalysisState.FlinchContributionResult.IGNORED;
+        }
+        return ActionBattleParalysisController.global().observeMovement(ActionBattleTypeEffectController.global(),
+                session, pokemonEntity, pokemonEntity.level().getGameTime(), suppliedAmount);
+    }
+
+    static void observeElectricParalysisMovement(ActionBattleSession session, ServerLevel level) {
+        if (session == null || level == null) return;
+        int suppliedAmount = ActionBattleElectricContributionSource.movementFlinch();
+        if (suppliedAmount <= 0) return;
+        observeElectricParalysisMovement(session, pokemonEntity(level, session.playerActiveEntityUUID()), suppliedAmount);
+        observeElectricParalysisMovement(session, pokemonEntity(level, session.trainerActiveEntityUUID()), suppliedAmount);
+    }
+
     static void removeBattle(UUID battleId) {
         if (battleId != null) PLAYER_ZONE_STATES.remove(battleId);
     }
@@ -123,5 +144,10 @@ final class ActionBattleMovementController {
     private static void stopNavigation(UUID entityUUID, ServerLevel level) {
         Entity raw = entityUUID != null && level != null ? level.getEntity(entityUUID) : null;
         if (raw instanceof PokemonEntity pokemonEntity && !pokemonEntity.isRemoved()) pokemonEntity.getNavigation().stop();
+    }
+
+    private static PokemonEntity pokemonEntity(ServerLevel level, UUID entityUUID) {
+        Entity raw = entityUUID != null ? level.getEntity(entityUUID) : null;
+        return raw instanceof PokemonEntity pokemonEntity && !pokemonEntity.isRemoved() ? pokemonEntity : null;
     }
 }

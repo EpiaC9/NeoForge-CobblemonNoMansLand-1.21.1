@@ -25,6 +25,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireCon
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonRules;
@@ -40,13 +41,13 @@ public final class FightOrFlightAdapter {
     private FightOrFlightAdapter() {}
 
     public static boolean supports(Move move) {
-        return move != null && (ActionBattleBalefulBunkerHandler.isBalefulBunker(move) || ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move))));
+        return move != null && (ActionBattleBalefulBunkerHandler.isBalefulBunker(move) || ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || ActionBattleElectricController.isQualifyingEnemyInteraction(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move))));
     }
 
     public static boolean isMeleeMove(Move move) { return move != null && PokemonUtils.isMeleeAttackMove(move); }
 
     public static boolean isRangedMove(Move move) {
-        return move != null && (ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move))));
+        return move != null && (ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || (!PokemonUtils.isMeleeAttackMove(move) && ActionBattleElectricController.isQualifyingEnemyInteraction(move)) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move))));
     }
 
     public static boolean isNativeDamageMove(Move move) {
@@ -73,6 +74,14 @@ public final class FightOrFlightAdapter {
         int defenseStage = ActionBattleStatResolver.effectiveStage(battleId, pokemonTarget.getPokemon().getUuid(), defense, tick);
         double multiplier = ActionBattleStatRules.damageMultiplier(offenseStage, defenseStage);
         float stageScaledDamage = Math.max(0.0F, (float) (baseDamage * multiplier));
+        UUID sessionId = net.epiac9.cobblemonnml.dimension.DungeonSession.isActive()
+            ? net.epiac9.cobblemonnml.dimension.DungeonSession.getSessionId() : null;
+        boolean electricMove = move.getType() != null && "electric".equalsIgnoreCase(move.getType().getName());
+        if (sessionId != null) {
+            stageScaledDamage = (float) net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController.global()
+                .modifyOutgoingElectricDamage(sessionId, attacker.getPokemon().getUuid(), electricMove, true,
+                    stageScaledDamage, tick);
+        }
         float fireModifiedDamage = ActionBattleFireController.modifyDamage(attacker, target, move, stageScaledDamage);
         float iceModifiedDamage = ActionBattleIceController.modifyDamage(attacker, target, move, fireModifiedDamage);
         float typeModifiedDamage = ActionBattlePoisonController.modifyDamage(attacker, target, move, iceModifiedDamage);
@@ -256,6 +265,9 @@ public final class FightOrFlightAdapter {
                 if (success) applyPostHitActionStatScaling(attacker, pokemonTarget, move, beforeHp);
                 applyProtectImpact(attacker, pokemonTarget, move, beforeHp, success);
                 if (success) ActionBattleFireController.onSuccessfulMoveHit(attacker, pokemonTarget, move, ActionBattleFireRules.NORMAL_PRESSURE);
+                if (success && beforeHp > pokemonTarget.getPokemon().getCurrentHealth()) {
+                    ActionBattleElectricController.onSuccessfulMoveHit(attacker, pokemonTarget, move);
+                }
                 if (ActionBattleIceRules.isQualifyingDamagingHit(success, beforeHp, pokemonTarget.getPokemon().getCurrentHealth())) {
                     ActionBattleIceController.onSuccessfulMoveHit(attacker, pokemonTarget, move);
                 }
@@ -268,10 +280,11 @@ public final class FightOrFlightAdapter {
                 if (battleId != null) ActionBattleDamageFeedbackController.global().recordDamage(battleId, pokemonTarget.getPokemon().getUuid(), beforeHp, pokemonTarget.getPokemon().getCurrentHealth(), ActionBattleDamageFeedbackCategory.NORMAL);
                 ActionBattleMoveEffectResolver.applyDeclaredFlinchOnHit(attacker, pokemonTarget, move, success);
                 ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, pokemonTarget, move, success);
+                ActionBattleMoveEffectResolver.applyDeclaredParalysisOnHit(attacker, pokemonTarget, move, success);
             }
             return true;
         }
-        if (PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move)))) {
+        if (PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || ActionBattleElectricController.isQualifyingEnemyInteraction(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move)))) {
             PokemonUtils.sendAnimationPacket(attacker, "special");
             ActionBattleProjectileEntity projectile = new ActionBattleProjectileEntity(attacker.level(), attacker, target, move);
             attacker.level().addFreshEntity(projectile);

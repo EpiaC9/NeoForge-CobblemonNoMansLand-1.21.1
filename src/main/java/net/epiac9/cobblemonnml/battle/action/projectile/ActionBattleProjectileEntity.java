@@ -14,6 +14,7 @@ import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectResolv
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
@@ -177,6 +178,12 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         if (pokemonTarget != null) {
             FightOrFlightAdapter.applyProtectImpact(attacker, pokemonTarget, move, beforeHp, success);
             if (nativeDamageMove && success) ActionBattleFireController.onSuccessfulMoveHit(attacker, pokemonTarget, move, ActionBattleFireRules.NORMAL_PRESSURE);
+            if (nativeDamageMove && success && beforeHp > pokemonTarget.getPokemon().getCurrentHealth()) {
+                ActionBattleElectricController.onSuccessfulMoveHit(attacker, pokemonTarget, move);
+            }
+            if (!nativeDamageMove && success) {
+                ActionBattleElectricController.onSuccessfulEnemyInteraction(attacker, pokemonTarget, move);
+            }
             if (nativeDamageMove && ActionBattleIceRules.isQualifyingDamagingHit(success, beforeHp, pokemonTarget.getPokemon().getCurrentHealth())) {
                 ActionBattleIceController.onSuccessfulMoveHit(attacker, pokemonTarget, move);
             }
@@ -190,6 +197,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             if (battleId != null) ActionBattleDamageFeedbackController.global().recordDamage(battleId, pokemonTarget.getPokemon().getUuid(), beforeHp, pokemonTarget.getPokemon().getCurrentHealth(), ActionBattleDamageFeedbackCategory.NORMAL);
             ActionBattleMoveEffectResolver.applyDeclaredFlinchOnHit(attacker, pokemonTarget, move, success);
             ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, pokemonTarget, move, success);
+            ActionBattleMoveEffectResolver.applyDeclaredParalysisOnHit(attacker, pokemonTarget, move, success);
             if (!nativeDamageMove && success) ActionBattleFairyController.onSuccessfulEnemyTargetingMove(attacker, pokemonTarget, move);
             if (!nativeDamageMove && success) ActionBattlePoisonController.onSuccessfulEnemyInteraction(attacker, pokemonTarget, move);
         }

@@ -8,6 +8,10 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleDrowsy
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonTracker;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricTracker;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricState;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisState;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricRules;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -18,6 +22,7 @@ public final class ActionBattleTypeEffectState {
     private ActionBattleIceTracker ice;
     private ActionBattleDrowsyTracker drowsy;
     private ActionBattlePoisonTracker poison;
+    private ActionBattleElectricTracker electric;
 
     ActionBattleTypeEffectState(UUID pokemonUUID) {
         if (pokemonUUID == null) throw new IllegalArgumentException("Pokemon ID cannot be null.");
@@ -60,6 +65,26 @@ public final class ActionBattleTypeEffectState {
         return applied;
     }
 
+    ActionBattleElectricTracker.ApplyChargeResult addElectricCharge(int amount, long currentTick,
+                                                                      boolean electricTyped, boolean hazeActive) {
+        if (electric == null) electric = new ActionBattleElectricTracker();
+        ActionBattleElectricTracker.ApplyChargeResult result = electric.addCharge(amount, currentTick, electricTyped, hazeActive);
+        if (electric.isEmpty()) electric = null;
+        return result;
+    }
+
+    boolean applyExternalElectricParalysis(long currentTick, boolean electricTyped, boolean hazeActive) {
+        if (electric == null) electric = new ActionBattleElectricTracker();
+        boolean applied = electric.applyExternalParalysis(currentTick, electricTyped, hazeActive);
+        if (electric.isEmpty()) electric = null;
+        return applied;
+    }
+
+    ActionBattleParalysisState.FlinchContributionResult addElectricParalysisFlinch(int amount, long currentTick) {
+        return electric == null ? ActionBattleParalysisState.FlinchContributionResult.IGNORED
+                : electric.addParalysisFlinch(amount, currentTick);
+    }
+
     void tick(long currentTick) { tick(currentTick, false); }
 
     void tick(long currentTick, boolean sleepCompletionActive) {
@@ -79,6 +104,10 @@ public final class ActionBattleTypeEffectState {
             poison.tick(currentTick);
             if (poison.isEmpty()) poison = null;
         }
+        if (electric != null) {
+            electric.tick(currentTick);
+            if (electric.isEmpty()) electric = null;
+        }
     }
 
     void suppressFireBonusByHaze() {
@@ -95,6 +124,10 @@ public final class ActionBattleTypeEffectState {
 
     void suppressPoisonSpecialAttackByHaze() {
         if (poison != null) poison.suppressSpecialAttackByHaze();
+    }
+
+    void suppressElectricSpeedByHaze() {
+        if (electric != null) electric.suppressParalysisSpeedByHaze();
     }
 
     Optional<FireView> fireView(long currentTick) {
@@ -117,6 +150,32 @@ public final class ActionBattleTypeEffectState {
         tick(currentTick);
         return poison != null ? poison.activeState().map(state -> PoisonView.from(state, poison, currentTick))
                 : Optional.empty();
+    }
+
+    Optional<ElectricChargeView> electricChargeView(long currentTick) {
+        if (electric == null) return Optional.empty();
+        electric.tick(currentTick);
+        return electric.activeCharge().map(state -> new ElectricChargeView(state.charge(), electric.depletionPerTick()));
+    }
+
+    Optional<ElectricParalysisView> electricParalysisView(long currentTick) {
+        if (electric == null) return Optional.empty();
+        electric.tick(currentTick);
+        return electric.activeParalysis().map(state -> new ElectricParalysisView(state.remainingTicks(currentTick),
+                state.totalDurationTicks(), state.electricTyped(), state.hiddenFlinch(), state.flinchThreshold(),
+                state.ownedSpeedStages(currentTick), state.speedSuppressedByHaze()));
+    }
+
+    int electricSpeedStages(long currentTick) {
+        if (electric != null) electric.tick(currentTick);
+        return electric == null ? 0 : electric.activeParalysis().map(state -> state.ownedSpeedStages(currentTick)).orElse(0);
+    }
+
+    double modifyOutgoingElectricDamage(boolean electricMove, boolean damaging, double damage, long currentTick) {
+        if (electric != null) electric.tick(currentTick);
+        if (!electricMove || !damaging || electric == null) return damage;
+        boolean activeElectric = electric.activeParalysis().map(state -> state.active(currentTick) && state.electricTyped()).orElse(false);
+        return activeElectric ? damage * ActionBattleElectricRules.ELECTRIC_PARALYSIS_DAMAGE_MULTIPLIER : damage;
     }
 
     Optional<ActionBattleDrowsyTracker.CompletionState> fairyCompletionView(long currentTick) {
@@ -181,7 +240,7 @@ public final class ActionBattleTypeEffectState {
                 .map(state -> state.level() == ActionBattlePoisonRules.PoisonLevel.TOXIC).orElse(false);
     }
 
-    boolean isEmpty() { return fire == null && ice == null && drowsy == null && poison == null; }
+    boolean isEmpty() { return fire == null && ice == null && drowsy == null && poison == null && electric == null; }
     UUID pokemonUUID() { return pokemonUUID; }
 
     public record FireView(
@@ -233,4 +292,10 @@ public final class ActionBattleTypeEffectState {
                     state.ownedSpecialAttackStages(), state.statSuppressedByHaze(), tracker.moveAccumulationGain());
         }
     }
+
+    public record ElectricChargeView(int charge, int depletionPerTick) {}
+
+    public record ElectricParalysisView(long remainingTicks, long totalDurationTicks,
+                                        boolean electricTyped, int hiddenFlinch, int flinchThreshold,
+                                        int ownedSpeedStages, boolean speedSuppressedByHaze) {}
 }

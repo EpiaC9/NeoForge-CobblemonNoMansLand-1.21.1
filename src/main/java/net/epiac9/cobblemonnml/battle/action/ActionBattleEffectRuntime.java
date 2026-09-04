@@ -172,6 +172,7 @@ final class ActionBattleEffectRuntime {
             ActionBattleTypeEffectController.global().suppressIceDefenseByHaze(DungeonSession.getSessionId(), pokemonUUID);
             ActionBattleTypeEffectController.global().suppressFairySpecialDefenseByHaze(DungeonSession.getSessionId(), pokemonUUID);
             ActionBattleTypeEffectController.global().suppressPoisonSpecialAttackByHaze(DungeonSession.getSessionId(), pokemonUUID);
+            ActionBattleTypeEffectController.global().suppressElectricSpeedByHaze(DungeonSession.getSessionId(), pokemonUUID);
         }
     }
 
