@@ -7,6 +7,8 @@ import net.epiac9.cobblemonnml.dimension.DungeonDimension;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireParticleController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceVisuals;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,7 +25,7 @@ public final class ActionBattleTypeEffectRuntime {
         if (level == null) return;
         ActionBattleTypeEffectController controller = ActionBattleTypeEffectController.global();
         controller.guardSession(sessionId);
-        controller.tickSession(sessionId, level.getGameTime());
+        ActionBattleFairyController.tickSession(level, sessionId);
         ActionBattleFireParticleController.tick(level);
         ActionBattleIceVisuals.tick(level);
     }
@@ -34,12 +36,16 @@ public final class ActionBattleTypeEffectRuntime {
         PlayerPartyStore party = Cobblemon.INSTANCE.getStorage().getParty(player);
         for (int slot = 0; slot < party.size(); slot++) {
             Pokemon pokemon = party.get(slot);
-            if (pokemon != null) ActionBattleTypeEffectController.global().clearPokemon(sessionId, pokemon.getUuid());
+            if (pokemon != null) {
+                ActionBattleTypeEffectController.global().clearPokemon(sessionId, pokemon.getUuid());
+                ActionBattleEffectController.global().clearStatuses(sessionId, pokemon.getUuid(), player.level().getGameTime());
+            }
         }
     }
 
     public static void clearSession(UUID sessionId) {
         ActionBattleTypeEffectController.global().clearSession(sessionId);
+        ActionBattleEffectController.global().clearBattle(sessionId);
     }
 
     public static void clearAll() {

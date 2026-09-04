@@ -176,8 +176,32 @@ def iceTypeEffectHudTest = tasks.register('iceTypeEffectHudTest', JavaExec) {
     mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceHudTest'
 }
 
+def fairyDrowsyStateTest = tasks.register('fairyDrowsyStateTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the Fairy Drowsy lifecycle and reapplication tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleDrowsyStateTest'
+}
+
+def actionBattleSleepRulesTest = tasks.register('actionBattleSleepRulesTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the ACTION Sleep duration, recall, and wake multiplier tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.effect.ActionBattleSleepRulesTest'
+}
+
+def fairyControllerTest = tasks.register('fairyControllerTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the Fairy routing, immunity, and shield penetration tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyControllerTest'
+}
+
 tasks.named('test') {
-    dependsOn fireStateTest, typeEffectControllerTest, iceTypeEffectTest, iceTypeEffectDeliveryTest, iceTypeEffectHudTest
+    dependsOn fireStateTest, typeEffectControllerTest, iceTypeEffectTest, iceTypeEffectDeliveryTest, iceTypeEffectHudTest,
+            fairyDrowsyStateTest
+    dependsOn actionBattleSleepRulesTest
+    dependsOn fairyControllerTest
     failOnNoDiscoveredTests = false
 }
 

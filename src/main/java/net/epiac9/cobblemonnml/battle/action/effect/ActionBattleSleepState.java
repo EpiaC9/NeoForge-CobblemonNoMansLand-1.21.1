@@ -5,10 +5,12 @@ public final class ActionBattleSleepState {
     public static final long SLEEP_MAX_DURATION_TICKS = 180L;
 
     private long sleepExpiresAtTick;
+    private long sleepDurationTicks;
 
     public boolean beginSleep(long currentTick, long durationTicks) {
         if (currentTick < 0L || durationTicks < SLEEP_MIN_DURATION_TICKS || durationTicks > SLEEP_MAX_DURATION_TICKS) return false;
         sleepExpiresAtTick = safeAdd(currentTick, durationTicks);
+        sleepDurationTicks = durationTicks;
         return true;
     }
 
@@ -16,18 +18,20 @@ public final class ActionBattleSleepState {
         if (currentTick < 0L) return false;
         boolean wasSleeping = isSleeping(currentTick) || sleepExpiresAtTick > 0L;
         sleepExpiresAtTick = 0L;
+        sleepDurationTicks = 0L;
         return wasSleeping;
     }
 
     public boolean isSleeping(long currentTick) { return isActiveAt(currentTick, sleepExpiresAtTick); }
     public long sleepRemainingTicks(long currentTick) { return remainingTicks(currentTick, sleepExpiresAtTick); }
+    public long sleepDurationTicks(long currentTick) { return isSleeping(currentTick) ? sleepDurationTicks : 0L; }
 
     public boolean cleanse(long currentTick) {
         if (currentTick < 0L) return false;
         return wake(currentTick);
     }
 
-    public void clearAll() { sleepExpiresAtTick = 0L; }
+    public void clearAll() { sleepExpiresAtTick = 0L; sleepDurationTicks = 0L; }
 
     public boolean isEmpty(long currentTick) {
         prune(currentTick);
@@ -38,13 +42,17 @@ public final class ActionBattleSleepState {
         if (currentTick < 0L) return NaturalWakeResult.NONE;
         if (sleepExpiresAtTick > 0L && currentTick >= sleepExpiresAtTick) {
             sleepExpiresAtTick = 0L;
+            sleepDurationTicks = 0L;
             return NaturalWakeResult.WOKE_NATURALLY;
         }
         return NaturalWakeResult.NONE;
     }
 
     private void prune(long currentTick) {
-        if (sleepExpiresAtTick > 0L && currentTick >= sleepExpiresAtTick) sleepExpiresAtTick = 0L;
+        if (sleepExpiresAtTick > 0L && currentTick >= sleepExpiresAtTick) {
+            sleepExpiresAtTick = 0L;
+            sleepDurationTicks = 0L;
+        }
     }
 
     private static boolean isActiveAt(long currentTick, long expiresAtTick) {

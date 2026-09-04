@@ -15,6 +15,34 @@ public final class ActionBattleTypeEffectControllerTest {
         ticksIceReapplicationHistoryWithoutAnEntity();
         routesOwnedDefenseAndHazeSuppression();
         chainsFireAndIceDamageModifiersIndependently();
+        ownsFairyDrowsyAndSpecialDefenseIndependently();
+        suppressesOnlyFairySpecialDefenseWithoutEndingCompletion();
+    }
+
+    private static void ownsFairyDrowsyAndSpecialDefenseIndependently() {
+        Fixture fixture = new Fixture();
+        assertTrue(fixture.controller.applyDrowsy(fixture.session, fixture.pokemon, 0L));
+        ActionBattleTypeEffectState.DrowsyView drowsy = fixture.controller
+                .drowsyView(fixture.session, fixture.pokemon, 20L).orElseThrow();
+        assertEquals(160L, drowsy.remainingTicks());
+        assertEquals(180L, drowsy.totalDurationTicks());
+        assertTrue(fixture.controller.completeDrowsy(fixture.session, fixture.pokemon, 180L, 120,
+                net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleDrowsyTracker.CompletionRoute.FAIRY_SPDEF));
+        assertTrue(fixture.controller.drowsyView(fixture.session, fixture.pokemon, 180L).isEmpty());
+        assertEquals(2, fixture.controller.fairySpecialDefenseStages(fixture.session, fixture.pokemon, 200L));
+        fixture.controller.tickSession(fixture.session, 300L);
+        assertEquals(0, fixture.controller.fairySpecialDefenseStages(fixture.session, fixture.pokemon, 300L));
+    }
+
+    private static void suppressesOnlyFairySpecialDefenseWithoutEndingCompletion() {
+        Fixture fixture = new Fixture();
+        fixture.controller.applyDrowsy(fixture.session, fixture.pokemon, 0L);
+        fixture.controller.completeDrowsy(fixture.session, fixture.pokemon, 180L, 120,
+                net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleDrowsyTracker.CompletionRoute.FAIRY_SPDEF);
+        fixture.controller.suppressFairySpecialDefenseByHaze(fixture.session, fixture.pokemon);
+        assertEquals(0, fixture.controller.fairySpecialDefenseStages(fixture.session, fixture.pokemon, 200L));
+        assertTrue(fixture.controller.fairyCompletionView(fixture.session, fixture.pokemon, 200L).isPresent());
+        assertEquals(360, fixture.controller.nextDrowsyDurationTicks(fixture.session, fixture.pokemon));
     }
 
     private static void tracksPokemonIndependentlyWithinOneSession() {

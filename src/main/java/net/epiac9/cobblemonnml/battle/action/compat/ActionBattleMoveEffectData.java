@@ -11,4 +11,9 @@ public record ActionBattleMoveEffectData(String effect, String trigger, String t
                 && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
     }
 
+    public boolean isExplicitWakeOnHit() {
+        return ("wake".equals(effect) || "wakeup".equals(effect) || "wake_up".equals(effect))
+                && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
+    }
+
 }

@@ -16,6 +16,7 @@ import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCo
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.registry.ModEntities;
@@ -183,6 +184,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             if (battleId != null) ActionBattleDamageFeedbackController.global().recordDamage(battleId, pokemonTarget.getPokemon().getUuid(), beforeHp, pokemonTarget.getPokemon().getCurrentHealth(), ActionBattleDamageFeedbackCategory.NORMAL);
             ActionBattleMoveEffectResolver.applyDeclaredFlinchOnHit(attacker, pokemonTarget, move, success);
             ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, pokemonTarget, move, success);
+            if (!nativeDamageMove && success) ActionBattleFairyController.onSuccessfulEnemyTargetingMove(attacker, pokemonTarget, move);
         }
         discard();
     }

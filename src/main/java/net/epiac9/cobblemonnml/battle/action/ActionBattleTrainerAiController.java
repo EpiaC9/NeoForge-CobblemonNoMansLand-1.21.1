@@ -13,6 +13,7 @@ import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandl
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.BlockPos;
@@ -229,6 +230,7 @@ final class ActionBattleTrainerAiController {
         int previousSlot = session.trainerActivePartyIndex();
         session.setTrainerSendOutPending(true);
         ActionBattleCommandController.cancelPendingOrders(session, ActionBattleCommandController.Side.TRAINER, ActionBattleCommandController.InterruptReason.SWAP);
+        ActionBattleFairyController.onPokemonRecalled(trainerPokemon.getUuid(), currentTick);
         ActionBattleEffectController.global().onPokemonRecalled(session.battleId(), trainerPokemon.getUuid(), currentTick);
         ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), trainerPokemon.getUuid(), false, currentTick);
         ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), trainerPokemon.getUuid(), false, currentTick);

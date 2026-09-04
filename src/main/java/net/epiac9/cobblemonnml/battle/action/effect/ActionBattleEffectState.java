@@ -88,7 +88,7 @@ public final class ActionBattleEffectState {
     long statusDurationTicks(ActionBattleStatus status, long currentTick) {
         if (status == null || currentTick < 0L) return 0L;
         return switch (status) {
-            case SLEEP -> sleep != null && sleep.isSleeping(currentTick) ? ActionBattleSleepState.SLEEP_MAX_DURATION_TICKS : 0L;
+            case SLEEP -> sleep != null ? sleep.sleepDurationTicks(currentTick) : 0L;
             case CONFUSION -> confusion != null ? confusion.durationTicks(currentTick) : 0L;
             case EVASION -> evasion != null ? evasion.durationTicks(currentTick) : 0L;
         };
@@ -111,8 +111,6 @@ public final class ActionBattleEffectState {
     void onPokemonRecalled(long currentTick) {
         hazeProtected = false;
         statContributions.clear();
-        if (sleep != null) sleep.clearAll();
-        sleep = null;
         if (confusion != null) confusion.clear(currentTick);
         if (evasion != null) evasion.clear(currentTick);
     }

@@ -192,6 +192,7 @@ final class ActionBattleEffectRuntime {
         if (inside && DungeonSession.isActive()) {
             ActionBattleTypeEffectController.global().suppressFireBonusByHaze(DungeonSession.getSessionId(), pokemonUUID);
             ActionBattleTypeEffectController.global().suppressIceDefenseByHaze(DungeonSession.getSessionId(), pokemonUUID);
+            ActionBattleTypeEffectController.global().suppressFairySpecialDefenseByHaze(DungeonSession.getSessionId(), pokemonUUID);
         }
     }
 

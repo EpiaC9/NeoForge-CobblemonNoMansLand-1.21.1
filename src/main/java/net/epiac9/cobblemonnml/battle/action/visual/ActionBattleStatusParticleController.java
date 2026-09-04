@@ -7,6 +7,7 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentType;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -19,6 +20,7 @@ public final class ActionBattleStatusParticleController {
     private static final int CONFUSION_INTERVAL_TICKS = 5;
     private static final int EVASION_INTERVAL_TICKS = 6;
     private static final int PERSISTENT_INTERVAL_TICKS = 8;
+    private static final int DROWSY_INTERVAL_TICKS = 10;
 
     private ActionBattleStatusParticleController() {}
 
@@ -34,7 +36,7 @@ public final class ActionBattleStatusParticleController {
         if (entity == null || entity.isRemoved() || entity.level() != level) return;
         long tick = level.getGameTime();
         ActionBattleEffectController effects = ActionBattleEffectController.global();
-        if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.SLEEP, tick) && tick % SLEEP_INTERVAL_TICKS == 0L) emitSleepAmbient(level, entity);
+        if (effects.hasStatus(session.dungeonSessionId(), pokemon.getUuid(), ActionBattleStatus.SLEEP, tick) && tick % SLEEP_INTERVAL_TICKS == 0L) emitSleepAmbient(level, entity);
         if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.CONFUSION, tick) && tick % CONFUSION_INTERVAL_TICKS == 0L) emitConfusionAmbient(level, entity);
         if (effects.hasStatus(session.battleId(), pokemon.getUuid(), ActionBattleStatus.EVASION, tick) && tick % EVASION_INTERVAL_TICKS == 0L) emitEvasionAmbient(level, entity);
         if (tick % PERSISTENT_INTERVAL_TICKS == 0L) {
@@ -42,6 +44,12 @@ public final class ActionBattleStatusParticleController {
             if (persistent.has(session.battleId(), pokemon.getUuid(), ActionBattlePersistentType.PERISH_SONG, tick)) emitAcrossBody(level, entity, 1, ParticleTypes.NOTE, 0.005D);
             if (persistent.has(session.battleId(), pokemon.getUuid(), ActionBattlePersistentType.BOUND, tick)) emitAcrossBody(level, entity, 2, ParticleTypes.ASH, 0.005D);
             if (persistent.has(session.battleId(), pokemon.getUuid(), ActionBattlePersistentType.NIGHTMARE, tick)) emitAcrossBody(level, entity, 2, ParticleTypes.PORTAL, 0.01D);
+        }
+        if (tick % DROWSY_INTERVAL_TICKS == 0L && ActionBattleTypeEffectController.global()
+                .drowsyView(session.dungeonSessionId(), pokemon.getUuid(), tick).isPresent()) {
+            AABB box = entity.getBoundingBox();
+            level.sendParticles(ParticleTypes.ENCHANT, box.getCenter().x, box.maxY + 0.20D, box.getCenter().z,
+                    2, 0.18D, 0.08D, 0.18D, 0.005D);
         }
     }
 

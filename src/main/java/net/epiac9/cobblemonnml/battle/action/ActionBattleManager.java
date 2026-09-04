@@ -13,6 +13,7 @@ import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandl
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.dimension.DungeonDimension;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.events.trainer.DungeonTrainerBattleResultHandler;
@@ -315,6 +316,7 @@ public final class ActionBattleManager {
         session.startPlayerSwapCooldown(currentTick, ActionBattleTiming.SWAP_COOLDOWN_TICKS);
         session.setPlayerSendOutPending(true);
         Pokemon previous = refs.playerPokemon();
+        ActionBattleFairyController.onPokemonRecalled(previous.getUuid(), currentTick);
         ActionBattleEffectController.global().onPokemonRecalled(session.battleId(), previous.getUuid(), currentTick);
         ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), previous.getUuid(), false, currentTick);
         ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), previous.getUuid(), false, currentTick);

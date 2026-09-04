@@ -27,11 +27,13 @@ public final class ActionBattleMoveEffectResolver {
 
     public static boolean hasSupportedFlinchOnHitMetadata(Move move) { return hasSupportedOnHitMetadata(move, StatusFamily.FLINCH); }
     public static boolean hasSupportedConfusionOnHitMetadata(Move move) { return hasSupportedOnHitMetadata(move, StatusFamily.CONFUSION); }
+    public static boolean hasExplicitWakeOnHitMetadata(Move move) { return hasSupportedOnHitMetadata(move, StatusFamily.WAKE); }
 
     public static boolean isOwnedActionStatus(StatusEffectMoveData status) {
         if (!isOnHitTarget(status)) return false;
         String name = status.getName();
-        return StatusFamily.FLINCH.matchesMetadata(name) || StatusFamily.CONFUSION.matchesMetadata(name);
+        return StatusFamily.FLINCH.matchesMetadata(name) || StatusFamily.CONFUSION.matchesMetadata(name)
+                || StatusFamily.WAKE.matchesMetadata(name);
     }
 
     public static void applyDeclaredFlinchOnHit(PokemonEntity attacker, PokemonEntity target, Move move, boolean hitSucceeded) {
@@ -107,15 +109,19 @@ public final class ActionBattleMoveEffectResolver {
 
     private enum StatusFamily {
         CONFUSION,
-        FLINCH;
+        FLINCH,
+        WAKE;
 
         boolean matchesMetadata(String name) {
-            return this == FLINCH ? Objects.equals(name, "flinch")
-                    : Objects.equals(name, "confusion") || Objects.equals(name, "confuse") || Objects.equals(name, "confused");
+            if (this == FLINCH) return Objects.equals(name, "flinch");
+            if (this == WAKE) return Objects.equals(name, "wake") || Objects.equals(name, "wakeup") || Objects.equals(name, "wake_up");
+            return Objects.equals(name, "confusion") || Objects.equals(name, "confuse") || Objects.equals(name, "confused");
         }
 
         boolean matchesFallback(ActionBattleMoveEffectData fallback) {
-            return this == FLINCH ? fallback.isSupportedFlinchOnHit() : fallback.isSupportedConfusionOnHit();
+            if (this == FLINCH) return fallback.isSupportedFlinchOnHit();
+            if (this == WAKE) return fallback.isExplicitWakeOnHit();
+            return fallback.isSupportedConfusionOnHit();
         }
     }
 }

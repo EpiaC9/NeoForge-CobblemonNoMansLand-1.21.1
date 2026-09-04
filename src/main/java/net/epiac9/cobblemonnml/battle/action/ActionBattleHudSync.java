@@ -45,8 +45,8 @@ public final class ActionBattleHudSync {
                 true,
                 playerPokemon.getSpecies().getName(), playerPokemon.getUuid().toString(), playerPokemon.getLevel(), currentHealth(playerPokemon), maxHealth(playerPokemon), session.playerActivePartyIndex(),
                 trainerPokemon.getSpecies().getName(), trainerPokemon.getUuid().toString(), trainerPokemon.getLevel(), currentHealth(trainerPokemon), maxHealth(trainerPokemon), session.trainerActivePartyIndex(),
-                statusStates(session.battleId(), playerPokemon.getUuid(), currentTick),
-                statusStates(session.battleId(), trainerPokemon.getUuid(), currentTick),
+                statusStates(session.battleId(), session.dungeonSessionId(), playerPokemon.getUuid(), currentTick),
+                statusStates(session.battleId(), session.dungeonSessionId(), trainerPokemon.getUuid(), currentTick),
                 statStages(session.battleId(), playerPokemon.getUuid(), currentTick),
                 statStages(session.battleId(), trainerPokemon.getUuid(), currentTick),
                 damageStates(ActionBattleDamageFeedbackController.global().drain(session.battleId(), playerPokemon.getUuid())),
@@ -63,7 +63,7 @@ public final class ActionBattleHudSync {
         if (player != null) PacketDistributor.sendToPlayer(player, ActionBattleHudPayload.hidden());
     }
 
-    private static List<ActionBattleHudPayload.StatusState> statusStates(UUID battleId, UUID pokemonUUID, long currentTick) {
+    private static List<ActionBattleHudPayload.StatusState> statusStates(UUID battleId, UUID dungeonSessionId, UUID pokemonUUID, long currentTick) {
         ActionBattleEffectController controller = ActionBattleEffectController.global();
         ActionBattleProtectController protect = ActionBattleProtectController.global();
         List<ActionBattleHudPayload.StatusState> states = new ArrayList<>();
@@ -74,9 +74,10 @@ public final class ActionBattleHudSync {
             states.add(new ActionBattleHudPayload.StatusState("DETERIORATING_SHIELD_" + shieldLevel, shieldRemaining, shieldDuration));
         }
         for (ActionBattleStatus status : ActionBattleStatus.values()) {
-            long remaining = controller.statusRemainingTicks(battleId, pokemonUUID, status, currentTick);
+            UUID effectScope = status == ActionBattleStatus.SLEEP ? dungeonSessionId : battleId;
+            long remaining = controller.statusRemainingTicks(effectScope, pokemonUUID, status, currentTick);
             if (remaining <= 0L) continue;
-            long duration = controller.statusDurationTicks(battleId, pokemonUUID, status, currentTick);
+            long duration = controller.statusDurationTicks(effectScope, pokemonUUID, status, currentTick);
             states.add(new ActionBattleHudPayload.StatusState(status.name(), remaining, duration));
         }
         ActionBattleControlController controls = ActionBattleControlController.global();
@@ -101,7 +102,18 @@ public final class ActionBattleHudSync {
         }
         fireStatusState(pokemonUUID, currentTick).ifPresent(states::add);
         iceStatusState(pokemonUUID, currentTick).ifPresent(states::add);
+        drowsyStatusState(pokemonUUID, currentTick).ifPresent(states::add);
         return List.copyOf(states);
+    }
+
+    private static java.util.Optional<ActionBattleHudPayload.StatusState> drowsyStatusState(UUID pokemonUUID, long currentTick) {
+        UUID sessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
+        if (sessionId == null) return java.util.Optional.empty();
+        return ActionBattleTypeEffectController.global().drowsyView(sessionId, pokemonUUID, currentTick)
+                .filter(view -> view.remainingTicks() > 0L)
+                .map(view -> new ActionBattleHudPayload.StatusState(
+                        net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyRules.HUD_STATUS_ID,
+                        view.remainingTicks(), view.totalDurationTicks()));
     }
 
     private static java.util.Optional<ActionBattleHudPayload.StatusState> fireStatusState(UUID pokemonUUID, long currentTick) {
