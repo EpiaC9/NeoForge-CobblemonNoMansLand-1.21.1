@@ -52,8 +52,7 @@ final class ActionBattleEffectRuntime {
         }
         syncHazeBattleZone(session, level, currentTick);
         observeDamageFeedback(session, refs);
-        List<ActionBattleDotEvent> effectTicks = ActionBattleEffectController.global().tickBattle(session.battleId(), currentTick);
-        applyEffectTicks(session, level, effectTicks);
+        ActionBattleEffectController.global().tickBattle(session.battleId(), currentTick);
         List<ActionBattlePersistentTick> persistentTicks = ActionBattlePersistentController.global().tickBattle(session.battleId(), currentTick);
         applyPersistentTicks(session, level, persistentTicks, currentTick);
         if (refs != null) {
@@ -78,25 +77,6 @@ final class ActionBattleEffectRuntime {
         ActionBattleControlController.global().clearBattle(battleId);
         ActionBattleDamageFeedbackController.global().clearBattle(battleId);
         ActionBattleEvasionController.clearBattle(battleId);
-    }
-
-    private static void applyEffectTicks(ActionBattleSession session, ServerLevel level, List<ActionBattleDotEvent> events) {
-        if (session == null || level == null || events == null || events.isEmpty()) return;
-        for (ActionBattleDotEvent event : events) applyEffectTick(session, level, event);
-    }
-
-    private static void applyEffectTick(ActionBattleSession session, ServerLevel level, ActionBattleDotEvent event) {
-        Pokemon pokemon = findBattlePokemon(session, level, event.pokemonUUID());
-        if (pokemon == null || pokemon.isFainted()) return;
-        int maxHealth = Math.max(1, pokemon.getMaxHealth());
-        int beforeHealth = pokemon.getCurrentHealth();
-        int damage = ActionBattleDotDamage.calculate(maxHealth, pokemon.getCurrentHealth(), event.maxHealthFraction());
-        int newHealth = Math.max(event.canKo() ? 0 : 1, beforeHealth - damage);
-        pokemon.setCurrentHealth(newHealth);
-        ActionBattleDamageFeedbackController.global().recordDamage(session.battleId(), pokemon.getUuid(), beforeHealth, newHealth,
-                ActionBattleDamageFeedbackCategory.DOT);
-        DebugLog.log("[CobblemonNML] Action battle DOT tick. Battle=" + session.battleId() + ", status=" + event.status()
-                + ", pokemon=" + event.pokemonUUID() + ", damage=" + damage + ", hp=" + newHealth + "/" + maxHealth);
     }
 
     private static void trackRuntimeState(ActionBattleSession session, ServerLevel level, Pokemon pokemon, long currentTick) {

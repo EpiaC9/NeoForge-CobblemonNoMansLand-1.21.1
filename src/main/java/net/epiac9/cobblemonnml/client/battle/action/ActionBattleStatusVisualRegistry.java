@@ -3,7 +3,7 @@ package net.epiac9.cobblemonnml.client.battle.action;
 import net.minecraft.resources.ResourceLocation;
 
 public final class ActionBattleStatusVisualRegistry {
-    private static final StatusVisual SLEEP = visual("sleep", 0xFF7E73C7);
+    private static final StatusVisual SLEEP = typeEffectVisual("sleep", 0xFF7E73C7);
     private static final StatusVisual CONFUSION = visual("confusion", 0xFFC56BFF);
     private static final StatusVisual EVASION = visual("evasion", 0xFF8FD7E8);
     private static final StatusVisual CONTROL_TAUNT = visual("control_taunt", 0xFFE56A54);
@@ -22,7 +22,7 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual TYPE_ICE_CHILL = typeEffectVisual("chill", 0xFF9EDFFF);
     private static final StatusVisual TYPE_ICE_FREEZE = typeEffectVisual("freeze", 0xFF63BDEB);
     private static final StatusVisual TYPE_ICE_FROSTBITE = typeEffectVisual("frostbite", 0xFF4A8FCB);
-    private static final StatusVisual TYPE_FAIRY_DROWSY = visual("sleep", 0xFFE890C8);
+    private static final StatusVisual TYPE_FAIRY_DROWSY = typeEffectVisual("sleep", 0xFFE890C8);
     private static final StatusVisual TYPE_POISON = visual("confusion", 0xFF70C968);
     private static final StatusVisual TYPE_POISON_LV1 = visual("confusion", 0xFF52AE5B);
     private static final StatusVisual TYPE_POISON_LV2 = visual("confusion", 0xFF8D5BC4);

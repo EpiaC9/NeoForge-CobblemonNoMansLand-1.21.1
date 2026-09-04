@@ -187,7 +187,7 @@ def actionBattleSleepRulesTest = tasks.register('actionBattleSleepRulesTest', Ja
     group = 'verification'
     description = 'Runs the ACTION Sleep duration, recall, and wake multiplier tests.'
     classpath = sourceSets.test.runtimeClasspath
-    mainClass = 'net.epiac9.cobblemonnml.battle.action.effect.ActionBattleSleepRulesTest'
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleSleepRulesTest'
 }
 
 def fairyControllerTest = tasks.register('fairyControllerTest', JavaExec) {

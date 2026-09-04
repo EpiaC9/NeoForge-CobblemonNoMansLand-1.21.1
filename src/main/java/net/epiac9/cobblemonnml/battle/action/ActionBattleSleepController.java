@@ -4,6 +4,8 @@ import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleSleepState;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleSleepWakeRules;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.util.RandomSource;

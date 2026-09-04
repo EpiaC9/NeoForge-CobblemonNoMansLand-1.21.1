@@ -80,7 +80,7 @@ public final class FightOrFlightAdapter {
         boolean sleeping = ActionBattleSleepController.isSleeping(sleepSession, pokemonTarget.getPokemon().getUuid(), tick);
         boolean fairyMove = move.getType() != null && "fairy".equalsIgnoreCase(move.getType().getName());
         boolean explicitWake = ActionBattleMoveEffectResolver.hasExplicitWakeOnHitMetadata(move);
-        return typeModifiedDamage * net.epiac9.cobblemonnml.battle.action.effect.ActionBattleSleepWakeRules
+        return typeModifiedDamage * net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleSleepWakeRules
                 .damageMultiplier(sleeping, fairyMove, explicitWake);
     }
 

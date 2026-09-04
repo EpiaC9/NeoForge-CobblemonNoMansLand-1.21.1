@@ -1,9 +1,9 @@
 package net.epiac9.cobblemonnml.battle.action.effect;
 
 import net.epiac9.cobblemonnml.battle.action.ActionBattleTiming;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleSleepState;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -94,9 +94,8 @@ public final class ActionBattleEffectState {
         };
     }
 
-    List<ActionBattleDotEvent> tick(long currentTick) {
+    void tick(long currentTick) {
         if (currentTick >= 0L) pruneStatContributions(currentTick);
-        return List.of();
     }
 
     void clearStatuses(long currentTick) {

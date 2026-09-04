@@ -1,6 +1,8 @@
-package net.epiac9.cobblemonnml.battle.action.effect;
+package net.epiac9.cobblemonnml.battle.action.typeeffect.fairy;
 
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSleepController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 
 import java.util.UUID;
 

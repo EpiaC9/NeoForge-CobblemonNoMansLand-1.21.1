@@ -1,8 +1,8 @@
 package net.epiac9.cobblemonnml.battle.action.effect;
 
-import java.util.ArrayList;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleSleepState;
+
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -138,15 +138,13 @@ public final class ActionBattleEffectController {
         removeIfEmpty(state, currentTick);
     }
 
-    public List<ActionBattleDotEvent> tickBattle(UUID battleId, long currentTick) {
-        if (battleId == null || currentTick < 0L) return List.of();
+    public void tickBattle(UUID battleId, long currentTick) {
+        if (battleId == null || currentTick < 0L) return;
         Map<UUID, ActionBattleEffectState> battleStates = statesByBattle.get(battleId);
-        if (battleStates == null) return List.of();
-        List<ActionBattleDotEvent> events = new ArrayList<>();
-        for (ActionBattleEffectState state : battleStates.values()) events.addAll(state.tick(currentTick));
+        if (battleStates == null) return;
+        for (ActionBattleEffectState state : battleStates.values()) state.tick(currentTick);
         battleStates.entrySet().removeIf(entry -> entry.getValue().prune(currentTick));
         if (battleStates.isEmpty()) statesByBattle.remove(battleId);
-        return events;
     }
 
     public void clearBattle(UUID battleId) {
