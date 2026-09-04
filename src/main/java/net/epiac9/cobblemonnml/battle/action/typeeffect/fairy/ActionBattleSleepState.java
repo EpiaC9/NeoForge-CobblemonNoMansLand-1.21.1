@@ -1,4 +1,4 @@
-package net.epiac9.cobblemonnml.battle.action.effect;
+package net.epiac9.cobblemonnml.battle.action.typeeffect.fairy;
 
 public final class ActionBattleSleepState {
     public static final long SLEEP_MIN_DURATION_TICKS = 60L;

@@ -1,4 +1,4 @@
-package net.epiac9.cobblemonnml.battle.action.effect;
+package net.epiac9.cobblemonnml.battle.action.typeeffect.fairy;
 
 public final class ActionBattleSleepWakeRules {
     public static final float ORDINARY_WAKE_DAMAGE_MULTIPLIER = 1.20F;

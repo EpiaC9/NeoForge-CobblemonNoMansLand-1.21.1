@@ -8,8 +8,6 @@ import com.gitlab.srcmc.rctapi.api.trainer.TrainerNPC;
 import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleDotDamage;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleDotEvent;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;

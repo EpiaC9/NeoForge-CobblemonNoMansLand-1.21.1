@@ -2,8 +2,6 @@ package net.epiac9.cobblemonnml.battle.action;
 
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleSleepState;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleSleepWakeRules;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
