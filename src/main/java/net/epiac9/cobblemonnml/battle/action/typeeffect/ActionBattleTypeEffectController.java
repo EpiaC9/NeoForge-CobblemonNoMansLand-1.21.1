@@ -4,6 +4,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRul
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleDrowsyTracker;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonRules;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 
@@ -67,6 +68,15 @@ public final class ActionBattleTypeEffectController {
         return state != null && state.completeDrowsy(currentTick, durationTicks, route);
     }
 
+    public boolean applyPoisonMove(UUID sessionId, UUID pokemonUUID, long currentTick,
+                                   boolean poisonTyped, int penetratedGain) {
+        if (!validSession(sessionId) || pokemonUUID == null || currentTick < 0L || penetratedGain <= 0) return false;
+        ActionBattleTypeEffectState state = states.computeIfAbsent(pokemonUUID, ActionBattleTypeEffectState::new);
+        boolean applied = state.applyPoisonMove(currentTick, poisonTyped, penetratedGain);
+        if (state.isEmpty()) states.remove(pokemonUUID);
+        return applied;
+    }
+
     public void tickSession(UUID sessionId, long currentTick) {
         if (!validSession(sessionId) || currentTick < 0L) return;
         for (Map.Entry<UUID, ActionBattleTypeEffectState> entry : states.entrySet()) {
@@ -98,6 +108,14 @@ public final class ActionBattleTypeEffectController {
         return state != null ? state.drowsyView(currentTick) : Optional.empty();
     }
 
+    public Optional<ActionBattleTypeEffectState.PoisonView> poisonView(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        if (state == null) return Optional.empty();
+        Optional<ActionBattleTypeEffectState.PoisonView> view = state.poisonView(currentTick);
+        if (state.isEmpty()) states.remove(pokemonUUID);
+        return view;
+    }
+
     public boolean hasActiveDrowsy(UUID sessionId, UUID pokemonUUID, long currentTick) {
         return drowsyView(sessionId, pokemonUUID, currentTick).filter(view -> view.remainingTicks() > 0L).isPresent();
     }
@@ -120,6 +138,16 @@ public final class ActionBattleTypeEffectController {
     public int fairySpecialDefenseStages(UUID sessionId, UUID pokemonUUID, long currentTick) {
         ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
         return state != null ? state.fairySpecialDefenseStages(currentTick) : 0;
+    }
+
+    public int poisonSpecialAttackStages(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state != null ? state.poisonSpecialAttackStages(currentTick) : 0;
+    }
+
+    public int poisonMoveAccumulationGain(UUID sessionId, UUID pokemonUUID) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state != null ? state.poisonMoveAccumulationGain() : ActionBattlePoisonRules.BASE_MOVE_GAIN;
     }
 
     public int nextDrowsyDurationTicks(UUID sessionId, UUID pokemonUUID) {
@@ -156,6 +184,11 @@ public final class ActionBattleTypeEffectController {
         if (state != null) state.suppressFairySpecialDefenseByHaze();
     }
 
+    public void suppressPoisonSpecialAttackByHaze(UUID sessionId, UUID pokemonUUID) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        if (state != null) state.suppressPoisonSpecialAttackByHaze();
+    }
+
     public boolean cancelDrowsyOnRecall(UUID sessionId, UUID pokemonUUID, long currentTick) {
         ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
         return state != null && state.cancelDrowsyOnRecall(currentTick);
@@ -167,11 +200,18 @@ public final class ActionBattleTypeEffectController {
 
     public double modifyDamage(UUID sessionId, UUID targetPokemonUUID, boolean fireMove, boolean iceMove,
                                double damage, long currentTick) {
+        return modifyDamage(sessionId, targetPokemonUUID, fireMove, iceMove, false, damage, currentTick);
+    }
+
+    public double modifyDamage(UUID sessionId, UUID targetPokemonUUID, boolean fireMove, boolean iceMove,
+                               boolean poisonMove, double damage, long currentTick) {
         ActionBattleTypeEffectState state = validSession(sessionId) && targetPokemonUUID != null ? states.get(targetPokemonUUID) : null;
         boolean burned = state != null && state.isBurning(currentTick);
         boolean frostbitten = state != null && state.isFrostbitten(currentTick);
+        boolean toxic = state != null && state.isToxic(currentTick);
         double fireModified = ActionBattleFireRules.modifyIncomingDamage(damage, fireMove, burned);
-        return ActionBattleIceRules.modifyIncomingDamage(fireModified, iceMove, frostbitten);
+        double iceModified = ActionBattleIceRules.modifyIncomingDamage(fireModified, iceMove, frostbitten);
+        return ActionBattlePoisonRules.modifyIncomingDamage(iceModified, poisonMove, toxic);
     }
 
     public void clearPokemon(UUID sessionId, UUID pokemonUUID) {

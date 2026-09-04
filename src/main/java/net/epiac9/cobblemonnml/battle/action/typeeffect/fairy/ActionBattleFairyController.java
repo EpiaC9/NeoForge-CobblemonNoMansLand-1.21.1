@@ -35,8 +35,7 @@ public final class ActionBattleFairyController {
         ActionBattleTypeEffectController controller = ActionBattleTypeEffectController.global();
         controller.guardSession(sessionId);
         if (controller.hasActiveDrowsy(sessionId, pokemon.getUuid(), currentTick)) return false;
-        double chance = ActionBattleProtectController.global()
-                .effectPenetrationChance(battleId, pokemon.getUuid(), currentTick);
+        double chance = penetrationChance(ActionBattleProtectController.global(), battleId, pokemon.getUuid(), currentTick);
         if (!passesPenetration(chance, penetrationRoll)) return false;
         ActionBattleDrowsyTracker.CompletionRoute route = completionRoute(
                 hasType(pokemon, "dragon"), hasType(pokemon, "fairy"));
@@ -89,6 +88,11 @@ public final class ActionBattleFairyController {
 
     public static boolean passesPenetration(double chance, double roll) {
         return ActionBattleIceController.passesPenetration(chance, roll);
+    }
+
+    public static double penetrationChance(ActionBattleProtectController protect, UUID battleId, UUID pokemonUUID,
+                                           long currentTick) {
+        return protect != null ? protect.effectPenetrationChance(battleId, pokemonUUID, currentTick) : 1.0D;
     }
 
     public static boolean isEnemyTargetCategory(String category) {

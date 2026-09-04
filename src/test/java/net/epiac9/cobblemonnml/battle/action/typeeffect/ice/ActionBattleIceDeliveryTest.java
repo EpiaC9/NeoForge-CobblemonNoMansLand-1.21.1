@@ -1,6 +1,7 @@
 package net.epiac9.cobblemonnml.battle.action.typeeffect.ice;
 
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleDeterioratingShieldState;
+import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattlePosition;
 import net.epiac9.cobblemonnml.battle.action.area.ActionBattlePersistentAreaPreset;
 import net.epiac9.cobblemonnml.battle.action.area.ActionBattlePersistentAreaState;
@@ -17,6 +18,18 @@ public final class ActionBattleIceDeliveryTest {
         acceptsOnlyRollsStrictlyBelowTheChance();
         hailAcceptsOnlyBattlePokemonInsideItsArea();
         directApplicationsRequireSuccessfulHpDamage();
+        shieldHistoryDoesNotReduceIceWithoutAnActiveStance();
+    }
+
+    private static void shieldHistoryDoesNotReduceIceWithoutAnActiveStance() {
+        ActionBattleProtectController protect = new ActionBattleProtectController();
+        UUID battle = UUID.randomUUID();
+        UUID pokemon = UUID.randomUUID();
+        protect.startBalefulBunker(battle, pokemon, 0L);
+        protect.startBalefulBunker(battle, pokemon, 1L);
+        assertEquals(0.05D, ActionBattleIceController.penetrationChance(protect, battle, pokemon, 1L));
+        assertEquals(1.00D, ActionBattleIceController.penetrationChance(protect, battle, pokemon, 41L));
+        assertEquals(2, protect.deterioratingShieldLevel(battle, pokemon));
     }
 
     private static void exposesTheExactShieldPenetrationTable() {
@@ -59,6 +72,10 @@ public final class ActionBattleIceDeliveryTest {
 
     private static void assertEquals(double expected, double actual) {
         if (Math.abs(expected - actual) > EPSILON) throw new AssertionError("Expected " + expected + " but got " + actual);
+    }
+
+    private static void assertEquals(int expected, int actual) {
+        if (expected != actual) throw new AssertionError("Expected " + expected + " but got " + actual);
     }
 
     private static void assertTrue(boolean value) { if (!value) throw new AssertionError("Expected true"); }

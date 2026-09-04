@@ -50,6 +50,7 @@ public final class ActionBattleStatusHudRenderer {
             RenderSystem.defaultBlendFunc();
             graphics.blit(entry.visual().icon(), x, y, 0.0F, 0.0F, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
             renderTimerRing(graphics, x + ICON_SIZE / 2, y + ICON_SIZE / 2, entry.progress(), entry.visual().ringArgb());
+            renderPoisonBoundaries(graphics, x + ICON_SIZE / 2, y + ICON_SIZE / 2, entry.state().statusId());
             RenderSystem.disableBlend();
         }
     }
@@ -58,6 +59,17 @@ public final class ActionBattleStatusHudRenderer {
         if (statusId == null) return Integer.MAX_VALUE;
         if (statusId.startsWith("DETERIORATING_SHIELD_")) return 0;
         return statusId.startsWith("TYPE_") ? 200 : 100;
+    }
+
+    private static void renderPoisonBoundaries(GuiGraphics graphics, int centerX, int centerY, String statusId) {
+        if (statusId == null || !statusId.startsWith("TYPE_POISON")) return;
+        int[] segments = {Math.round(RING_SEGMENTS * 33.0F / 99.0F), Math.round(RING_SEGMENTS * 66.0F / 99.0F)};
+        for (int segment : segments) {
+            double angle = -Math.PI / 2.0D + (Math.PI * 2.0D * segment / RING_SEGMENTS);
+            int px = centerX + (int) Math.round(Math.cos(angle) * RING_RADIUS);
+            int py = centerY + (int) Math.round(Math.sin(angle) * RING_RADIUS);
+            graphics.fill(px, py, px + 1, py + 1, 0xFFD8D8D8);
+        }
     }
 
     private static void renderTimerRing(GuiGraphics graphics, int centerX, int centerY, float progress, int color) {

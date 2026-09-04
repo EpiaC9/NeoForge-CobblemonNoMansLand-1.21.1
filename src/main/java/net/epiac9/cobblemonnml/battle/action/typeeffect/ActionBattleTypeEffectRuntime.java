@@ -8,6 +8,7 @@ import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireParticleController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonParticleController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -28,6 +29,7 @@ public final class ActionBattleTypeEffectRuntime {
         ActionBattleFairyController.tickSession(level, sessionId);
         ActionBattleFireParticleController.tick(level);
         ActionBattleIceVisuals.tick(level);
+        ActionBattlePoisonParticleController.tick(level);
     }
 
     public static void clearPlayer(ServerPlayer player) {

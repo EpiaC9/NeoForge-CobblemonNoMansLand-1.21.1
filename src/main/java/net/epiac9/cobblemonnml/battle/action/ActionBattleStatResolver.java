@@ -25,6 +25,9 @@ public final class ActionBattleStatResolver {
             } else if (stat == ActionBattleStat.SPECIAL_DEFENSE) {
                 typeEffectStages = ActionBattleTypeEffectController.global()
                         .fairySpecialDefenseStages(dungeonSessionId, pokemonUUID, currentTick);
+            } else if (stat == ActionBattleStat.SPECIAL_ATTACK) {
+                typeEffectStages = ActionBattleTypeEffectController.global()
+                        .poisonSpecialAttackStages(dungeonSessionId, pokemonUUID, currentTick);
             }
         }
         return combineStages(stat, genericStages, typeEffectStages);

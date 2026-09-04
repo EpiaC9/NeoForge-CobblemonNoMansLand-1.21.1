@@ -31,8 +31,7 @@ public final class ActionBattleIceController {
         if (sessionId == null || target == null || currentTick < 0L) return false;
         Pokemon pokemon = target.getPokemon();
         UUID battleId = ActionBattleManager.battleIdForPokemonEntity(target.getUUID());
-        double chance = ActionBattleProtectController.global()
-                .effectPenetrationChance(battleId, pokemon.getUuid(), currentTick);
+        double chance = penetrationChance(ActionBattleProtectController.global(), battleId, pokemon.getUuid(), currentTick);
         if (!passesPenetration(chance, ThreadLocalRandom.current().nextDouble())) return false;
         boolean hazeActive = battleId != null
                 && ActionBattleEffectController.global().hasHaze(battleId, pokemon.getUuid(), currentTick);
@@ -54,6 +53,11 @@ public final class ActionBattleIceController {
     public static boolean passesPenetration(double chance, double roll) {
         return Double.isFinite(chance) && Double.isFinite(roll) && chance > 0.0D && roll >= 0.0D
                 && roll < Math.min(1.0D, chance);
+    }
+
+    public static double penetrationChance(ActionBattleProtectController protect, UUID battleId, UUID pokemonUUID,
+                                           long currentTick) {
+        return protect != null ? protect.effectPenetrationChance(battleId, pokemonUUID, currentTick) : 1.0D;
     }
 
     private static UUID activeSessionId() {

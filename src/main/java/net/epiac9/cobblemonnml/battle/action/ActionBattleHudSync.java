@@ -19,6 +19,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectSt
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonVisuals;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -103,7 +104,18 @@ public final class ActionBattleHudSync {
         fireStatusState(pokemonUUID, currentTick).ifPresent(states::add);
         iceStatusState(pokemonUUID, currentTick).ifPresent(states::add);
         drowsyStatusState(pokemonUUID, currentTick).ifPresent(states::add);
+        poisonStatusState(pokemonUUID, currentTick).ifPresent(states::add);
         return List.copyOf(states);
+    }
+
+    private static java.util.Optional<ActionBattleHudPayload.StatusState> poisonStatusState(UUID pokemonUUID, long currentTick) {
+        UUID sessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
+        if (sessionId == null) return java.util.Optional.empty();
+        return ActionBattleTypeEffectController.global().poisonView(sessionId, pokemonUUID, currentTick)
+                .map(view -> new ActionBattleHudPayload.StatusState(
+                        ActionBattlePoisonVisuals.hudStatusId(view.level()),
+                        ActionBattlePoisonVisuals.hudRemaining(view.level(), view.accumulation(), view.toxicRemainingTicks()),
+                        ActionBattlePoisonVisuals.hudDuration(view.level())));
     }
 
     private static java.util.Optional<ActionBattleHudPayload.StatusState> drowsyStatusState(UUID pokemonUUID, long currentTick) {

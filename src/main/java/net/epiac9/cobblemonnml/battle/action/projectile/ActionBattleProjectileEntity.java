@@ -18,6 +18,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceContr
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonRules;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.registry.ModEntities;
 import net.minecraft.core.BlockPos;
@@ -178,6 +180,10 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             if (nativeDamageMove && ActionBattleIceRules.isQualifyingDamagingHit(success, beforeHp, pokemonTarget.getPokemon().getCurrentHealth())) {
                 ActionBattleIceController.onSuccessfulMoveHit(attacker, pokemonTarget, move);
             }
+            if (nativeDamageMove && ActionBattlePoisonRules.isQualifyingDamagingHit(
+                    success, beforeHp, pokemonTarget.getPokemon().getCurrentHealth())) {
+                ActionBattlePoisonController.onSuccessfulEnemyInteraction(attacker, pokemonTarget, move);
+            }
             if (nativeDamageMove && success) ActionBattleSleepController.applyWakeDamageAndWake(sleepSession, pokemonTarget, currentTick, beforeHp, wakePlan);
             UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
             if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(pokemonTarget.getUUID());
@@ -185,6 +191,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             ActionBattleMoveEffectResolver.applyDeclaredFlinchOnHit(attacker, pokemonTarget, move, success);
             ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, pokemonTarget, move, success);
             if (!nativeDamageMove && success) ActionBattleFairyController.onSuccessfulEnemyTargetingMove(attacker, pokemonTarget, move);
+            if (!nativeDamageMove && success) ActionBattlePoisonController.onSuccessfulEnemyInteraction(attacker, pokemonTarget, move);
         }
         discard();
     }

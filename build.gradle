@@ -197,11 +197,51 @@ def fairyControllerTest = tasks.register('fairyControllerTest', JavaExec) {
     mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyControllerTest'
 }
 
+def poisonStateTest = tasks.register('poisonStateTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the Poison/Toxic state-machine regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonStateTest'
+}
+
+def poisonTrackerTest = tasks.register('poisonTrackerTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the Poison reapplication resistance regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonTrackerTest'
+}
+
+def poisonDeliveryTest = tasks.register('poisonDeliveryTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the Poison immunity and Protect penetration regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonDeliveryTest'
+}
+
+def poisonRuntimeTest = tasks.register('poisonRuntimeTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the Poison successful-hit and off-field runtime regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonRuntimeTest'
+}
+
+def poisonHudTest = tasks.register('poisonHudTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the Poison/Toxic HUD mapping regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonHudTest'
+}
+
 tasks.named('test') {
     dependsOn fireStateTest, typeEffectControllerTest, iceTypeEffectTest, iceTypeEffectDeliveryTest, iceTypeEffectHudTest,
             fairyDrowsyStateTest
     dependsOn actionBattleSleepRulesTest
     dependsOn fairyControllerTest
+    dependsOn poisonStateTest
+    dependsOn poisonTrackerTest
+    dependsOn poisonDeliveryTest
+    dependsOn poisonRuntimeTest
+    dependsOn poisonHudTest
     failOnNoDiscoveredTests = false
 }
 

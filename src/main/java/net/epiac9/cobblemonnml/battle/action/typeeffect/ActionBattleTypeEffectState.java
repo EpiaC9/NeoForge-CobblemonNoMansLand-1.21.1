@@ -5,6 +5,9 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceState
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceTracker;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleDrowsyState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleDrowsyTracker;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonState;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonTracker;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -14,6 +17,7 @@ public final class ActionBattleTypeEffectState {
     private ActionBattleFireState fire;
     private ActionBattleIceTracker ice;
     private ActionBattleDrowsyTracker drowsy;
+    private ActionBattlePoisonTracker poison;
 
     ActionBattleTypeEffectState(UUID pokemonUUID) {
         if (pokemonUUID == null) throw new IllegalArgumentException("Pokemon ID cannot be null.");
@@ -49,6 +53,13 @@ public final class ActionBattleTypeEffectState {
         return drowsy != null && drowsy.completeNaturally(currentTick, durationTicks, route);
     }
 
+    boolean applyPoisonMove(long currentTick, boolean poisonTyped, int penetratedGain) {
+        if (poison == null) poison = new ActionBattlePoisonTracker();
+        boolean applied = poison.applyMove(currentTick, poisonTyped, penetratedGain);
+        if (poison.isEmpty()) poison = null;
+        return applied;
+    }
+
     void tick(long currentTick) { tick(currentTick, false); }
 
     void tick(long currentTick, boolean sleepCompletionActive) {
@@ -64,6 +75,10 @@ public final class ActionBattleTypeEffectState {
             drowsy.tick(currentTick, sleepCompletionActive);
             if (drowsy.isEmpty()) drowsy = null;
         }
+        if (poison != null) {
+            poison.tick(currentTick);
+            if (poison.isEmpty()) poison = null;
+        }
     }
 
     void suppressFireBonusByHaze() {
@@ -76,6 +91,10 @@ public final class ActionBattleTypeEffectState {
 
     void suppressFairySpecialDefenseByHaze() {
         if (drowsy != null) drowsy.suppressFairySpecialDefenseByHaze();
+    }
+
+    void suppressPoisonSpecialAttackByHaze() {
+        if (poison != null) poison.suppressSpecialAttackByHaze();
     }
 
     Optional<FireView> fireView(long currentTick) {
@@ -91,6 +110,12 @@ public final class ActionBattleTypeEffectState {
 
     Optional<DrowsyView> drowsyView(long currentTick) {
         return drowsy != null ? drowsy.activeDrowsy().map(state -> DrowsyView.from(state, currentTick))
+                : Optional.empty();
+    }
+
+    Optional<PoisonView> poisonView(long currentTick) {
+        tick(currentTick);
+        return poison != null ? poison.activeState().map(state -> PoisonView.from(state, poison, currentTick))
                 : Optional.empty();
     }
 
@@ -111,6 +136,15 @@ public final class ActionBattleTypeEffectState {
 
     int fairySpecialDefenseStages(long currentTick) {
         return drowsy != null ? drowsy.ownedSpecialDefenseStages(currentTick) : 0;
+    }
+
+    int poisonSpecialAttackStages(long currentTick) {
+        tick(currentTick);
+        return poison != null ? poison.activeState().map(ActionBattlePoisonState::ownedSpecialAttackStages).orElse(0) : 0;
+    }
+
+    int poisonMoveAccumulationGain() {
+        return poison != null ? poison.moveAccumulationGain() : ActionBattlePoisonRules.BASE_MOVE_GAIN;
     }
 
     int nextDrowsyDurationTicks() {
@@ -141,7 +175,13 @@ public final class ActionBattleTypeEffectState {
         return ice != null && ice.activeState().map(ActionBattleIceState::isFrostbitten).orElse(false);
     }
 
-    boolean isEmpty() { return fire == null && ice == null && drowsy == null; }
+    boolean isToxic(long currentTick) {
+        tick(currentTick);
+        return poison != null && poison.activeState()
+                .map(state -> state.level() == ActionBattlePoisonRules.PoisonLevel.TOXIC).orElse(false);
+    }
+
+    boolean isEmpty() { return fire == null && ice == null && drowsy == null && poison == null; }
     UUID pokemonUUID() { return pokemonUUID; }
 
     public record FireView(
@@ -174,6 +214,23 @@ public final class ActionBattleTypeEffectState {
     public record DrowsyView(long remainingTicks, long totalDurationTicks) {
         private static DrowsyView from(ActionBattleDrowsyState state, long currentTick) {
             return new DrowsyView(state.remainingTicks(currentTick), state.totalDurationTicks());
+        }
+    }
+
+    public record PoisonView(
+            ActionBattlePoisonRules.PoisonLevel level,
+            int accumulation,
+            long levelRemainingTicks,
+            long toxicRemainingTicks,
+            int ownedSpecialAttackStages,
+            boolean statSuppressedByHaze,
+            int moveAccumulationGain
+    ) {
+        private static PoisonView from(ActionBattlePoisonState state, ActionBattlePoisonTracker tracker, long currentTick) {
+            long remaining = Math.max(0L, state.levelEndTick() - currentTick);
+            return new PoisonView(state.level(), state.accumulation(), remaining,
+                    state.level() == ActionBattlePoisonRules.PoisonLevel.TOXIC ? remaining : 0L,
+                    state.ownedSpecialAttackStages(), state.statSuppressedByHaze(), tracker.moveAccumulationGain());
         }
     }
 }

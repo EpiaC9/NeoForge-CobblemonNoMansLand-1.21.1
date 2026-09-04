@@ -23,6 +23,10 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual TYPE_ICE_FREEZE = typeEffectVisual("freeze", 0xFF63BDEB);
     private static final StatusVisual TYPE_ICE_FROSTBITE = typeEffectVisual("frostbite", 0xFF4A8FCB);
     private static final StatusVisual TYPE_FAIRY_DROWSY = visual("sleep", 0xFFE890C8);
+    private static final StatusVisual TYPE_POISON = visual("confusion", 0xFF70C968);
+    private static final StatusVisual TYPE_POISON_LV1 = visual("confusion", 0xFF52AE5B);
+    private static final StatusVisual TYPE_POISON_LV2 = visual("confusion", 0xFF8D5BC4);
+    private static final StatusVisual TYPE_TOXIC = visual("confusion", 0xFF7139A3);
     private static final StatusVisual[] DETERIORATING_SHIELD = {
             visual("deteriorating_shield_1", 0xFFD8E7EC), visual("deteriorating_shield_2", 0xFFD0DFE5), visual("deteriorating_shield_3", 0xFFC5D5DC),
             visual("deteriorating_shield_4", 0xFFBACAD2), visual("deteriorating_shield_5", 0xFFADBFC8), visual("deteriorating_shield_6", 0xFFA0B4BE),
@@ -63,6 +67,10 @@ public final class ActionBattleStatusVisualRegistry {
             case "TYPE_ICE_FREEZE" -> TYPE_ICE_FREEZE;
             case "TYPE_ICE_FROSTBITE" -> TYPE_ICE_FROSTBITE;
             case "TYPE_FAIRY_DROWSY" -> TYPE_FAIRY_DROWSY;
+            case "TYPE_POISON" -> TYPE_POISON;
+            case "TYPE_POISON_LV1" -> TYPE_POISON_LV1;
+            case "TYPE_POISON_LV2" -> TYPE_POISON_LV2;
+            case "TYPE_TOXIC" -> TYPE_TOXIC;
             default -> null;
         };
     }

@@ -1,5 +1,9 @@
 package net.epiac9.cobblemonnml.battle.action.typeeffect.fairy;
 
+import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
+
+import java.util.UUID;
+
 public final class ActionBattleFairyControllerTest {
     private ActionBattleFairyControllerTest() {}
 
@@ -8,6 +12,18 @@ public final class ActionBattleFairyControllerTest {
         dragonCompletionPrecedesFairyCompletion();
         deterioratingShieldUsesExactPenetrationThresholds();
         onlyEnemyTargetCategoriesQualify();
+        shieldHistoryDoesNotReduceDrowsyWithoutAnActiveStance();
+    }
+
+    private static void shieldHistoryDoesNotReduceDrowsyWithoutAnActiveStance() {
+        ActionBattleProtectController protect = new ActionBattleProtectController();
+        UUID battle = UUID.randomUUID();
+        UUID pokemon = UUID.randomUUID();
+        protect.startBalefulBunker(battle, pokemon, 0L);
+        protect.startBalefulBunker(battle, pokemon, 1L);
+        assertEquals(0.05D, ActionBattleFairyController.penetrationChance(protect, battle, pokemon, 1L));
+        assertEquals(1.00D, ActionBattleFairyController.penetrationChance(protect, battle, pokemon, 41L));
+        assertEquals(2, protect.deterioratingShieldLevel(battle, pokemon));
     }
 
     private static void steelTypingRejectsDrowsyBeforeFairyRouting() {
@@ -44,6 +60,12 @@ public final class ActionBattleFairyControllerTest {
 
     private static void assertTrue(boolean value) { if (!value) throw new AssertionError("Expected true"); }
     private static void assertFalse(boolean value) { if (value) throw new AssertionError("Expected false"); }
+    private static void assertEquals(double expected, double actual) {
+        if (Math.abs(expected - actual) > 0.000001D) throw new AssertionError("Expected " + expected + " but got " + actual);
+    }
+    private static void assertEquals(int expected, int actual) {
+        if (expected != actual) throw new AssertionError("Expected " + expected + " but got " + actual);
+    }
     private static void assertSame(Object expected, Object actual) {
         if (expected != actual) throw new AssertionError("Expected " + expected + " but got " + actual);
     }

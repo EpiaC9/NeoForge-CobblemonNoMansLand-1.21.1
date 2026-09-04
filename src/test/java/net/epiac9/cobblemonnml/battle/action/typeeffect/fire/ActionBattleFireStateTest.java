@@ -1,8 +1,11 @@
 package net.epiac9.cobblemonnml.battle.action.typeeffect.fire;
 
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleDeterioratingShieldState;
+import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleStatResolver;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
+
+import java.util.UUID;
 
 public final class ActionBattleFireStateTest {
     private static final double EPSILON = 0.000001D;
@@ -22,6 +25,18 @@ public final class ActionBattleFireStateTest {
         modifiesOnlyIncomingFireDamageDuringBurn();
         retainsFractionalPressureThroughShieldPenetration();
         combinesGenericAndFireOwnedStages();
+        shieldHistoryDoesNotReduceFireWithoutAnActiveStance();
+    }
+
+    private static void shieldHistoryDoesNotReduceFireWithoutAnActiveStance() {
+        ActionBattleProtectController protect = new ActionBattleProtectController();
+        UUID battle = UUID.randomUUID();
+        UUID pokemon = UUID.randomUUID();
+        protect.startBalefulBunker(battle, pokemon, 0L);
+        protect.startBalefulBunker(battle, pokemon, 1L);
+        assertEquals(0.72D, ActionBattleFireController.penetratedPressure(protect, battle, pokemon, 1L, 9.0D));
+        assertEquals(9.00D, ActionBattleFireController.penetratedPressure(protect, battle, pokemon, 41L, 9.0D));
+        assertEquals(2, protect.deterioratingShieldLevel(battle, pokemon));
     }
 
     private static void progressesThroughBuildUpCindersAndBurn() {

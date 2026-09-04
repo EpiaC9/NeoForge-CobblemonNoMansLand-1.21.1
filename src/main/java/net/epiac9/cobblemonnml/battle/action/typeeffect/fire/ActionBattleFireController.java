@@ -28,9 +28,8 @@ public final class ActionBattleFireController {
         UUID battleId = ActionBattleManager.battleIdForPokemonEntity(target.getUUID());
         if (battleId == null || !battleId.equals(ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))) return;
         long currentTick = target.level().getGameTime();
-        double penetration = ActionBattleProtectController.global()
-                .effectPenetrationMultiplier(battleId, targetPokemon.getUuid(), currentTick);
-        double appliedPressure = pressureAmount * penetration;
+        double appliedPressure = penetratedPressure(ActionBattleProtectController.global(), battleId,
+                targetPokemon.getUuid(), currentTick, pressureAmount);
         if (!(appliedPressure > 0.0D)) return;
         boolean hazeActive = ActionBattleEffectController.global().hasHaze(battleId, targetPokemon.getUuid(), currentTick);
         ActionBattleTypeEffectController controller = ActionBattleTypeEffectController.global();
@@ -46,6 +45,12 @@ public final class ActionBattleFireController {
         controller.guardSession(sessionId);
         return (float) controller.modifyDamage(sessionId, pokemonTarget.getPokemon().getUuid(), true, damage,
                 attacker.level().getGameTime());
+    }
+
+    public static double penetratedPressure(ActionBattleProtectController protect, UUID battleId, UUID pokemonUUID,
+                                            long currentTick, double pressure) {
+        if (protect == null || !(pressure > 0.0D)) return Math.max(0.0D, pressure);
+        return pressure * protect.effectPenetrationMultiplier(battleId, pokemonUUID, currentTick);
     }
 
     private static UUID activeSessionId() {

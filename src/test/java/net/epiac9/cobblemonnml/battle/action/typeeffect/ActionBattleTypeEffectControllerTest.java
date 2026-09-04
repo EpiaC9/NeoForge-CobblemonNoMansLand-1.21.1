@@ -1,5 +1,8 @@
 package net.epiac9.cobblemonnml.battle.action.typeeffect;
 
+import net.epiac9.cobblemonnml.battle.action.ActionBattleStatResolver;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
+
 import java.util.UUID;
 
 public final class ActionBattleTypeEffectControllerTest {
@@ -17,6 +20,52 @@ public final class ActionBattleTypeEffectControllerTest {
         chainsFireAndIceDamageModifiersIndependently();
         ownsFairyDrowsyAndSpecialDefenseIndependently();
         suppressesOnlyFairySpecialDefenseWithoutEndingCompletion();
+        poisonCoexistsAndOwnsOnlySpecialAttack();
+        poisonHazeSuppressionPreservesProgressAndResistance();
+        toxicAmplifiesOnlyPoisonMoveDamage();
+    }
+
+    private static void poisonCoexistsAndOwnsOnlySpecialAttack() {
+        Fixture fixture = new Fixture();
+        fixture.controller.applyFirePressure(fixture.session, fixture.pokemon, 20.0D, 0L, false, false);
+        fixture.controller.applyIceApplication(fixture.session, fixture.pokemon, 0L, false, false);
+        fixture.controller.applyDrowsy(fixture.session, fixture.pokemon, 0L);
+        assertTrue(fixture.controller.applyPoisonMove(fixture.session, fixture.pokemon, 0L, false, 9));
+        assertTrue(fixture.controller.fireView(fixture.session, fixture.pokemon, 0L).isPresent());
+        assertTrue(fixture.controller.iceView(fixture.session, fixture.pokemon, 0L).isPresent());
+        assertTrue(fixture.controller.drowsyView(fixture.session, fixture.pokemon, 0L).isPresent());
+        assertTrue(fixture.controller.poisonView(fixture.session, fixture.pokemon, 0L).isPresent());
+        assertEquals(-1, fixture.controller.poisonSpecialAttackStages(fixture.session, fixture.pokemon, 0L));
+        assertEquals(2, ActionBattleStatResolver.combineStages(ActionBattleStat.SPECIAL_ATTACK, 3,
+                fixture.controller.poisonSpecialAttackStages(fixture.session, fixture.pokemon, 0L)));
+
+        Fixture poisonTyped = new Fixture();
+        poisonTyped.controller.applyPoisonMove(poisonTyped.session, poisonTyped.pokemon, 0L, true, 9);
+        assertEquals(1, poisonTyped.controller.poisonSpecialAttackStages(
+                poisonTyped.session, poisonTyped.pokemon, 0L));
+    }
+
+    private static void poisonHazeSuppressionPreservesProgressAndResistance() {
+        Fixture fixture = new Fixture();
+        fixture.controller.applyPoisonMove(fixture.session, fixture.pokemon, 0L, false, 9);
+        fixture.controller.suppressPoisonSpecialAttackByHaze(fixture.session, fixture.pokemon);
+        ActionBattleTypeEffectState.PoisonView view = fixture.controller
+                .poisonView(fixture.session, fixture.pokemon, 0L).orElseThrow();
+        assertEquals(1, view.accumulation());
+        assertEquals(9, view.moveAccumulationGain());
+        assertEquals(120L, view.levelRemainingTicks());
+        assertEquals(0, view.ownedSpecialAttackStages());
+        assertTrue(view.statSuppressedByHaze());
+    }
+
+    private static void toxicAmplifiesOnlyPoisonMoveDamage() {
+        Fixture fixture = new Fixture();
+        fixture.controller.applyPoisonMove(fixture.session, fixture.pokemon, 0L, true, 9);
+        fixture.controller.applyPoisonMove(fixture.session, fixture.pokemon, 1L, true, 98);
+        assertEquals(120.0D, fixture.controller.modifyDamage(
+                fixture.session, fixture.pokemon, false, false, true, 100.0D, 1L));
+        assertEquals(100.0D, fixture.controller.modifyDamage(
+                fixture.session, fixture.pokemon, false, false, false, 100.0D, 1L));
     }
 
     private static void ownsFairyDrowsyAndSpecialDefenseIndependently() {
