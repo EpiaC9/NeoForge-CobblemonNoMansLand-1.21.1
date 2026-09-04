@@ -53,6 +53,14 @@ public final class ActionBattleProtectController {
         removeIfInactive(new Key(battleId, pokemonUUID), state);
     }
 
+    public void reduceDeterioratingShieldLevel(UUID battleId, UUID pokemonUUID) {
+        ActionBattleDeterioratingShieldState state = state(battleId, pokemonUUID);
+        if (state == null) return;
+        Key key = new Key(battleId, pokemonUUID);
+        state.reduceLevel();
+        removeIfInactive(key, state);
+    }
+
     public void tickPokemon(UUID battleId, UUID pokemonUUID, boolean recalled) {
         ActionBattleDeterioratingShieldState state = state(battleId, pokemonUUID);
         if (state == null) return;

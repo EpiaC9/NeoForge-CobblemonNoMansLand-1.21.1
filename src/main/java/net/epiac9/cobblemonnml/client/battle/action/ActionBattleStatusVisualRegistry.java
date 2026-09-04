@@ -29,6 +29,8 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual TYPE_TOXIC = visual("confusion", 0xFF7139A3);
     private static final StatusVisual TYPE_ELECTRIC_CHARGE = typeEffectVisual("electric_charge", 0xFFFFD740);
     private static final StatusVisual TYPE_ELECTRIC_PARALYSIS = typeEffectVisual("paralysis", 0xFFFFB300);
+    private static final StatusVisual TYPE_AQUA_SHIELD = typeEffectVisual("aqua_shield", 0xFF42C7E8);
+    private static final StatusVisual TYPE_IMMOBILIZED = typeEffectVisual("immobilized", 0xFF2488C9);
     private static final StatusVisual[] DETERIORATING_SHIELD = {
             visual("deteriorating_shield_1", 0xFFD8E7EC), visual("deteriorating_shield_2", 0xFFD0DFE5), visual("deteriorating_shield_3", 0xFFC5D5DC),
             visual("deteriorating_shield_4", 0xFFBACAD2), visual("deteriorating_shield_5", 0xFFADBFC8), visual("deteriorating_shield_6", 0xFFA0B4BE),
@@ -75,6 +77,8 @@ public final class ActionBattleStatusVisualRegistry {
             case "TYPE_TOXIC" -> TYPE_TOXIC;
             case "TYPE_ELECTRIC_CHARGE" -> TYPE_ELECTRIC_CHARGE;
             case "TYPE_ELECTRIC_PARALYSIS" -> TYPE_ELECTRIC_PARALYSIS;
+            case "TYPE_AQUA_SHIELD" -> TYPE_AQUA_SHIELD;
+            case "TYPE_IMMOBILIZED" -> TYPE_IMMOBILIZED;
             default -> null;
         };
     }

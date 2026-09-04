@@ -21,6 +21,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyC
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterHealth;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.registry.ModEntities;
 import net.minecraft.core.BlockPos;
@@ -163,6 +165,8 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         if (nativeDamageMove) setDamage(FightOrFlightAdapter.scaleActionDamage(attacker, target, move, PokemonAttackEffect.calculatePokemonDamage(attacker, target, move)));
         PokemonEntity pokemonTarget = target instanceof PokemonEntity value ? value : null;
         int beforeHp = pokemonTarget != null ? pokemonTarget.getPokemon().getCurrentHealth() : 0;
+        int attemptedPokemonDamage = pokemonTarget != null ? ActionBattleWaterHealth.toPokemonDamage(
+                pokemonTarget.getPokemon().getMaxHealth(), pokemonTarget.getMaxHealth(), getDamage()) : 0;
         ActionBattleSession sleepSession = pokemonTarget != null ? ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID()) : null;
         long currentTick = attacker.level().getGameTime();
         ActionBattleSleepController.WakePlan wakePlan = nativeDamageMove && pokemonTarget != null
@@ -176,8 +180,12 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         PokemonAttackEffect.applySFX(attacker.level(), move, attacker.blockPosition());
         if (nativeDamageMove) FightOrFlightAdapter.applyPostEffectsWithoutActionStatuses(attacker, target, move, success);
         if (pokemonTarget != null) {
-            FightOrFlightAdapter.applyProtectImpact(attacker, pokemonTarget, move, beforeHp, success);
+            boolean qualifyingWaterInteraction = success && (!nativeDamageMove
+                    || beforeHp > pokemonTarget.getPokemon().getCurrentHealth());
+            FightOrFlightAdapter.applyProtectImpact(
+                    attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
             if (nativeDamageMove && success) ActionBattleFireController.onSuccessfulMoveHit(attacker, pokemonTarget, move, ActionBattleFireRules.NORMAL_PRESSURE);
+            if (qualifyingWaterInteraction) ActionBattleWaterController.onSuccessfulInteraction(attacker, pokemonTarget, move);
             if (nativeDamageMove && success && beforeHp > pokemonTarget.getPokemon().getCurrentHealth()) {
                 ActionBattleElectricController.onSuccessfulMoveHit(attacker, pokemonTarget, move);
             }

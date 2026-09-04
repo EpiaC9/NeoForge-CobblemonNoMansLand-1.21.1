@@ -46,6 +46,12 @@ final class ActionBattleCommandCooldownState {
         return true;
     }
 
+    boolean addMovementPenalty(UUID pokemonUUID, long currentTick, long penaltyTicks) {
+        if (!valid(pokemonUUID, currentTick, penaltyTicks)) return false;
+        extend(movementEndTicks, movementDurationTicks, pokemonUUID, currentTick, penaltyTicks);
+        return true;
+    }
+
     boolean startSwap(Side side, long currentTick, long durationTicks) {
         return side != null && currentTick >= 0L && durationTicks > 0L && swap(side).start(currentTick, durationTicks);
     }

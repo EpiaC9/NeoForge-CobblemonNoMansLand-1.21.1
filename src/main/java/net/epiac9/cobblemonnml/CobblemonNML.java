@@ -8,6 +8,7 @@ import net.epiac9.cobblemonnml.registry.ModChunkGenerators;
 import net.epiac9.cobblemonnml.registry.ModCreativeTabs;
 import net.epiac9.cobblemonnml.registry.ModEntities;
 import net.epiac9.cobblemonnml.registry.ModItems;
+import net.epiac9.cobblemonnml.registry.ModBlockEntities;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -22,6 +23,9 @@ public class CobblemonNML {
 
         // Block Items
         ModBlocks.ITEMS.register( modEventBus );
+
+        // Block entities
+        ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
 
         // Items
         ModItems.ITEMS.register( modEventBus );

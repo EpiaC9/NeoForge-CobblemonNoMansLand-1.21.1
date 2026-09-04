@@ -202,6 +202,12 @@ public final class ActionBattleSession {
         return side != null && commandCooldowns.addPenalty(pokemonUUID, side, currentTick, penaltyTicks);
     }
 
+    public boolean addPokemonMovementCooldownPenalty(UUID pokemonUUID, long currentTick, long penaltyTicks) {
+        return state == ActionBattleState.ACTIVE
+                && cooldownSide(pokemonUUID) != null
+                && commandCooldowns.addMovementPenalty(pokemonUUID, currentTick, penaltyTicks);
+    }
+
     public boolean startPlayerSwapCooldown(long currentTick, long durationTicks) {
         return state == ActionBattleState.ACTIVE && commandCooldowns.startSwap(ActionBattleCommandCooldownState.Side.PLAYER, currentTick, durationTicks);
     }

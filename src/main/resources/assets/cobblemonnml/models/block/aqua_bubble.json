@@ -1,0 +1,5 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": { "all": "cobblemonnml:block/aqua_bubble" },
+  "render_type": "translucent"
+}

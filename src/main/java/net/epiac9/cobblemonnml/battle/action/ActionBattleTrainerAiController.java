@@ -1,5 +1,7 @@
 package net.epiac9.cobblemonnml.battle.action;
 
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+
 import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.cobblemon.mod.common.pokemon.Pokemon;
@@ -77,6 +79,12 @@ final class ActionBattleTrainerAiController {
         Move move = trainerPokemon.getMoveSet().get(session.trainerMoveSlot());
         if (move == null || !FightOrFlightAdapter.supports(move) || !FightOrFlightAdapter.hasPp(move) || !ActionBattleControlController.global().canUseMove(session.battleId(), trainerPokemon.getUuid(), move, currentTick)) {
             stopTrainerMovement(session, trainerPokemonEntity, ActionBattleCommandController.InterruptReason.TARGET_INVALID);
+            return;
+        }
+        if (ActionBattleMovementActionRules.requiresMovement(move)
+                && ActionBattleTypeEffectController.global().immobilizedView(
+                session.dungeonSessionId(), trainerPokemon.getUuid(), currentTick).isPresent()) {
+            stopTrainerMovement(session, trainerPokemonEntity, ActionBattleCommandController.InterruptReason.CONTROL_EFFECT);
             return;
         }
         boolean onCooldown = session.isPokemonMoveOnCooldown(trainerPokemon.getUuid(), currentTick);

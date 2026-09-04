@@ -21,6 +21,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireSta
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricVisuals;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterVisuals;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -107,6 +108,13 @@ public final class ActionBattleHudSync {
         drowsyStatusState(pokemonUUID, currentTick).ifPresent(states::add);
         poisonStatusState(pokemonUUID, currentTick).ifPresent(states::add);
         electricStatusState(pokemonUUID, currentTick).ifPresent(states::add);
+        ActionBattleTypeEffectController typeEffects = ActionBattleTypeEffectController.global();
+        typeEffects.aquaShieldView(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view ->
+                states.add(new ActionBattleHudPayload.StatusState(ActionBattleWaterVisuals.AQUA_SHIELD_STATUS_ID,
+                        view.remainingTicks(), view.totalDurationTicks())));
+        typeEffects.immobilizedView(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view ->
+                states.add(new ActionBattleHudPayload.StatusState(ActionBattleWaterVisuals.IMMOBILIZED_STATUS_ID,
+                        view.remainingTicks(), view.totalDurationTicks())));
         return List.copyOf(states);
     }
 

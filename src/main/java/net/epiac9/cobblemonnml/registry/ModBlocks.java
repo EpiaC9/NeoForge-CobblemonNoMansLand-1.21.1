@@ -10,6 +10,7 @@ import net.epiac9.cobblemonnml.block.VillageEntranceMarkerBlock;
 
 import net.epiac9.cobblemonnml.portal.DungeonPortalBlock;
 import net.epiac9.cobblemonnml.portal.DungeonPortalCoreBlock;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.water.field.AquaBubbleBlock;
 
 import net.minecraft.world.item.BlockItem;
 
@@ -24,6 +25,11 @@ public final class ModBlocks {
     // REGISTRIES
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks( CobblemonNML.MOD_ID );
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems( CobblemonNML.MOD_ID );
+    public static final DeferredBlock<AquaBubbleBlock> AQUA_BUBBLE = BLOCKS.register(
+            "aqua_bubble",
+            () -> new AquaBubbleBlock(BlockBehaviour.Properties.of()
+                    .noCollission().noOcclusion().strength(-1.0F).noLootTable().lightLevel(state -> 6))
+    );
     // DUNGEON PORTAL CORE
     public static final DeferredBlock<DungeonPortalCoreBlock>
             DUNGEON_PORTAL_CORE = BLOCKS.register( "dungeon_portal_core", DungeonPortalCoreBlock::new );

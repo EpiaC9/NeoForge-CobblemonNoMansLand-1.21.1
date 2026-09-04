@@ -12,6 +12,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleEle
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterState;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +24,7 @@ public final class ActionBattleTypeEffectState {
     private ActionBattleDrowsyTracker drowsy;
     private ActionBattlePoisonTracker poison;
     private ActionBattleElectricTracker electric;
+    private ActionBattleWaterState water;
 
     ActionBattleTypeEffectState(UUID pokemonUUID) {
         if (pokemonUUID == null) throw new IllegalArgumentException("Pokemon ID cannot be null.");
@@ -107,6 +109,10 @@ public final class ActionBattleTypeEffectState {
         if (electric != null) {
             electric.tick(currentTick);
             if (electric.isEmpty()) electric = null;
+        }
+        if (water != null) {
+            water.tick(currentTick);
+            if (water.isEmpty()) water = null;
         }
     }
 
@@ -219,6 +225,33 @@ public final class ActionBattleTypeEffectState {
         return drowsy != null && drowsy.cancelOnRecall(currentTick);
     }
 
+    ActionBattleWaterState.ApplyShieldResult applyAquaShield(long currentTick, boolean waterTyped,
+                                                              boolean protectActive) {
+        if (water == null) water = new ActionBattleWaterState();
+        return water.applyShield(currentTick, waterTyped, protectActive);
+    }
+
+    boolean breakAquaShield(long currentTick, boolean protectActive) {
+        return water != null && water.breakShield(currentTick, protectActive);
+    }
+
+    boolean applyImmobilized(long currentTick) {
+        if (water == null) water = new ActionBattleWaterState();
+        return water.applyImmobilized(currentTick);
+    }
+
+    Optional<ActionBattleWaterState.AquaShieldView> aquaShieldView(long currentTick) {
+        return water == null ? Optional.empty() : water.aquaShieldView(currentTick);
+    }
+
+    Optional<ActionBattleWaterState.ImmobilizedView> immobilizedView(long currentTick) {
+        return water == null ? Optional.empty() : water.immobilizedView(currentTick);
+    }
+
+    java.util.List<ActionBattleWaterState.ShieldEndEvent> drainWaterShieldEndEvents() {
+        return water == null ? java.util.List.of() : water.drainShieldEndEvents();
+    }
+
     int iceHitsRequired(long currentTick) {
         tick(currentTick);
         return ice != null ? ice.hitsRequired() : 3;
@@ -240,7 +273,7 @@ public final class ActionBattleTypeEffectState {
                 .map(state -> state.level() == ActionBattlePoisonRules.PoisonLevel.TOXIC).orElse(false);
     }
 
-    boolean isEmpty() { return fire == null && ice == null && drowsy == null && poison == null && electric == null; }
+    boolean isEmpty() { return fire == null && ice == null && drowsy == null && poison == null && electric == null && water == null; }
     UUID pokemonUUID() { return pokemonUUID; }
 
     public record FireView(

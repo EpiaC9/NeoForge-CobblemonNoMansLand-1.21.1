@@ -7,7 +7,8 @@
     "GravestoneEventMixin",
     "GravestoneBlockEntityMixin",
     "ActionBattleSendOutPokemonHandlerMixin",
-    "ActionBattlePokemonBrainMixin"
+    "ActionBattlePokemonBrainMixin",
+    "ActionBattleLivingEntityAccessor"
   ],
   "client": [],
   "injectors": {

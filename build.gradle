@@ -281,6 +281,76 @@ def electricParalysisResolverTest = tasks.register('electricParalysisResolverTes
     mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisResolverTest'
 }
 
+def waterStateTest = tasks.register('waterStateTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Water Aqua Shield and Immobilized state regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterStateTest'
+}
+
+def waterPlacementTest = tasks.register('waterPlacementTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs deterministic Water field placement regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.water.WaterFieldPlacementTest'
+}
+
+def waterFieldTrackerTest = tasks.register('waterFieldTrackerTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs reusable field-object ownership and eviction regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleFieldObjectTrackerTest'
+}
+
+def aquaBubbleLifecycleTest = tasks.register('aquaBubbleLifecycleTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Aqua Bubble lifetime and single-consumption regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.water.AquaBubbleLifecycleTest'
+}
+
+def waterActivationTest = tasks.register('waterActivationTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Water contact outcome and session state regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterActivationTest'
+}
+
+def aquaShieldProtectTest = tasks.register('aquaShieldProtectTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Aqua Shield and Protect single-resolution DS regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleAquaShieldProtectTest'
+}
+
+def waterMovementTest = tasks.register('waterMovementTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Immobilized movement-only cooldown regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleImmobilizedMovementTest'
+}
+
+def waterDeliveryTest = tasks.register('waterDeliveryTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs qualifying Water interaction delivery tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterDeliveryTest'
+}
+
+def aquaBubbleControllerTest = tasks.register('aquaBubbleControllerTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs combined Aqua Bubble placement, ownership, lifecycle, cap, and cleanup tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleAquaBubbleControllerTest'
+}
+
+def waterHudTest = tasks.register('waterHudTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Aqua Shield and Immobilized HUD resource tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterHudTest'
+}
+
 tasks.named('test') {
     dependsOn fireStateTest, typeEffectControllerTest, iceTypeEffectTest, iceTypeEffectDeliveryTest, iceTypeEffectHudTest,
             fairyDrowsyStateTest
@@ -296,6 +366,13 @@ tasks.named('test') {
     dependsOn electricIntegrationTest, electricDeliveryTest, electricHudTest
     dependsOn electricParalysisControllerTest
     dependsOn electricParalysisResolverTest
+    dependsOn waterStateTest
+    dependsOn waterPlacementTest, waterFieldTrackerTest
+    dependsOn aquaBubbleLifecycleTest
+    dependsOn waterActivationTest
+    dependsOn aquaShieldProtectTest
+    dependsOn waterMovementTest
+    dependsOn aquaBubbleControllerTest, waterDeliveryTest, waterHudTest
     failOnNoDiscoveredTests = false
 }
 

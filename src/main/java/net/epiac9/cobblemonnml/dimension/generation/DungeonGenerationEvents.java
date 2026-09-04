@@ -149,7 +149,7 @@ public final class DungeonGenerationEvents {
         // END ACTIVE SESSION
         UUID oldSessionId = DungeonSession.getSessionId();
         DungeonSession.end();
-        ActionBattleTypeEffectRuntime.clearSession(oldSessionId);
+        ActionBattleTypeEffectRuntime.clearSession(dungeonLevel, oldSessionId);
         // CLOSE OVERWORLD PORTAL
         DungeonPortalManager.deactivateTrackedPortals( server );
         // STOP UNFINISHED GENERATION

@@ -1,5 +1,7 @@
 package net.epiac9.cobblemonnml.battle.action;
 
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+
 import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.cobblemon.mod.common.pokemon.Pokemon;
@@ -141,6 +143,11 @@ public final class ActionBattleManager {
         UUID activeEntityId = session.playerActiveEntityUUID();
         if (activePokemonId == null || activeEntityId == null) return false;
         long currentTick = level.getGameTime();
+        if (ActionBattleTypeEffectController.global().immobilizedView(
+                session.dungeonSessionId(), activePokemonId, currentTick).isPresent()) {
+            DebugLog.log("[CobblemonNML] Move Here rejected. Battle=" + session.battleId() + ", reason=immobilized");
+            return false;
+        }
         if (ActionBattleSleepController.isSleeping(session, activePokemonId, currentTick)) {
             DebugLog.log("[CobblemonNML] Move Here rejected. Battle=" + session.battleId() + ", reason=sleep");
             return false;
@@ -192,6 +199,11 @@ public final class ActionBattleManager {
         if (!FightOrFlightAdapter.supports(move)) return rejectMove(session, moveSlot, "unsupported_move");
         if (!FightOrFlightAdapter.hasPp(move)) return rejectMove(session, moveSlot, "no_pp");
         long currentTick = level.getGameTime();
+        if (ActionBattleMovementActionRules.requiresMovement(move)
+                && ActionBattleTypeEffectController.global().immobilizedView(
+                session.dungeonSessionId(), refs.playerPokemon().getUuid(), currentTick).isPresent()) {
+            return rejectMove(session, moveSlot, "immobilized");
+        }
         if (ActionBattleSleepController.isSleeping(session, refs.playerPokemon().getUuid(), currentTick)) return rejectMove(session, moveSlot, "sleep");
         if (!ActionBattleControlController.global().canUseMove(session.battleId(), refs.playerPokemon().getUuid(), move, currentTick)) return rejectMove(session, moveSlot, "control_effect");
         ActionBattleCommandController.onCommandIssued(session, refs.playerPokemon().getUuid());
@@ -381,6 +393,14 @@ public final class ActionBattleManager {
                 session.clearPlayerMoveState();
                 String reason = move == null ? "missing_move" : !FightOrFlightAdapter.supports(move) ? "unsupported_move" : "no_pp";
                 DebugLog.log("[CobblemonNML] Action move rejected. Battle=" + session.battleId() + ", slot=" + (session.playerMoveSlot() + 1) + ", reason=" + reason);
+                return;
+            }
+            if (ActionBattleMovementActionRules.requiresMovement(move)
+                    && ActionBattleTypeEffectController.global().immobilizedView(
+                    session.dungeonSessionId(), refs.playerPokemon().getUuid(), level.getGameTime()).isPresent()) {
+                pokemonEntity.getNavigation().stop();
+                session.clearPlayerMoveState();
+                DebugLog.log("[CobblemonNML] Queued movement move cancelled. Battle=" + session.battleId() + ", reason=immobilized");
                 return;
             }
             long currentTick = level.getGameTime();

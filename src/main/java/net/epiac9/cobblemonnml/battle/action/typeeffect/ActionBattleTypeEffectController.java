@@ -9,6 +9,7 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricTracker;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisState;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterState;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -107,6 +108,42 @@ public final class ActionBattleTypeEffectController {
         ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
         return state == null ? ActionBattleParalysisState.FlinchContributionResult.IGNORED
                 : state.addElectricParalysisFlinch(amount, currentTick);
+    }
+
+    public ActionBattleWaterState.ApplyShieldResult applyAquaShield(UUID sessionId, UUID pokemonUUID,
+                                                                     long currentTick, boolean waterTyped,
+                                                                     boolean protectActive) {
+        if (!validSession(sessionId) || pokemonUUID == null || currentTick < 0L) return null;
+        return states.computeIfAbsent(pokemonUUID, ActionBattleTypeEffectState::new)
+                .applyAquaShield(currentTick, waterTyped, protectActive);
+    }
+
+    public boolean breakAquaShield(UUID sessionId, UUID pokemonUUID, long currentTick, boolean protectActive) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state != null && state.breakAquaShield(currentTick, protectActive);
+    }
+
+    public boolean applyImmobilized(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        if (!validSession(sessionId) || pokemonUUID == null || currentTick < 0L) return false;
+        return states.computeIfAbsent(pokemonUUID, ActionBattleTypeEffectState::new).applyImmobilized(currentTick);
+    }
+
+    public Optional<ActionBattleWaterState.AquaShieldView> aquaShieldView(UUID sessionId, UUID pokemonUUID,
+                                                                           long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state == null ? Optional.empty() : state.aquaShieldView(currentTick);
+    }
+
+    public Optional<ActionBattleWaterState.ImmobilizedView> immobilizedView(UUID sessionId, UUID pokemonUUID,
+                                                                             long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state == null ? Optional.empty() : state.immobilizedView(currentTick);
+    }
+
+    public java.util.List<ActionBattleWaterState.ShieldEndEvent> drainWaterShieldEndEvents(
+            UUID sessionId, UUID pokemonUUID) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state == null ? java.util.List.of() : state.drainWaterShieldEndEvents();
     }
 
     public void tickSession(UUID sessionId, long currentTick) {

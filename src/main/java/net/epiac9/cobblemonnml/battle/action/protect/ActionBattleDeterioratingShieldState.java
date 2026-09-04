@@ -20,13 +20,24 @@ public final class ActionBattleDeterioratingShieldState {
         decay(100L);
     }
 
+    public void reduceLevel() {
+        if (!isActive()) return;
+        level--;
+        if (level <= 0) clear();
+        else remainingTicks = Math.min(remainingTicks, level * 200L);
+    }
+
     public void tick(boolean recalled) {
         if (!isActive()) return;
         decay(recalled ? 2L : 1L);
     }
 
     public float damageTakenMultiplier() {
-        return isActive() ? Math.min(0.9F, level * 0.1F) : 1.0F;
+        return isActive() ? damageTakenMultiplierForLevel(level) : 1.0F;
+    }
+
+    public static float damageTakenMultiplierForLevel(int level) {
+        return Math.min(0.9F, Math.max(1, Math.clamp(level, 0, MAX_LEVEL)) * 0.1F);
     }
 
     public float timedEffectDurationMultiplier() {

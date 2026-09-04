@@ -29,6 +29,11 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleEle
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleAquaShieldProtection;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterHealth;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import me.rufia.fightorflight.utils.PokemonUtils;
 import net.minecraft.world.entity.LivingEntity;
 
@@ -41,13 +46,13 @@ public final class FightOrFlightAdapter {
     private FightOrFlightAdapter() {}
 
     public static boolean supports(Move move) {
-        return move != null && (ActionBattleBalefulBunkerHandler.isBalefulBunker(move) || ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || ActionBattleElectricController.isQualifyingEnemyInteraction(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move))));
+        return move != null && (ActionBattleBalefulBunkerHandler.isBalefulBunker(move) || ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || ActionBattleElectricController.isQualifyingEnemyInteraction(move) || ActionBattleWaterController.isQualifyingInteraction(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move))));
     }
 
     public static boolean isMeleeMove(Move move) { return move != null && PokemonUtils.isMeleeAttackMove(move); }
 
     public static boolean isRangedMove(Move move) {
-        return move != null && (ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || (!PokemonUtils.isMeleeAttackMove(move) && ActionBattleElectricController.isQualifyingEnemyInteraction(move)) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move))));
+        return move != null && (ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || (!PokemonUtils.isMeleeAttackMove(move) && ActionBattleElectricController.isQualifyingEnemyInteraction(move)) || (!PokemonUtils.isMeleeAttackMove(move) && ActionBattleWaterController.isQualifyingInteraction(move)) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move))));
     }
 
     public static boolean isNativeDamageMove(Move move) {
@@ -212,19 +217,35 @@ public final class FightOrFlightAdapter {
         return attacker.distanceToSqr(target) <= range * range;
     }
 
-    public static void applyProtectImpact(PokemonEntity attacker, PokemonEntity target, Move move, int beforeHp, boolean hitSucceeded) {
+    public static void applyProtectImpact(PokemonEntity attacker, PokemonEntity target, Move move, int beforeHp,
+                                          int attemptedPokemonDamage, boolean hitSucceeded) {
         if (!hitSucceeded || attacker == null || target == null || move == null || attacker.level().isClientSide) return;
         UUID battleId = ActionBattleManager.battleIdForPokemonEntity(target.getUUID());
         if (battleId == null || !battleId.equals(ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))) return;
         long currentTick = attacker.level().getGameTime();
-        var stance = ActionBattleProtectController.global().activeStance(battleId, target.getPokemon().getUuid(), currentTick);
-        if (stance == null) return;
+        UUID pokemonUUID = target.getPokemon().getUuid();
+        var stance = ActionBattleProtectController.global().activeStance(battleId, pokemonUUID, currentTick);
+        UUID sessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
+        boolean aquaActive = sessionId != null && ActionBattleTypeEffectController.global()
+                .aquaShieldView(sessionId, pokemonUUID, currentTick).isPresent();
+        if (stance == null && !aquaActive) return;
         int afterHp = target.getPokemon().getCurrentHealth();
         int actualDamage = Math.max(0, beforeHp - afterHp);
         if (actualDamage > 0) {
-            int protectedDamage = ActionBattleProtectController.global().modifyFinalDamage(
-                    battleId, target.getPokemon().getUuid(), currentTick, actualDamage);
-            target.getPokemon().setCurrentHealth(Math.max(0, beforeHp - protectedDamage));
+            int damageForProtection = afterHp == 0
+                    ? Math.max(actualDamage, attemptedPokemonDamage) : actualDamage;
+            int dsLevel = ActionBattleProtectController.global().deterioratingShieldLevel(battleId, pokemonUUID);
+            ActionBattleAquaShieldProtection.Result protection = ActionBattleAquaShieldProtection.resolve(
+                    damageForProtection, dsLevel, stance != null, aquaActive);
+            if (stance != null && aquaActive) ActionBattleProtectController.global().breakStance(battleId, pokemonUUID);
+            if (aquaActive) {
+                ActionBattleTypeEffectController.global().breakAquaShield(
+                        sessionId, pokemonUUID, currentTick, stance != null);
+                ActionBattleWaterController.resolveProtectedHitShieldEnd(
+                        sessionId, pokemonUUID, target, beforeHp, protection.finalDamage());
+            } else {
+                target.getPokemon().setCurrentHealth(Math.max(0, beforeHp - protection.finalDamage()));
+            }
         }
     }
 
@@ -255,6 +276,10 @@ public final class FightOrFlightAdapter {
                 }
             }
             int beforeHp = pokemonTarget != null ? pokemonTarget.getPokemon().getCurrentHealth() : 0;
+            int attemptedPokemonDamage = pokemonTarget != null ? ActionBattleWaterHealth.toPokemonDamage(
+                    pokemonTarget.getPokemon().getMaxHealth(), pokemonTarget.getMaxHealth(),
+                    scaleActionDamage(attacker, pokemonTarget, move,
+                            PokemonAttackEffect.calculatePokemonDamage(attacker, pokemonTarget, move))) : 0;
             ActionBattleSession sleepSession = pokemonTarget != null ? ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID()) : null;
             long currentTick = attacker.level().getGameTime();
             ActionBattleSleepController.WakePlan wakePlan = pokemonTarget != null
@@ -263,8 +288,10 @@ public final class FightOrFlightAdapter {
             boolean success = withStatusMoveDataSuppressed(move, () -> PokemonAttackEffect.pokemonAttack(attacker, target));
             if (pokemonTarget != null) {
                 if (success) applyPostHitActionStatScaling(attacker, pokemonTarget, move, beforeHp);
-                applyProtectImpact(attacker, pokemonTarget, move, beforeHp, success);
+                boolean qualifyingWaterHit = success && beforeHp > pokemonTarget.getPokemon().getCurrentHealth();
+                applyProtectImpact(attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
                 if (success) ActionBattleFireController.onSuccessfulMoveHit(attacker, pokemonTarget, move, ActionBattleFireRules.NORMAL_PRESSURE);
+                if (qualifyingWaterHit) ActionBattleWaterController.onSuccessfulInteraction(attacker, pokemonTarget, move);
                 if (success && beforeHp > pokemonTarget.getPokemon().getCurrentHealth()) {
                     ActionBattleElectricController.onSuccessfulMoveHit(attacker, pokemonTarget, move);
                 }
@@ -284,7 +311,7 @@ public final class FightOrFlightAdapter {
             }
             return true;
         }
-        if (PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || ActionBattleElectricController.isQualifyingEnemyInteraction(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move)))) {
+        if (PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || ActionBattleElectricController.isQualifyingEnemyInteraction(move) || ActionBattleWaterController.isQualifyingInteraction(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move)))) {
             PokemonUtils.sendAnimationPacket(attacker, "special");
             ActionBattleProjectileEntity projectile = new ActionBattleProjectileEntity(attacker.level(), attacker, target, move);
             attacker.level().addFreshEntity(projectile);

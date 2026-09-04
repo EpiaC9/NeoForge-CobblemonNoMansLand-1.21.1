@@ -11,6 +11,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyC
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonParticleController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterController;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -28,6 +29,7 @@ public final class ActionBattleTypeEffectRuntime {
         ActionBattleTypeEffectController controller = ActionBattleTypeEffectController.global();
         controller.guardSession(sessionId);
         controller.tickSession(sessionId, level.getGameTime());
+        ActionBattleWaterController.tickSession(sessionId);
         ActionBattleFairyController.tickSession(level, sessionId);
         ActionBattleFireParticleController.tick(level);
         ActionBattleIceVisuals.tick(level);
@@ -50,6 +52,11 @@ public final class ActionBattleTypeEffectRuntime {
     public static void clearSession(UUID sessionId) {
         ActionBattleTypeEffectController.global().clearSession(sessionId);
         ActionBattleEffectController.global().clearBattle(sessionId);
+    }
+
+    public static void clearSession(ServerLevel level, UUID sessionId) {
+        ActionBattleWaterController.clearSession(level, sessionId);
+        clearSession(sessionId);
     }
 
     public static void onPokemonRecalled(UUID sessionId, UUID pokemonUUID) {
