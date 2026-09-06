@@ -9,7 +9,7 @@ public final class ActionProjectileProfile {
     public static final double WAVE_AREA_SPEED = 0.05D;
     public static final double HOMING_GUIDED_SPEED = 0.1D;
     public static final double ARCING_LOBBED_SPEED = 0.3D;
-    public static final double GROUNDED_SURFACE_SPEED = 0.8D;
+    public static final double GROUND_HUGGING_WAVE_SPEED = 0.8D;
     public static final double INSTANT_SPEED = 1.0D;
     public static final double TARGET_LOCKED_SPEED = 1.0D;
     public static final double DASH_RANGE_BONUS = 3.0D;
@@ -29,7 +29,7 @@ public final class ActionProjectileProfile {
             case "lavaplume", "searingshot", "matchagotcha", "heatwave" -> ActionMoveDeliveryType.WAVE_AREA;
             case "willowisp", "infernalparade" -> ActionMoveDeliveryType.HOMING_GUIDED;
             case "pyroball" -> ActionMoveDeliveryType.ARCING_LOBBED;
-            case "scorchingsands", "sandsearstorm" -> ActionMoveDeliveryType.GROUNDED_SURFACE;
+            case "earthquake", "scorchingsands", "sandsearstorm" -> ActionMoveDeliveryType.GROUND_HUGGING_WAVE;
             case "firepunch", "firefang", "blazekick" -> ActionMoveDeliveryType.PHYSICAL_CONTACT;
             case "sizzlyslide", "blazingtorque", "flamewheel", "flareblitz" -> ActionMoveDeliveryType.DASH_RUSH;
             default -> ActionMoveDeliveryType.NORMAL_PROJECTILE;
@@ -42,7 +42,7 @@ public final class ActionProjectileProfile {
             case WAVE_AREA -> WAVE_AREA_SPEED;
             case HOMING_GUIDED -> HOMING_GUIDED_SPEED;
             case ARCING_LOBBED -> ARCING_LOBBED_SPEED;
-            case GROUNDED_SURFACE -> GROUNDED_SURFACE_SPEED;
+            case GROUND_HUGGING_WAVE -> GROUND_HUGGING_WAVE_SPEED;
             case INSTANT -> INSTANT_SPEED;
             case TARGET_LOCKED -> TARGET_LOCKED_SPEED;
             default -> NORMAL_PROJECTILE_SPEED;
@@ -65,8 +65,8 @@ public final class ActionProjectileProfile {
         return deliveryType(moveName) == ActionMoveDeliveryType.ARCING_LOBBED;
     }
 
-    public static boolean isGrounded(String moveName) {
-        return deliveryType(moveName) == ActionMoveDeliveryType.GROUNDED_SURFACE;
+    public static boolean isGroundHuggingWave(String moveName) {
+        return deliveryType(moveName) == ActionMoveDeliveryType.GROUND_HUGGING_WAVE;
     }
 
     public static int visualProjectileCount(String moveName) {

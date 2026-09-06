@@ -4,6 +4,7 @@ import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import me.rufia.fightorflight.data.movedata.MoveData;
 import me.rufia.fightorflight.data.movedata.movedatas.StatusEffectMoveData;
+import me.rufia.fightorflight.data.movedata.movedatas.StatChangeMoveData;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleConfusionController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleFlinchController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
@@ -14,6 +15,10 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectCo
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricController;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.util.DebugLog;
+import net.epiac9.cobblemonnml.mixin.ActionBattleStatChangeMoveDataAccessor;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatApplicationService;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatSource;
+import net.minecraft.world.entity.LivingEntity;
 
 import java.util.List;
 import java.util.Locale;
@@ -46,6 +51,30 @@ public final class ActionBattleMoveEffectResolver {
         String name = status.getName();
         return StatusFamily.FLINCH.matchesMetadata(name) || StatusFamily.CONFUSION.matchesMetadata(name)
             || StatusFamily.WAKE.matchesMetadata(name) || StatusFamily.PARALYSIS.matchesMetadata(name);
+    }
+
+    public static void applyDeclaredStatChanges(PokemonEntity attacker, LivingEntity suppliedTarget,
+                                                Move move, StatTrigger trigger, boolean hitSucceeded) {
+        if (attacker == null || move == null || trigger == null || attacker.level().isClientSide) return;
+        List<MoveData> entries = MoveData.moveData.get(move.getName());
+        if (entries == null) return;
+        for (MoveData entry : entries) {
+            if (!(entry instanceof StatChangeMoveData statData) || !matchesTrigger(statData, trigger)
+                    || trigger == StatTrigger.ON_HIT && !hitSucceeded) continue;
+            if (!ActionBattleStatMoveMetadata.passesChance(statData.getChance(),
+                    hasAbility(attacker, "serenegrace"), hasAbility(attacker, "sheerforce"),
+                    statData.canActivateSheerForce(), attacker.getRandom().nextFloat())) continue;
+            LivingEntity receiverEntity = Objects.equals(statData.getTarget(), "target")
+                    ? suppliedTarget : attacker;
+            if (!(receiverEntity instanceof PokemonEntity receiver)) continue;
+            ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(receiver.getUUID());
+            if (session == null || !session.battleId().equals(
+                    ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))) continue;
+            int stages = ((ActionBattleStatChangeMoveDataAccessor) statData).cobblemonNml$getStage();
+            ActionBattleStatApplicationService.global().applyBatch(session.battleId(),
+                    receiver.getPokemon().getUuid(), ActionBattleStatMoveMetadata.translate(statData.getName(), stages),
+                    attacker.level().getGameTime(), ActionBattleStatSource.NORMAL_MOVE, true);
+        }
     }
 
     public static void applyDeclaredFlinchOnHit(PokemonEntity attacker, PokemonEntity target, Move move, boolean hitSucceeded) {
@@ -135,6 +164,16 @@ public final class ActionBattleMoveEffectResolver {
     private static boolean hasAbility(PokemonEntity attacker, String abilityName) {
         return attacker != null && Objects.equals(attacker.getPokemon().getAbility().getName(), abilityName);
     }
+
+    private static boolean matchesTrigger(MoveData data, StatTrigger trigger) {
+        return switch (trigger) {
+            case BEFORE_USE -> data.isBeforeUse();
+            case ON_USE -> data.isOnUse();
+            case ON_HIT -> data.isOnHit();
+        };
+    }
+
+    public enum StatTrigger { BEFORE_USE, ON_USE, ON_HIT }
 
     private enum StatusFamily {
         CONFUSION,

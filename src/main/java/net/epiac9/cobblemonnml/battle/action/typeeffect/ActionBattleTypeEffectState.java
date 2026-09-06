@@ -14,7 +14,12 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattlePar
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassState;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundState;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,6 +32,8 @@ public final class ActionBattleTypeEffectState {
     private ActionBattleElectricTracker electric;
     private ActionBattleWaterState water;
     private ActionBattleGrassState grass;
+    private ActionBattleGroundState ground;
+    private final List<StatStageEvent> pendingStatStageEvents = new ArrayList<>();
 
     ActionBattleTypeEffectState(UUID pokemonUUID) {
         if (pokemonUUID == null) throw new IllegalArgumentException("Pokemon ID cannot be null.");
@@ -34,15 +41,20 @@ public final class ActionBattleTypeEffectState {
     }
 
     boolean applyFirePressure(double amount, long currentTick, boolean fireTyped, boolean hazeActive) {
+        int before = fire != null ? fire.ownedAttackStages() : 0;
         if (fire == null) fire = new ActionBattleFireState();
         boolean applied = fire.applyPressure(amount, currentTick, fireTyped, hazeActive);
+        queueNewMagnitude(ActionBattleStat.ATTACK, before, fire.ownedAttackStages(), currentTick);
         if (fire.isEmpty()) fire = null;
         return applied;
     }
 
     boolean applyIceApplication(long currentTick, boolean iceTyped, boolean hazeActive) {
+        int before = ice != null ? ice.activeState().map(ActionBattleIceState::ownedDefenseStages).orElse(0) : 0;
         if (ice == null) ice = new ActionBattleIceTracker();
         boolean applied = ice.applyApplication(currentTick, iceTyped, hazeActive);
+        int after = ice.activeState().map(ActionBattleIceState::ownedDefenseStages).orElse(0);
+        queueNewMagnitude(ActionBattleStat.DEFENSE, before, after, currentTick);
         if (ice.isEmpty()) ice = null;
         return applied;
     }
@@ -59,27 +71,44 @@ public final class ActionBattleTypeEffectState {
     }
 
     boolean completeDrowsy(long currentTick, int durationTicks, ActionBattleDrowsyTracker.CompletionRoute route) {
-        return drowsy != null && drowsy.completeNaturally(currentTick, durationTicks, route);
+        boolean completed = drowsy != null && drowsy.completeNaturally(currentTick, durationTicks, route);
+        if (completed && route == ActionBattleDrowsyTracker.CompletionRoute.FAIRY_SPDEF) {
+            pendingStatStageEvents.add(new StatStageEvent(pokemonUUID, ActionBattleStat.SPECIAL_DEFENSE,
+                    net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyRules.FAIRY_COMPLETION_SPDEF_STAGE,
+                    currentTick));
+        }
+        return completed;
     }
 
     boolean applyPoisonMove(long currentTick, boolean poisonTyped, int penetratedGain) {
+        int before = poison != null ? poison.activeState().map(ActionBattlePoisonState::ownedSpecialAttackStages).orElse(0) : 0;
         if (poison == null) poison = new ActionBattlePoisonTracker();
         boolean applied = poison.applyMove(currentTick, poisonTyped, penetratedGain);
+        int after = poison.activeState().map(ActionBattlePoisonState::ownedSpecialAttackStages).orElse(0);
+        queueNewMagnitude(ActionBattleStat.SPECIAL_ATTACK, before, after, currentTick);
         if (poison.isEmpty()) poison = null;
         return applied;
     }
 
     ActionBattleElectricTracker.ApplyChargeResult addElectricCharge(int amount, long currentTick,
                                                                       boolean electricTyped, boolean hazeActive) {
+        int before = electric != null ? electric.activeParalysis()
+                .map(state -> state.ownedSpeedStages(currentTick)).orElse(0) : 0;
         if (electric == null) electric = new ActionBattleElectricTracker();
         ActionBattleElectricTracker.ApplyChargeResult result = electric.addCharge(amount, currentTick, electricTyped, hazeActive);
+        int after = electric.activeParalysis().map(state -> state.ownedSpeedStages(currentTick)).orElse(0);
+        queueNewMagnitude(ActionBattleStat.SPEED, before, after, currentTick);
         if (electric.isEmpty()) electric = null;
         return result;
     }
 
     boolean applyExternalElectricParalysis(long currentTick, boolean electricTyped, boolean hazeActive) {
+        int before = electric != null ? electric.activeParalysis()
+                .map(state -> state.ownedSpeedStages(currentTick)).orElse(0) : 0;
         if (electric == null) electric = new ActionBattleElectricTracker();
         boolean applied = electric.applyExternalParalysis(currentTick, electricTyped, hazeActive);
+        int after = electric.activeParalysis().map(state -> state.ownedSpeedStages(currentTick)).orElse(0);
+        queueNewMagnitude(ActionBattleStat.SPEED, before, after, currentTick);
         if (electric.isEmpty()) electric = null;
         return applied;
     }
@@ -105,7 +134,10 @@ public final class ActionBattleTypeEffectState {
             if (drowsy.isEmpty()) drowsy = null;
         }
         if (poison != null) {
+            int before = poison.activeState().map(ActionBattlePoisonState::ownedSpecialAttackStages).orElse(0);
             poison.tick(currentTick);
+            int after = poison.activeState().map(ActionBattlePoisonState::ownedSpecialAttackStages).orElse(0);
+            queueNewMagnitude(ActionBattleStat.SPECIAL_ATTACK, before, after, currentTick);
             if (poison.isEmpty()) poison = null;
         }
         if (electric != null) {
@@ -223,6 +255,8 @@ public final class ActionBattleTypeEffectState {
                 : net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyRules.BASE_DROWSY_DURATION_TICKS;
     }
 
+    long drowsyCleanResetEndTick() { return drowsy != null ? drowsy.cleanResetEndTick() : -1L; }
+
     ActionBattleDrowsyTracker.CompletionRoute pendingDrowsyCompletionRoute() {
         return drowsy != null ? drowsy.pendingCompletionRoute() : ActionBattleDrowsyTracker.CompletionRoute.SLEEP;
     }
@@ -293,6 +327,49 @@ public final class ActionBattleTypeEffectState {
         return grass == null ? Optional.empty() : grass.leechSeedView(currentTick);
     }
 
+    ActionBattleGroundState.ApplyResult applyGround(long currentTick, boolean groundTyped) {
+        if (ground == null) ground = new ActionBattleGroundState(groundTyped);
+        return ground.apply(currentTick);
+    }
+
+    Optional<ActionBattleGroundState.View> groundView(long currentTick) {
+        return ground == null ? Optional.empty() : ground.view(currentTick);
+    }
+
+    ActionBattleGroundState.TickResult tickGround(long currentTick) {
+        return ground == null ? ActionBattleGroundState.TickResult.NONE : ground.tick(currentTick);
+    }
+
+    ActionBattleGroundState.Branch groundBranch() {
+        return ground == null ? null : ground.branch();
+    }
+
+    double groundMovementMultiplier(long currentTick) {
+        Optional<ActionBattleGroundState.View> view = groundView(currentTick);
+        return view.map(value -> ActionBattleGroundRules.movementMultiplier(
+                value.depthPercent(), value.branch() == ActionBattleGroundState.Branch.DIG)).orElse(1.0D);
+    }
+
+    boolean groundBlocksMovement(long currentTick) {
+        return groundView(currentTick).map(view -> view.branch() == ActionBattleGroundState.Branch.SINK
+                && view.depthPercent() == 90).orElse(false);
+    }
+
+    boolean groundBlocksRecall(long currentTick) {
+        return groundView(currentTick).isPresent();
+    }
+
+    boolean expelGround() {
+        return ground != null && ground.expel();
+    }
+
+    boolean clearGround() {
+        if (ground == null || ground.isEmpty()) return false;
+        ground.clearSilently();
+        ground = null;
+        return true;
+    }
+
     int iceHitsRequired(long currentTick) {
         tick(currentTick);
         return ice != null ? ice.hitsRequired() : 3;
@@ -314,7 +391,21 @@ public final class ActionBattleTypeEffectState {
                 .map(state -> state.level() == ActionBattlePoisonRules.PoisonLevel.TOXIC).orElse(false);
     }
 
-    boolean isEmpty() { return fire == null && ice == null && drowsy == null && poison == null && electric == null && water == null && grass == null; }
+    List<StatStageEvent> drainStatStageEvents() {
+        if (pendingStatStageEvents.isEmpty()) return List.of();
+        List<StatStageEvent> drained = List.copyOf(pendingStatStageEvents);
+        pendingStatStageEvents.clear();
+        return drained;
+    }
+
+    private void queueNewMagnitude(ActionBattleStat stat, int before, int after, long currentTick) {
+        if (after == 0 || Math.abs(after) <= Math.abs(before)
+                || before != 0 && Integer.signum(before) != Integer.signum(after)) return;
+        pendingStatStageEvents.add(new StatStageEvent(pokemonUUID, stat, after - before, currentTick));
+    }
+
+    boolean isEmpty() { return fire == null && ice == null && drowsy == null && poison == null && electric == null && water == null && grass == null
+            && (ground == null || ground.isEmpty()) && pendingStatStageEvents.isEmpty(); }
     UUID pokemonUUID() { return pokemonUUID; }
 
     public record FireView(
@@ -372,4 +463,6 @@ public final class ActionBattleTypeEffectState {
     public record ElectricParalysisView(long remainingTicks, long totalDurationTicks,
                                         boolean electricTyped, int hiddenFlinch, int flinchThreshold,
                                         int ownedSpeedStages, boolean speedSuppressedByHaze) {}
+
+    public record StatStageEvent(UUID pokemonId, ActionBattleStat stat, int stages, long appliedAtTick) {}
 }

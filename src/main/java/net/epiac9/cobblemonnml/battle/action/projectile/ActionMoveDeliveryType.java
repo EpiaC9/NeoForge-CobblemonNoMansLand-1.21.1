@@ -6,7 +6,7 @@ public enum ActionMoveDeliveryType {
     WAVE_AREA,
     HOMING_GUIDED,
     ARCING_LOBBED,
-    GROUNDED_SURFACE,
+    GROUND_HUGGING_WAVE,
     PERSISTENT_AREA,
     INSTANT,
     TARGET_LOCKED,

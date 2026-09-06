@@ -12,11 +12,16 @@ public final class ActionBattlePoisonTracker {
 
     public boolean applyMove(long currentTick, boolean receiverPoisonTyped, int penetratedDirectGain) {
         if (currentTick < 0L || penetratedDirectGain <= 0) return false;
-        if (activeState != null) return activeState.applyDirectGain(penetratedDirectGain, currentTick);
+        if (activeState != null) {
+            boolean applied = activeState.applyDirectGain(penetratedDirectGain, currentTick);
+            if (applied) cleanResetEndTick = ActionBattleTiming.safeAdd(currentTick, ActionBattlePoisonRules.CLEAN_RESET_TICKS);
+            return applied;
+        }
         poisonTyped = receiverPoisonTyped;
         activeState = new ActionBattlePoisonState(receiverPoisonTyped);
-        cleanResetEndTick = -1L;
-        return activeState.applyDirectGain(1, currentTick);
+        boolean applied = activeState.applyDirectGain(1, currentTick);
+        if (applied) cleanResetEndTick = ActionBattleTiming.safeAdd(currentTick, ActionBattlePoisonRules.CLEAN_RESET_TICKS);
+        return applied;
     }
 
     public ActionBattlePoisonState.TickResult tick(long currentTick) {
@@ -26,7 +31,6 @@ public final class ActionBattlePoisonTracker {
             if (result == ActionBattlePoisonState.TickResult.COMPLETED_NATURALLY) {
                 activeState = null;
                 moveAccumulationGain = Math.max(1, moveAccumulationGain - 1);
-                cleanResetEndTick = ActionBattleTiming.safeAdd(currentTick, ActionBattlePoisonRules.CLEAN_RESET_TICKS);
             }
             return result;
         }

@@ -15,7 +15,7 @@ public final class ActionBattleIceTracker {
         if (activeState != null && activeState.isFrostbitten()) return false;
         if (activeState == null) {
             activeState = new ActionBattleIceState(hitsRequired, currentTick);
-            resetEndTick = -1L;
+            resetEndTick = ActionBattleTiming.safeAdd(currentTick, ActionBattleIceRules.REAPPLICATION_RESET_TICKS);
         }
         return activeState.applyApplication(currentTick, iceTyped, hazeActive);
     }
@@ -26,7 +26,6 @@ public final class ActionBattleIceTracker {
         if (activeState != null && activeState.tick(currentTick)) {
             activeState = null;
             hitsRequired++;
-            resetEndTick = ActionBattleTiming.safeAdd(currentTick, ActionBattleIceRules.REAPPLICATION_RESET_TICKS);
             changed = true;
         }
         if (activeState == null && resetEndTick >= 0L && currentTick >= resetEndTick) {

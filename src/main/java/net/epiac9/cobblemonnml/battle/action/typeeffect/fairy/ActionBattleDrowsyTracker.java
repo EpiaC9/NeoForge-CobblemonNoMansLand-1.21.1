@@ -32,8 +32,9 @@ public final class ActionBattleDrowsyTracker {
                 || completionDurationTicks <= 0 || route == null) return false;
         activeDrowsy = null;
         nextDrowsyDurationTicks = increaseWithoutOverflow(nextDrowsyDurationTicks);
-        completion = new CompletionState(route, currentTick,
-                ActionBattleTiming.safeAdd(currentTick, completionDurationTicks), false);
+        long completionEndTick = route == CompletionRoute.FAIRY_SPDEF
+                ? currentTick : ActionBattleTiming.safeAdd(currentTick, completionDurationTicks);
+        completion = new CompletionState(route, currentTick, completionEndTick, false);
         cleanResetEndTick = -1L;
         return true;
     }

@@ -9,6 +9,7 @@ import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlControll
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatLinkCleanup;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
@@ -19,6 +20,9 @@ import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentTy
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleProtectVisuals;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsycUpController;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
@@ -32,6 +36,9 @@ import java.util.Set;
 import java.util.UUID;
 
 final class ActionBattleEffectRuntime {
+    private static final ActionBattleStatLinkCleanup STAT_LINK_CLEANUP = new ActionBattleStatLinkCleanup(
+            ActionBattleEffectController.global(), ActionBattlePsycUpController.global());
+
     private ActionBattleEffectRuntime() {}
 
     static void tickBattle(ActionBattleSession session, ServerLevel level, ActionBattlePokemonRefs refs) {
@@ -53,6 +60,7 @@ final class ActionBattleEffectRuntime {
         syncHazeBattleZone(session, level, currentTick);
         observeDamageFeedback(session, refs);
         ActionBattleEffectController.global().tickBattle(session.battleId(), currentTick);
+        ActionBattlePsycUpController.global().tickBattle(session.battleId(), currentTick);
         List<ActionBattlePersistentTick> persistentTicks = ActionBattlePersistentController.global().tickBattle(session.battleId(), currentTick);
         applyPersistentTicks(session, level, persistentTicks, currentTick);
         if (refs != null) {
@@ -72,11 +80,26 @@ final class ActionBattleEffectRuntime {
         ActionBattleHailHandler.clearBattle(battleId);
         ActionBattleToxicSpikesHandler.clearBattle(battleId);
         ActionBattleProtectController.global().clearBattle(battleId);
-        ActionBattleEffectController.global().clearBattle(battleId);
+        STAT_LINK_CLEANUP.clearBattle(battleId);
         ActionBattlePersistentController.global().clearBattle(battleId);
         ActionBattleControlController.global().clearBattle(battleId);
         ActionBattleDamageFeedbackController.global().clearBattle(battleId);
         ActionBattleEvasionController.clearBattle(battleId);
+    }
+
+    static void clearAll() {
+        STAT_LINK_CLEANUP.clearAll();
+    }
+
+    static void onPokemonUnavailable(ActionBattleSession session, UUID pokemonId,
+                                     boolean fainted, long currentTick) {
+        if (session == null || pokemonId == null || currentTick < 0L) return;
+        ActionBattleFairyController.onPokemonRecalled(pokemonId, currentTick);
+        ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), pokemonId);
+        STAT_LINK_CLEANUP.onPokemonUnavailable(session.battleId(), pokemonId, currentTick);
+        ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), pokemonId, fainted, currentTick);
+        ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), pokemonId, fainted, currentTick);
+        ActionBattleProtectController.global().onPokemonRecalled(session.battleId(), pokemonId);
     }
 
     private static void trackRuntimeState(ActionBattleSession session, ServerLevel level, Pokemon pokemon, long currentTick) {

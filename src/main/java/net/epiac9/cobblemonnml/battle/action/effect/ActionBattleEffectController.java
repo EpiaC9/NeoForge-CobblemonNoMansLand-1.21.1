@@ -15,12 +15,26 @@ public final class ActionBattleEffectController {
     public static ActionBattleEffectController global() { return GLOBAL; }
 
     public boolean applyStatContribution(UUID battleId, UUID pokemonUUID, ActionBattleStat stat, int stages, long currentTick, long durationTicks) {
-        if (!validIds(battleId, pokemonUUID)) return false;
-        return state(battleId, pokemonUUID).applyStatContribution(stat, stages, currentTick, durationTicks);
+        return applyBoundedStatContribution(battleId, pokemonUUID, stat, stages, currentTick,
+                durationTicks, ActionBattleStatSource.OTHER_ACTION) != 0;
     }
 
     public boolean applyTimedStatContribution(UUID battleId, UUID pokemonUUID, ActionBattleStat stat, int stages, long currentTick) {
         return applyStatContribution(battleId, pokemonUUID, stat, stages, currentTick, ActionBattleStatRules.DEFAULT_STAT_DURATION_TICKS);
+    }
+
+    public int applyBoundedStatContribution(UUID battleId, UUID pokemonUUID, ActionBattleStat stat,
+                                            int stages, long currentTick, ActionBattleStatSource source) {
+        return applyBoundedStatContribution(battleId, pokemonUUID, stat, stages, currentTick,
+                ActionBattleStatRules.DEFAULT_STAT_DURATION_TICKS, source);
+    }
+
+    public int applyBoundedStatContribution(UUID battleId, UUID pokemonUUID, ActionBattleStat stat,
+                                            int stages, long currentTick, long durationTicks,
+                                            ActionBattleStatSource source) {
+        if (!validIds(battleId, pokemonUUID)) return 0;
+        return state(battleId, pokemonUUID).applyBoundedStatContribution(
+                stat, stages, currentTick, durationTicks, source);
     }
 
     public double standardStatMultiplier(UUID battleId, UUID pokemonUUID, ActionBattleStat stat, long currentTick) {
@@ -166,6 +180,10 @@ public final class ActionBattleEffectController {
 
     public void clearBattle(UUID battleId) {
         if (battleId != null) statesByBattle.remove(battleId);
+    }
+
+    public void clearAll() {
+        statesByBattle.clear();
     }
 
     public int trackedPokemonCount(UUID battleId) {

@@ -1,7 +1,7 @@
 package net.epiac9.cobblemonnml.battle.action.effect;
 
 public final class ActionBattleStatRules {
-    public static final long DEFAULT_STAT_DURATION_TICKS = 300L;
+    public static final long DEFAULT_STAT_DURATION_TICKS = 360L;
     private static final int STANDARD_MAX_STAGE = 6;
     private static final int ACCURACY_MAX_STAGE = 2;
     private static final double STANDARD_STAGE_STEP = 0.05D;

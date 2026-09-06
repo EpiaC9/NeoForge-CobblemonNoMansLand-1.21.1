@@ -21,9 +21,11 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyC
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsycUpController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterHealth;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundController;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.registry.ModEntities;
 import net.minecraft.core.BlockPos;
@@ -142,7 +144,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             if (delta.lengthSqr() > 0.000001D) setDeltaMovement(delta.normalize().scale(speed));
             return;
         }
-        if (ActionProjectileProfile.isGrounded(committedMoveName())) {
+        if (ActionProjectileProfile.isGroundHuggingWave(committedMoveName())) {
             BlockPos column = blockPosition();
             double surfaceY = serverLevel.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column.getX(), column.getZ()) + 0.15D;
             Vec3 current = getDeltaMovement();
@@ -160,8 +162,17 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
 
     @Override
     protected boolean canHitEntity(Entity target) {
-        if (confusedShot) return target instanceof LivingEntity && target != getOwner() && super.canHitEntity(target);
-        return intendedTargetUUID != null && intendedTargetUUID.equals(target.getUUID()) && super.canHitEntity(target);
+        boolean eligible = confusedShot
+                ? target instanceof LivingEntity && target != getOwner() && super.canHitEntity(target)
+                : intendedTargetUUID != null && intendedTargetUUID.equals(target.getUUID()) && super.canHitEntity(target);
+        if (!eligible || !(target instanceof PokemonEntity pokemonTarget)) return eligible;
+        Entity owner = getOwner();
+        Move move = owner instanceof PokemonEntity attacker ? resolveCommittedMove(attacker) : null;
+        boolean buriedAware = ActionBattleGroundController.isQualifyingMove(move);
+        var effectiveBox = ActionBattleGroundController.effectiveCombatBox(
+                pokemonTarget, level().getGameTime(), buriedAware).inflate(getBbWidth() * 0.5D);
+        return ActionBattleGroundController.segmentIntersects(
+                effectiveBox, position(), position().add(getDeltaMovement()));
     }
 
     @Override
@@ -178,9 +189,13 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             return;
         }
         boolean nativeDamageMove = FightOrFlightAdapter.isNativeDamageMove(move);
-        if (nativeDamageMove) setDamage(FightOrFlightAdapter.scaleActionDamage(attacker, target, move,
-                PokemonAttackEffect.calculatePokemonDamage(attacker, target, move), committedGrassMultiplier));
         PokemonEntity pokemonTarget = target instanceof PokemonEntity value ? value : null;
+        ActionBattleGroundController.HitPlan groundPlan = nativeDamageMove && pokemonTarget != null
+                ? ActionBattleGroundController.planHit(attacker, pokemonTarget, move)
+                : ActionBattleGroundController.HitPlan.NOT_QUALIFYING;
+        if (nativeDamageMove) setDamage((float) (FightOrFlightAdapter.scaleActionDamage(attacker, target, move,
+                PokemonAttackEffect.calculatePokemonDamage(attacker, target, move), committedGrassMultiplier)
+                * groundPlan.damageMultiplier()));
         int beforeHp = pokemonTarget != null ? pokemonTarget.getPokemon().getCurrentHealth() : 0;
         int attemptedPokemonDamage = pokemonTarget != null ? ActionBattleWaterHealth.toPokemonDamage(
                 pokemonTarget.getPokemon().getMaxHealth(), pokemonTarget.getMaxHealth(), getDamage()) : 0;
@@ -190,17 +205,31 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
                 ? ActionBattleSleepController.planDamagingWake(sleepSession, pokemonTarget, currentTick, true,
                 ActionBattleFairyController.hasType(attacker.getPokemon(), "fairy"))
                 : ActionBattleSleepController.WakePlan.NONE;
-        if (nativeDamageMove) FightOrFlightAdapter.applyOnUseEffectsWithoutActionStatuses(attacker, target, move);
+        if (nativeDamageMove) {
+            FightOrFlightAdapter.applyOnUseEffectsWithoutActionStatuses(attacker, target, move);
+        } else {
+            ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, target, move,
+                    ActionBattleMoveEffectResolver.StatTrigger.BEFORE_USE, true);
+            ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, target, move,
+                    ActionBattleMoveEffectResolver.StatTrigger.ON_USE, true);
+        }
         boolean success = !nativeDamageMove || target.hurt(damageSources().indirectMagic(this, attacker), getDamage());
         if (nativeDamageMove && success) attacker.setLastHurtMob(target);
         if (nativeDamageMove) PokemonUtils.setHurtByPlayer(attacker, target);
         PokemonAttackEffect.applyOnHitVisualEffect(attacker, target, move);
         PokemonAttackEffect.applySFX(attacker.level(), move, attacker.blockPosition());
-        if (nativeDamageMove) FightOrFlightAdapter.applyPostEffectsWithoutActionStatuses(attacker, target, move, success);
+        if (nativeDamageMove) {
+            FightOrFlightAdapter.applyPostEffectsWithoutActionStatuses(attacker, target, move, success);
+        } else {
+            ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, target, move,
+                    ActionBattleMoveEffectResolver.StatTrigger.ON_HIT, success);
+        }
         if (pokemonTarget != null) {
             boolean qualifyingWaterInteraction = success;
             FightOrFlightAdapter.applyProtectImpact(
                     attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
+            if (nativeDamageMove) ActionBattleGroundController.resolveAfterDamage(
+                    groundPlan, attacker, pokemonTarget, beforeHp);
             if (success) ActionBattleGrassController.onPokemonDamageResolved(attacker, pokemonTarget,
                     Math.max(0, beforeHp - pokemonTarget.getPokemon().getCurrentHealth()));
             if (nativeDamageMove && success) ActionBattleFireController.onSuccessfulMoveHit(attacker, pokemonTarget, move, ActionBattleFireRules.NORMAL_PRESSURE);
@@ -226,6 +255,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             ActionBattleMoveEffectResolver.applyDeclaredFlinchOnHit(attacker, pokemonTarget, move, success);
             ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, pokemonTarget, move, success);
             ActionBattleMoveEffectResolver.applyDeclaredParalysisOnHit(attacker, pokemonTarget, move, success);
+            ActionBattlePsycUpController.onSuccessfulEnemyMoveResolved(attacker, pokemonTarget, move, success);
             if (!nativeDamageMove && success) ActionBattleFairyController.onSuccessfulEnemyTargetingMove(attacker, pokemonTarget, move);
             if (!nativeDamageMove && success) ActionBattlePoisonController.onSuccessfulEnemyInteraction(attacker, pokemonTarget, move);
         }

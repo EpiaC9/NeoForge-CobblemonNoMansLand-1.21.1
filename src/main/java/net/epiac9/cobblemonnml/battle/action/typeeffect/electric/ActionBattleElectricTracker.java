@@ -16,10 +16,10 @@ public final class ActionBattleElectricTracker {
     public ApplyChargeResult addCharge(int amount, long currentTick, boolean electricTyped, boolean hazeActive) {
         if (amount <= 0 || !validTick(currentTick) || currentTick < lastTick) return ApplyChargeResult.IGNORED;
         tick(currentTick);
-        cleanResetEndTick = -1L;
         if (paralysis != null && paralysis.active(currentTick)) return ApplyChargeResult.IGNORED;
         if (charge == null) charge = new ActionBattleElectricState(Math.min(amount, 99), currentTick);
         else charge.add(amount, currentTick);
+        cleanResetEndTick = ActionBattleTiming.safeAdd(currentTick, ActionBattleElectricRules.CLEAN_RESET_TICKS);
         if (amount >= ActionBattleElectricRules.MAX_CHARGE || charge.charge() >= ActionBattleElectricRules.MAX_CHARGE) {
             charge = null;
             paralysis = new ActionBattleParalysisState(currentTick, electricTyped,
@@ -34,7 +34,7 @@ public final class ActionBattleElectricTracker {
         tick(currentTick);
         if (paralysis != null && paralysis.active(currentTick)) return false;
         charge = null;
-        cleanResetEndTick = -1L;
+        cleanResetEndTick = ActionBattleTiming.safeAdd(currentTick, ActionBattleElectricRules.CLEAN_RESET_TICKS);
         paralysis = new ActionBattleParalysisState(currentTick, electricTyped,
                 ActionBattleParalysisState.ParalysisOrigin.EXTERNAL, hazeActive);
         return true;
@@ -58,7 +58,6 @@ public final class ActionBattleElectricTracker {
         tick(currentTick);
         if (paralysis != null) {
             paralysis = null;
-            beginCleanWindow(currentTick);
         }
     }
 
@@ -70,7 +69,6 @@ public final class ActionBattleElectricTracker {
             charge.depleteTo(currentTick, depletionPerTick);
             if (charge.isEmpty()) {
                 charge = null;
-                beginCleanWindow(emptyTick);
             }
         }
         if (paralysis != null && !paralysis.active(currentTick)) {
@@ -78,7 +76,6 @@ public final class ActionBattleElectricTracker {
             long expiryTick = paralysis.endTick();
             paralysis = null;
             if (naturalCharge) depletionPerTick = ActionBattleElectricRules.saturatingIncrement(depletionPerTick);
-            beginCleanWindow(expiryTick);
         }
         if (paralysis == null && charge == null && cleanResetEndTick >= 0L && currentTick >= cleanResetEndTick) {
             depletionPerTick = ActionBattleElectricRules.BASE_DEPLETION_PER_TICK;
@@ -93,10 +90,6 @@ public final class ActionBattleElectricTracker {
     public long cleanResetEndTick() { return cleanResetEndTick; }
     public boolean isEmpty() { return charge == null && paralysis == null && cleanResetEndTick < 0L
             && depletionPerTick == ActionBattleElectricRules.BASE_DEPLETION_PER_TICK; }
-
-    private void beginCleanWindow(long currentTick) {
-        cleanResetEndTick = ActionBattleTiming.safeAdd(currentTick, ActionBattleElectricRules.CLEAN_RESET_TICKS);
-    }
 
     private boolean validTick(long currentTick) { return currentTick >= 0L; }
 }

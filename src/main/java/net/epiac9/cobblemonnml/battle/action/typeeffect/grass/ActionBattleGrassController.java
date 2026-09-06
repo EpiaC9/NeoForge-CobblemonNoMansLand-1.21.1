@@ -134,7 +134,8 @@ public final class ActionBattleGrassController {
                 int actualDamage = ActionBattlePokemonHealth.damage(healthAccess(toucher.getPokemon()),
                         ActionBattleGrassRules.reactivationDamage(toucher.getPokemon().getMaxHealth()));
                 int waveHeal = ActionBattleGrassRules.waveHealAmount(actualDamage);
-                if (waveHeal > 0) ActionBattleWaveServerRuntime.launch(life.sessionId(), toucher.position(), waveHeal, tick);
+                if (waveHeal > 0) ActionBattleWaveServerRuntime.launchHealing(
+                        life.sessionId(), toucher.getPokemon().getUuid(), toucher.position(), waveHeal, tick);
             }
         }
         removeFlower(flower);

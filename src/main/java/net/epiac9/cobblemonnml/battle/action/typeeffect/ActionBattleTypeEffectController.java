@@ -11,8 +11,11 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleEle
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassState;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundState;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -187,14 +190,68 @@ public final class ActionBattleTypeEffectController {
         return state == null ? Optional.empty() : state.leechSeedView(currentTick);
     }
 
-    public void tickSession(UUID sessionId, long currentTick) {
-        if (!validSession(sessionId) || currentTick < 0L) return;
+    public ActionBattleGroundState.ApplyResult applyGround(UUID sessionId, UUID pokemonUUID, long currentTick,
+                                                            boolean groundTypedTarget) {
+        if (!validSession(sessionId) || pokemonUUID == null || currentTick < 0L) {
+            return ActionBattleGroundState.ApplyResult.IGNORED;
+        }
+        return states.computeIfAbsent(pokemonUUID, ActionBattleTypeEffectState::new)
+                .applyGround(currentTick, groundTypedTarget);
+    }
+
+    public Optional<ActionBattleGroundState.View> groundView(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null && currentTick >= 0L
+                ? states.get(pokemonUUID) : null;
+        return state == null ? Optional.empty() : state.groundView(currentTick);
+    }
+
+    public double groundMovementMultiplier(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null && currentTick >= 0L
+                ? states.get(pokemonUUID) : null;
+        return state == null ? 1.0D : state.groundMovementMultiplier(currentTick);
+    }
+
+    public boolean groundBlocksMovement(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null && currentTick >= 0L
+                ? states.get(pokemonUUID) : null;
+        return state != null && state.groundBlocksMovement(currentTick);
+    }
+
+    public boolean groundBlocksRecall(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null && currentTick >= 0L
+                ? states.get(pokemonUUID) : null;
+        return state != null && state.groundBlocksRecall(currentTick);
+    }
+
+    public boolean expelGround(UUID sessionId, UUID pokemonUUID) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        if (state == null || !state.expelGround()) return false;
+        if (state.isEmpty()) states.remove(pokemonUUID);
+        return true;
+    }
+
+    public boolean clearGroundPokemon(UUID sessionId, UUID pokemonUUID) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        if (state == null || !state.clearGround()) return false;
+        if (state.isEmpty()) states.remove(pokemonUUID);
+        return true;
+    }
+
+    public List<GroundTickEvent> tickSession(UUID sessionId, long currentTick) {
+        if (!validSession(sessionId) || currentTick < 0L) return List.of();
+        List<GroundTickEvent> groundEvents = new ArrayList<>();
         for (Map.Entry<UUID, ActionBattleTypeEffectState> entry : states.entrySet()) {
+            ActionBattleGroundState.Branch branch = entry.getValue().groundBranch();
+            ActionBattleGroundState.TickResult groundResult = entry.getValue().tickGround(currentTick);
+            if (branch != null && groundResult != ActionBattleGroundState.TickResult.NONE) {
+                groundEvents.add(new GroundTickEvent(entry.getKey(), branch, groundResult));
+            }
             boolean sleeping = ActionBattleEffectController.global()
                     .hasStatus(sessionId, entry.getKey(), ActionBattleStatus.SLEEP, currentTick);
             entry.getValue().tick(currentTick, sleeping);
         }
         states.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+        return List.copyOf(groundEvents);
     }
 
     public Optional<ActionBattleTypeEffectState.FireView> fireView(UUID sessionId, UUID pokemonUUID, long currentTick) {
@@ -288,6 +345,11 @@ public final class ActionBattleTypeEffectController {
         return state != null ? state.nextDrowsyDurationTicks() : ActionBattleFairyRules.BASE_DROWSY_DURATION_TICKS;
     }
 
+    public long drowsyCleanResetEndTick(UUID sessionId, UUID pokemonUUID) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state != null ? state.drowsyCleanResetEndTick() : -1L;
+    }
+
     public ActionBattleDrowsyTracker.CompletionRoute pendingDrowsyCompletionRoute(UUID sessionId, UUID pokemonUUID) {
         ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
         return state != null ? state.pendingDrowsyCompletionRoute() : ActionBattleDrowsyTracker.CompletionRoute.SLEEP;
@@ -295,6 +357,13 @@ public final class ActionBattleTypeEffectController {
 
     public java.util.Set<UUID> trackedPokemonIds(UUID sessionId) {
         return validSession(sessionId) ? java.util.Set.copyOf(states.keySet()) : java.util.Set.of();
+    }
+
+    public List<ActionBattleTypeEffectState.StatStageEvent> drainStatStageEvents(UUID sessionId) {
+        if (!validSession(sessionId)) return List.of();
+        List<ActionBattleTypeEffectState.StatStageEvent> events = new ArrayList<>();
+        for (ActionBattleTypeEffectState state : states.values()) events.addAll(state.drainStatStageEvents());
+        return List.copyOf(events);
     }
 
     public int iceHitsRequired(UUID sessionId, UUID pokemonUUID, long currentTick) {
@@ -377,4 +446,7 @@ public final class ActionBattleTypeEffectController {
     private boolean validSession(UUID sessionId) {
         return sessionId != null && sessionId.equals(activeSessionId);
     }
+
+    public record GroundTickEvent(UUID pokemonId, ActionBattleGroundState.Branch branch,
+                                  ActionBattleGroundState.TickResult result) {}
 }

@@ -69,6 +69,13 @@ final class ActionBattleMovementController {
     }
 
     static void pursuePlayerPendingMove(ActionBattleSession session, PokemonEntity pokemonEntity, PokemonEntity targetEntity) {
+        long currentTick = pokemonEntity.level().getGameTime();
+        if (ActionBattleMovementActionRules.isMovementBlocked(
+                session, pokemonEntity.getPokemon().getUuid(), currentTick)) {
+            pokemonEntity.getNavigation().stop();
+            session.clearPlayerMoveCommand();
+            return;
+        }
         ActionBattlePokemonRefs refs = ActionBattleRegistry.pokemonRefs(session.battleId());
         var move = refs != null && refs.playerPokemon() != null && session.playerMoveSlot() >= 0
                 ? refs.playerPokemon().getMoveSet().get(session.playerMoveSlot()) : null;
@@ -76,7 +83,7 @@ final class ActionBattleMovementController {
             pokemonEntity.getNavigation().stop();
             return;
         }
-        var tracked = ActionBattleEvasionController.trackedPosition(targetEntity, pokemonEntity.level().getGameTime());
+        var tracked = ActionBattleEvasionController.trackedPosition(targetEntity, currentTick);
         Path path = pokemonEntity.getNavigation().createPath(BlockPos.containing(tracked), 0);
         if (path == null || !path.canReach()) {
             pokemonEntity.getNavigation().stop();
@@ -84,7 +91,7 @@ final class ActionBattleMovementController {
             DebugLog.log("[CobblemonNML] Pending move cancelled because opponent is unreachable. Battle=" + session.battleId());
             return;
         }
-        pokemonEntity.getNavigation().moveTo(path, movementSpeed(session, pokemonEntity.getPokemon().getUuid(), pokemonEntity.level().getGameTime()));
+        pokemonEntity.getNavigation().moveTo(path, movementSpeed(session, pokemonEntity.getPokemon().getUuid(), currentTick));
     }
 
 
@@ -93,7 +100,10 @@ final class ActionBattleMovementController {
         int stage = ActionBattleStatResolver.effectiveStage(session.battleId(), pokemonUUID, ActionBattleStat.SPEED, currentTick);
         double grassMultiplier = ActionBattleTypeEffectController.global().grassMovementMultiplier(
                 session.dungeonSessionId(), pokemonUUID, currentTick);
-        return ACTION_MOVEMENT_SPEED * ActionBattleStatRules.standardMultiplier(stage) * grassMultiplier;
+        double groundMultiplier = ActionBattleTypeEffectController.global().groundMovementMultiplier(
+                session.dungeonSessionId(), pokemonUUID, currentTick);
+        return ActionBattleMovementActionRules.composeMovementSpeed(ACTION_MOVEMENT_SPEED,
+                ActionBattleStatRules.standardMultiplier(stage), grassMultiplier, groundMultiplier);
     }
 
     static ActionBattleParalysisState.FlinchContributionResult observeElectricParalysisMovement(

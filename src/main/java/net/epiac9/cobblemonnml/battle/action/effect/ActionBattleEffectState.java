@@ -10,7 +10,7 @@ import java.util.UUID;
 public final class ActionBattleEffectState {
     private final UUID battleId;
     private final UUID pokemonUUID;
-    private final Map<ContributionKey, ActionBattleStatContribution> statContributions = new HashMap<>();
+    private final Map<UUID, ActionBattleStatContribution> statContributions = new HashMap<>();
     private boolean hazeProtected;
     private ActionBattleSleepState sleep;
     private ActionBattleConfusionState confusion;
@@ -22,11 +22,17 @@ public final class ActionBattleEffectState {
         this.pokemonUUID = pokemonUUID;
     }
 
-    boolean applyStatContribution(ActionBattleStat stat, int stages, long currentTick, long durationTicks) {
-        if (hazeProtected) return false;
-        if (stat == null || stages == 0 || Math.abs(stages) > ActionBattleStatRules.maxStage(stat) || currentTick < 0L || durationTicks <= 0L) return false;
-        statContributions.put(new ContributionKey(stat, stages), new ActionBattleStatContribution(stat, stages, ActionBattleTiming.safeAdd(currentTick, durationTicks)));
-        return true;
+    int applyBoundedStatContribution(ActionBattleStat stat, int stages, long currentTick,
+                                     long durationTicks, ActionBattleStatSource source) {
+        if (hazeProtected || stat == null || stages == 0 || currentTick < 0L
+                || durationTicks <= 0L || source == null) return 0;
+        int current = effectiveStage(stat, currentTick);
+        int accepted = ActionBattleStatRules.clampStage(stat, current + stages) - current;
+        if (accepted == 0) return 0;
+        UUID id = UUID.randomUUID();
+        statContributions.put(id, new ActionBattleStatContribution(id, stat, accepted, currentTick,
+                ActionBattleTiming.safeAdd(currentTick, durationTicks), source));
+        return accepted;
     }
 
     int effectiveStage(ActionBattleStat stat, long currentTick) {
@@ -133,6 +139,4 @@ public final class ActionBattleEffectState {
 
     UUID battleId() { return battleId; }
     UUID pokemonUUID() { return pokemonUUID; }
-
-    private record ContributionKey(ActionBattleStat stat, int stages) {}
 }

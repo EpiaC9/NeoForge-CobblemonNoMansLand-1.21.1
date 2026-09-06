@@ -7,6 +7,11 @@ import java.util.Set;
 import java.util.UUID;
 
 public final class ActionBattleWaveRuntime {
+    @FunctionalInterface
+    public interface HitEligibility {
+        boolean canHit(PokemonSample sample);
+    }
+
     public record Point(double x, double y, double z) {
         double distanceSquared(Point other) {
             double dx = x - other.x;
@@ -19,16 +24,19 @@ public final class ActionBattleWaveRuntime {
 
     public static final class Instance {
         private final UUID sessionId;
+        private final UUID sourcePokemonId;
         private final Point origin;
         private final long startTick;
         private final ActionBattleWaveParameters parameters;
         private final Set<UUID> hitPokemon = new HashSet<>();
 
-        public Instance(UUID sessionId, Point origin, long startTick, ActionBattleWaveParameters parameters) {
+        public Instance(UUID sessionId, UUID sourcePokemonId, Point origin, long startTick,
+                        ActionBattleWaveParameters parameters) {
             if (sessionId == null || origin == null || startTick < 0L || parameters == null) {
                 throw new IllegalArgumentException("Wave instance requires session, origin, tick, and parameters.");
             }
             this.sessionId = sessionId;
+            this.sourcePokemonId = sourcePokemonId;
             this.origin = origin;
             this.startTick = startTick;
             this.parameters = parameters;
@@ -41,15 +49,22 @@ public final class ActionBattleWaveRuntime {
         public boolean complete(long currentTick) { return radius(currentTick) >= parameters.maxRadius(); }
 
         public List<UUID> collectNewHits(long currentTick, List<PokemonSample> samples) {
-            if (samples == null) return List.of();
+            return collectNewHits(currentTick, samples, sample -> true);
+        }
+
+        public List<UUID> collectNewHits(long currentTick, List<PokemonSample> samples,
+                                         HitEligibility eligibility) {
+            if (samples == null || eligibility == null) return List.of();
             double radius = radius(currentTick);
             double radiusSquared = radius * radius;
             List<UUID> hits = new ArrayList<>();
             for (PokemonSample sample : samples) {
                 if (sample == null || sample.pokemonId() == null || !sample.activeActionPokemon()
                         || !sessionId.equals(sample.sessionId()) || sample.position() == null
+                        || sample.pokemonId().equals(sourcePokemonId)
                         || hitPokemon.contains(sample.pokemonId())
-                        || origin.distanceSquared(sample.position()) > radiusSquared) continue;
+                        || origin.distanceSquared(sample.position()) > radiusSquared
+                        || !eligibility.canHit(sample)) continue;
                 hitPokemon.add(sample.pokemonId());
                 hits.add(sample.pokemonId());
             }
@@ -58,6 +73,7 @@ public final class ActionBattleWaveRuntime {
 
         public int hitCount() { return hitPokemon.size(); }
         public UUID sessionId() { return sessionId; }
+        public UUID sourcePokemonId() { return sourcePokemonId; }
         public Point origin() { return origin; }
     }
 

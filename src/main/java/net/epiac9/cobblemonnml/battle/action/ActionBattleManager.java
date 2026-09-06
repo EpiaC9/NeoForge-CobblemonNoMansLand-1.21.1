@@ -8,16 +8,14 @@ import com.cobblemon.mod.common.pokemon.Pokemon;
 import com.gitlab.srcmc.rctapi.api.trainer.TrainerNPC;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
-import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleConfusionRules;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundVisualSync;
 import net.epiac9.cobblemonnml.dimension.DungeonDimension;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.events.trainer.DungeonTrainerBattleResultHandler;
@@ -127,10 +125,20 @@ public final class ActionBattleManager {
         }
         ActionBattleRegistry.clear();
         ActionBattleMovementController.clearAll();
+        ActionBattleEffectRuntime.clearAll();
     }
 
     public static int size() {
         return ActionBattleRegistry.size();
+    }
+
+    public static void clearEffectStateForDungeonSession(UUID dungeonSessionId) {
+        if (dungeonSessionId == null) return;
+        for (ActionBattleSession session : ActionBattleRegistry.sessionsSnapshot()) {
+            if (dungeonSessionId.equals(session.dungeonSessionId())) {
+                ActionBattleEffectRuntime.clearBattle(session.battleId());
+            }
+        }
     }
 
     public static boolean requestPlayerMoveHere(ServerPlayer player, double x, double y, double z) {
@@ -144,8 +152,7 @@ public final class ActionBattleManager {
         UUID activeEntityId = session.playerActiveEntityUUID();
         if (activePokemonId == null || activeEntityId == null) return false;
         long currentTick = level.getGameTime();
-        if (ActionBattleTypeEffectController.global().immobilizedView(
-                session.dungeonSessionId(), activePokemonId, currentTick).isPresent()) {
+        if (ActionBattleMovementActionRules.isMovementBlocked(session, activePokemonId, currentTick)) {
             DebugLog.log("[CobblemonNML] Move Here rejected. Battle=" + session.battleId() + ", reason=immobilized");
             return false;
         }
@@ -201,9 +208,9 @@ public final class ActionBattleManager {
         if (!FightOrFlightAdapter.supports(move)) return rejectMove(session, moveSlot, "unsupported_move");
         if (!FightOrFlightAdapter.hasPp(move)) return rejectMove(session, moveSlot, "no_pp");
         long currentTick = level.getGameTime();
-        if (ActionBattleMovementActionRules.requiresMovement(move)
-                && ActionBattleTypeEffectController.global().immobilizedView(
-                session.dungeonSessionId(), refs.playerPokemon().getUuid(), currentTick).isPresent()) {
+        if (!ActionBattleMovementActionRules.canUseAction(
+                ActionBattleMovementActionRules.isMovementBlocked(session, refs.playerPokemon().getUuid(), currentTick),
+                ActionBattleMovementActionRules.requiresMovement(move))) {
             return rejectMove(session, moveSlot, "immobilized");
         }
         if (!ActionBattleSleepController.canIssueCommand(session, refs.playerPokemon().getUuid(), currentTick,
@@ -317,6 +324,8 @@ public final class ActionBattleManager {
         if (!DungeonSession.isActive() || !session.dungeonSessionId().equals(DungeonSession.getSessionId())) return rejectSwap(session, "inactive_dungeon_session");
         if (!(player.level() instanceof ServerLevel level) || !player.level().dimension().equals(DungeonDimension.DUNGEON_DIMENSION)) return rejectSwap(session, "wrong_dimension");
         long currentTick = level.getGameTime();
+        if (session.playerActivePokemonUUID() != null && ActionBattleMovementActionRules.isVoluntaryRecallBlocked(
+                session, session.playerActivePokemonUUID(), currentTick)) return rejectSwap(session, "grounded");
         if (session.playerActivePokemonUUID() != null && ActionBattleControlController.global().blocksSwap(session.battleId(), session.playerActivePokemonUUID(), currentTick)) return rejectSwap(session, "trapped");
         if (session.playerActivePokemonUUID() != null) ActionBattleCommandController.onCommandIssued(session, session.playerActivePokemonUUID());
         if (session.isPlayerSwapOnCooldown(currentTick)) return rejectSwap(session, "cooldown");
@@ -336,12 +345,7 @@ public final class ActionBattleManager {
         session.startPlayerSwapCooldown(currentTick, ActionBattleTiming.SWAP_COOLDOWN_TICKS);
         session.setPlayerSendOutPending(true);
         Pokemon previous = refs.playerPokemon();
-        ActionBattleFairyController.onPokemonRecalled(previous.getUuid(), currentTick);
-        ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), previous.getUuid());
-        ActionBattleEffectController.global().onPokemonRecalled(session.battleId(), previous.getUuid(), currentTick);
-        ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), previous.getUuid(), false, currentTick);
-        ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), previous.getUuid(), false, currentTick);
-        ActionBattleProtectController.global().onPokemonRecalled(session.battleId(), previous.getUuid());
+        ActionBattleEffectRuntime.onPokemonUnavailable(session, previous.getUuid(), false, currentTick);
         ActionBattlePokemonRuntime.recall(previous);
         session.clearPlayerActivePokemon();
         refs.setPlayerPokemon(next.pokemon());
@@ -403,9 +407,9 @@ public final class ActionBattleManager {
                 DebugLog.log("[CobblemonNML] Action move rejected. Battle=" + session.battleId() + ", slot=" + (session.playerMoveSlot() + 1) + ", reason=" + reason);
                 return;
             }
-            if (ActionBattleMovementActionRules.requiresMovement(move)
-                    && ActionBattleTypeEffectController.global().immobilizedView(
-                    session.dungeonSessionId(), refs.playerPokemon().getUuid(), level.getGameTime()).isPresent()) {
+            if (!ActionBattleMovementActionRules.canUseAction(
+                    ActionBattleMovementActionRules.isMovementBlocked(session, refs.playerPokemon().getUuid(), level.getGameTime()),
+                    ActionBattleMovementActionRules.requiresMovement(move))) {
                 pokemonEntity.getNavigation().stop();
                 session.clearPlayerMoveState();
                 DebugLog.log("[CobblemonNML] Queued movement move cancelled. Battle=" + session.battleId() + ", reason=immobilized");
@@ -527,9 +531,8 @@ public final class ActionBattleManager {
         ActionBattleMovementController.stopActivePlayerNavigation(session, level);
         ActionBattleMovementController.stopActiveTrainerNavigation(session, level);
         if (playerFainted) {
-            ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), playerPokemon.getUuid());
-            ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), playerPokemon.getUuid(), true, level.getGameTime());
-            ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), playerPokemon.getUuid(), true, level.getGameTime());
+            clearGroundState(session, level, playerPokemon.getUuid(), session.playerActiveEntityUUID());
+            ActionBattleEffectRuntime.onPokemonUnavailable(session, playerPokemon.getUuid(), true, level.getGameTime());
             int previousSlot = session.playerActivePartyIndex();
             session.setPlayerSendOutPending(true);
             ActionBattlePokemonRuntime.recall(playerPokemon);
@@ -540,9 +543,8 @@ public final class ActionBattleManager {
             DebugLog.log("[CobblemonNML] Player faint replacement started. Battle=" + session.battleId() + ", fromSlot=" + previousSlot + ", toSlot=" + playerReplacement.slot());
         }
         if (trainerFainted) {
-            ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), trainerPokemon.getUuid());
-            ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), trainerPokemon.getUuid(), true, level.getGameTime());
-            ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), trainerPokemon.getUuid(), true, level.getGameTime());
+            clearGroundState(session, level, trainerPokemon.getUuid(), session.trainerActiveEntityUUID());
+            ActionBattleEffectRuntime.onPokemonUnavailable(session, trainerPokemon.getUuid(), true, level.getGameTime());
             int previousSlot = session.trainerActivePartyIndex();
             session.setTrainerSendOutPending(true);
             ActionBattlePokemonRuntime.recall(trainerPokemon);
@@ -553,6 +555,15 @@ public final class ActionBattleManager {
             DebugLog.log("[CobblemonNML] Trainer faint replacement started. Battle=" + session.battleId() + ", fromSlot=" + previousSlot + ", toSlot=" + trainerReplacement.slot());
         }
         return true;
+    }
+
+    private static void clearGroundState(ActionBattleSession session, ServerLevel level,
+                                         UUID pokemonId, UUID entityId) {
+        if (!ActionBattleTypeEffectController.global().clearGroundPokemon(session.dungeonSessionId(), pokemonId)) return;
+        Entity raw = level != null && entityId != null ? level.getEntity(entityId) : null;
+        if (raw instanceof PokemonEntity pokemon) {
+            ActionBattleGroundVisualSync.update(pokemon, session.dungeonSessionId(), 0);
+        }
     }
 
     private static void syncHud(ServerPlayer player, ActionBattleSession session) {
@@ -589,10 +600,15 @@ public final class ActionBattleManager {
         ActionBattleEffectRuntime.clearBattle(session.battleId());
         ActionBattlePokemonRefs refs = ActionBattleRegistry.removePokemonRefs(session.battleId());
         if (refs != null) {
+            ServerPlayer player = ActionBattlePokemonRuntime.findServerPlayer(session);
+            ServerLevel level = player != null && player.getServer() != null
+                    ? player.getServer().getLevel(DungeonDimension.DUNGEON_DIMENSION) : null;
             if (refs.playerPokemon() != null) {
+                clearGroundState(session, level, refs.playerPokemon().getUuid(), session.playerActiveEntityUUID());
                 ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), refs.playerPokemon().getUuid());
             }
             if (refs.trainerPokemon() != null) {
+                clearGroundState(session, level, refs.trainerPokemon().getUuid(), session.trainerActiveEntityUUID());
                 ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), refs.trainerPokemon().getUuid());
             }
             ActionBattlePokemonRuntime.recall(refs.playerPokemon());

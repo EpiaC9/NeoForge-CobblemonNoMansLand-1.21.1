@@ -10,6 +10,7 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatusApplication;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
@@ -107,6 +108,10 @@ public final class ActionBattleConfusionController {
             clearDashVelocity(attacker);
             return true;
         }
+        if (ActionBattleMovementActionRules.isMovementBlocked(session, state.pokemonUUID(), level.getGameTime())) {
+            clearDashVelocity(attacker);
+            return true;
+        }
         if (shouldExpireDash(level, attacker, state)) {
             clearDashVelocity(attacker);
             return true;
@@ -119,6 +124,8 @@ public final class ActionBattleConfusionController {
         AABB hitBox = attacker.getBoundingBox().inflate(0.20D);
         for (Entity raw : level.getEntities(attacker, hitBox, e -> e instanceof LivingEntity && e.isAlive())) {
             if (!(raw instanceof LivingEntity hit) || raw.getUUID().equals(attacker.getUUID())) continue;
+            if (hit instanceof PokemonEntity pokemonHit && !hitBox.intersects(
+                    ActionBattleGroundController.effectiveCombatBox(pokemonHit, level.getGameTime(), false))) continue;
             damageCollision(attacker, hit, state.move(), state.committedGrassMultiplier());
             clearDashVelocity(attacker);
             return true;

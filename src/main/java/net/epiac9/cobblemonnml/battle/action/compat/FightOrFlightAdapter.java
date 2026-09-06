@@ -5,6 +5,7 @@ import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import me.rufia.fightorflight.PokemonInterface;
 import me.rufia.fightorflight.data.movedata.MoveData;
 import me.rufia.fightorflight.data.movedata.movedatas.StatusEffectMoveData;
+import me.rufia.fightorflight.data.movedata.movedatas.StatChangeMoveData;
 import me.rufia.fightorflight.entity.PokemonAttackEffect;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
@@ -15,6 +16,7 @@ import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCa
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleEarthquakeHandler;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatRules;
@@ -32,9 +34,11 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoiso
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleAquaShieldProtection;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterHealth;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsycUpController;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import me.rufia.fightorflight.utils.PokemonUtils;
 import net.minecraft.world.entity.LivingEntity;
@@ -109,12 +113,13 @@ public final class FightOrFlightAdapter {
     }
 
     private static void applyPostHitActionStatScaling(PokemonEntity attacker, PokemonEntity target, Move move, int beforeHp,
-                                                       double committedGrassMultiplier) {
+                                                       double committedGrassMultiplier, double groundMultiplier) {
         if (attacker == null || target == null || move == null || beforeHp <= 0) return;
         int afterHp = target.getPokemon().getCurrentHealth();
         int baseDamage = Math.max(0, beforeHp - afterHp);
         if (baseDamage <= 0) return;
-        int scaledDamage = Math.max(1, Math.round(scaleActionDamage(attacker, target, move, baseDamage, committedGrassMultiplier)));
+        int scaledDamage = Math.max(1, Math.round(scaleActionDamage(
+                attacker, target, move, baseDamage, committedGrassMultiplier) * (float) groundMultiplier));
         target.getPokemon().setCurrentHealth(Math.max(0, beforeHp - scaledDamage));
     }
 
@@ -216,15 +221,24 @@ public final class FightOrFlightAdapter {
     }
 
     public static boolean canCommit(PokemonEntity attacker, LivingEntity target, Move move) {
+        if (attacker == null || move == null || !supports(move)) return false;
+        if (ActionBattleEarthquakeHandler.isEarthquake(move)) {
+            return ActionBattleEarthquakeHandler.canLaunch(attacker);
+        }
         LivingEntity executionTarget = resolveMoveTarget(attacker, target, move);
-        if (attacker == null || executionTarget == null || move == null || !executionTarget.isAlive() || !supports(move)) return false;
+        if (executionTarget == null || !executionTarget.isAlive()) return false;
         target = executionTarget;
         if (ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move)) return canCommitHail(attacker, target);
         if (!attacker.getSensing().hasLineOfSight(target)) return false;
         if (PokemonUtils.isMeleeAttackMove(move)) {
-            if (attacker.isWithinMeleeAttackRange(target)) return true;
+            net.minecraft.world.phys.AABB targetBox = target instanceof PokemonEntity pokemonTarget
+                    ? ActionBattleGroundController.effectiveCombatBox(pokemonTarget, attacker.level().getGameTime(), false)
+                    : target.getBoundingBox();
+            if (attacker.isWithinMeleeAttackRange(target)
+                    && ActionBattleGroundController.segmentIntersects(
+                    targetBox, attacker.getEyePosition(), target.getEyePosition())) return true;
             return ActionProjectileProfile.isDashRush(move.getName())
-                    && attacker.getBoundingBox().inflate(ActionProjectileProfile.dashRangeBonus(move.getName())).intersects(target.getBoundingBox());
+                    && attacker.getBoundingBox().inflate(ActionProjectileProfile.dashRangeBonus(move.getName())).intersects(targetBox);
         }
         double range = ActionProjectileProfile.rangedCommitDistance();
         return attacker.distanceToSqr(target) <= range * range;
@@ -262,6 +276,64 @@ public final class FightOrFlightAdapter {
         }
     }
 
+    public static boolean resolveRangedNativePokemonHit(PokemonEntity attacker, PokemonEntity target, Move move,
+                                                         double committedGrassMultiplier) {
+        if (attacker == null || target == null || move == null || !target.isAlive()
+                || !isNativeDamageMove(move)) return false;
+        ActionBattleGroundController.HitPlan groundPlan = ActionBattleGroundController.planHit(
+                attacker, target, move);
+        float scaledDamage = scaleActionDamage(attacker, target, move,
+                PokemonAttackEffect.calculatePokemonDamage(attacker, target, move), committedGrassMultiplier)
+                * (float) groundPlan.damageMultiplier();
+        int beforeHp = target.getPokemon().getCurrentHealth();
+        int attemptedPokemonDamage = ActionBattleWaterHealth.toPokemonDamage(
+                target.getPokemon().getMaxHealth(), target.getMaxHealth(), scaledDamage);
+        ActionBattleSession sleepSession = ActionBattleManager.findSessionForBattlePokemonEntity(target.getUUID());
+        long currentTick = attacker.level().getGameTime();
+        ActionBattleSleepController.WakePlan wakePlan = ActionBattleSleepController.planDamagingWake(
+                sleepSession, target, currentTick, true,
+                ActionBattleFairyController.hasType(attacker.getPokemon(), "fairy"));
+        applyOnUseEffectsWithoutActionStatuses(attacker, target, move);
+        boolean success = target.hurt(attacker.damageSources().indirectMagic(attacker, attacker), scaledDamage);
+        if (success) attacker.setLastHurtMob(target);
+        PokemonUtils.setHurtByPlayer(attacker, target);
+        PokemonAttackEffect.applyOnHitVisualEffect(attacker, target, move);
+        PokemonAttackEffect.applySFX(attacker.level(), move, attacker.blockPosition());
+        applyPostEffectsWithoutActionStatuses(attacker, target, move, success);
+        boolean qualifyingWaterInteraction = success;
+        applyProtectImpact(attacker, target, move, beforeHp, attemptedPokemonDamage, success);
+        ActionBattleGroundController.resolveAfterDamage(groundPlan, attacker, target, beforeHp);
+        if (success) ActionBattleGrassController.onPokemonDamageResolved(attacker, target,
+                Math.max(0, beforeHp - target.getPokemon().getCurrentHealth()));
+        if (success) ActionBattleFireController.onSuccessfulMoveHit(
+                attacker, target, move, ActionBattleFireRules.NORMAL_PRESSURE);
+        if (qualifyingWaterInteraction) ActionBattleWaterController.onSuccessfulInteraction(attacker, target, move);
+        if (success) ActionBattleGrassController.onSuccessfulMoveResolved(attacker, target, move);
+        if (success && beforeHp > target.getPokemon().getCurrentHealth()) {
+            ActionBattleElectricController.onSuccessfulMoveHit(attacker, target, move);
+        }
+        if (ActionBattleIceRules.isQualifyingDamagingHit(
+                success, beforeHp, target.getPokemon().getCurrentHealth())) {
+            ActionBattleIceController.onSuccessfulMoveHit(attacker, target, move);
+        }
+        if (ActionBattlePoisonRules.isQualifyingDamagingHit(
+                success, beforeHp, target.getPokemon().getCurrentHealth())) {
+            ActionBattlePoisonController.onSuccessfulEnemyInteraction(attacker, target, move);
+        }
+        if (success) ActionBattleSleepController.applyWakeDamageAndWake(
+                sleepSession, target, currentTick, beforeHp, wakePlan);
+        UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
+        if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(target.getUUID());
+        if (battleId != null) ActionBattleDamageFeedbackController.global().recordDamage(
+                battleId, target.getPokemon().getUuid(), beforeHp, target.getPokemon().getCurrentHealth(),
+                ActionBattleDamageFeedbackCategory.NORMAL);
+        ActionBattleMoveEffectResolver.applyDeclaredFlinchOnHit(attacker, target, move, success);
+        ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, target, move, success);
+        ActionBattleMoveEffectResolver.applyDeclaredParalysisOnHit(attacker, target, move, success);
+        ActionBattlePsycUpController.onSuccessfulEnemyMoveResolved(attacker, target, move, success);
+        return success;
+    }
+
     public static boolean executeConfusedRanged(PokemonEntity attacker, Move move, net.minecraft.world.phys.Vec3 direction) {
         return executeConfusedRanged(attacker, move, direction, 1.0D);
     }
@@ -283,6 +355,9 @@ public final class FightOrFlightAdapter {
     }
 
     public static boolean execute(PokemonEntity attacker, LivingEntity target, Move move, double committedGrassMultiplier) {
+        if (ActionBattleEarthquakeHandler.isEarthquake(move)) {
+            return ActionBattleEarthquakeHandler.launch(attacker, move, committedGrassMultiplier);
+        }
         LivingEntity executionTarget = resolveMoveTarget(attacker, target, move);
         if (!canCommit(attacker, executionTarget, move)) return false;
         target = executionTarget;
@@ -291,11 +366,16 @@ public final class FightOrFlightAdapter {
         if (PokemonUtils.isMeleeAttackMove(move)) {
             PokemonUtils.sendAnimationPacket(attacker, "physical");
             PokemonEntity pokemonTarget = target instanceof PokemonEntity value ? value : null;
+            ActionBattleGroundController.HitPlan groundPlan = pokemonTarget != null
+                    ? ActionBattleGroundController.planHit(attacker, pokemonTarget, move)
+                    : ActionBattleGroundController.HitPlan.NOT_QUALIFYING;
             long evasionTick = attacker.level().getGameTime();
             if (pokemonTarget != null && ActionBattleEvasionController.isEvading(pokemonTarget, evasionTick)) {
                 net.minecraft.world.phys.Vec3 tracked = ActionBattleEvasionController.trackedPosition(pokemonTarget, evasionTick);
-                net.minecraft.world.phys.AABB staleHitBox = pokemonTarget.getBoundingBox().move(tracked.subtract(pokemonTarget.position())).inflate(0.10D);
-                if (!staleHitBox.intersects(pokemonTarget.getBoundingBox())) {
+                net.minecraft.world.phys.AABB targetHitBox = ActionBattleGroundController.effectiveCombatBox(
+                        pokemonTarget, evasionTick, false);
+                net.minecraft.world.phys.AABB staleHitBox = targetHitBox.move(tracked.subtract(pokemonTarget.position())).inflate(0.10D);
+                if (!staleHitBox.intersects(targetHitBox)) {
                     PokemonAttackEffect.applySFX(attacker.level(), move, attacker.blockPosition());
                     return true;
                 }
@@ -304,7 +384,8 @@ public final class FightOrFlightAdapter {
             int attemptedPokemonDamage = pokemonTarget != null ? ActionBattleWaterHealth.toPokemonDamage(
                     pokemonTarget.getPokemon().getMaxHealth(), pokemonTarget.getMaxHealth(),
                     scaleActionDamage(attacker, pokemonTarget, move,
-                            PokemonAttackEffect.calculatePokemonDamage(attacker, pokemonTarget, move), committedGrassMultiplier)) : 0;
+                            PokemonAttackEffect.calculatePokemonDamage(attacker, pokemonTarget, move), committedGrassMultiplier)
+                            * (float) groundPlan.damageMultiplier()) : 0;
             ActionBattleSession sleepSession = pokemonTarget != null ? ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID()) : null;
             long currentTick = attacker.level().getGameTime();
             ActionBattleSleepController.WakePlan wakePlan = pokemonTarget != null
@@ -312,11 +393,17 @@ public final class FightOrFlightAdapter {
                     ActionBattleFairyController.hasType(attacker.getPokemon(), "fairy"))
                     : ActionBattleSleepController.WakePlan.NONE;
             LivingEntity finalTarget = target;
-            boolean success = withStatusMoveDataSuppressed(move, () -> PokemonAttackEffect.pokemonAttack(attacker, finalTarget));
+            ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, finalTarget, move,
+                    ActionBattleMoveEffectResolver.StatTrigger.BEFORE_USE, true);
+            ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, finalTarget, move,
+                    ActionBattleMoveEffectResolver.StatTrigger.ON_USE, true);
+            boolean success = withOwnedMoveDataSuppressed(move, () -> PokemonAttackEffect.pokemonAttack(attacker, finalTarget));
             if (pokemonTarget != null) {
-                if (success) applyPostHitActionStatScaling(attacker, pokemonTarget, move, beforeHp, committedGrassMultiplier);
+                if (success) applyPostHitActionStatScaling(attacker, pokemonTarget, move, beforeHp,
+                        committedGrassMultiplier, groundPlan.damageMultiplier());
                 boolean qualifyingWaterHit = success;
                 applyProtectImpact(attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
+                ActionBattleGroundController.resolveAfterDamage(groundPlan, attacker, pokemonTarget, beforeHp);
                 if (success) ActionBattleGrassController.onPokemonDamageResolved(attacker, pokemonTarget,
                         Math.max(0, beforeHp - pokemonTarget.getPokemon().getCurrentHealth()));
                 if (success) ActionBattleFireController.onSuccessfulMoveHit(attacker, pokemonTarget, move, ActionBattleFireRules.NORMAL_PRESSURE);
@@ -338,13 +425,22 @@ public final class FightOrFlightAdapter {
                 ActionBattleMoveEffectResolver.applyDeclaredFlinchOnHit(attacker, pokemonTarget, move, success);
                 ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, pokemonTarget, move, success);
                 ActionBattleMoveEffectResolver.applyDeclaredParalysisOnHit(attacker, pokemonTarget, move, success);
+                ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, pokemonTarget, move,
+                        ActionBattleMoveEffectResolver.StatTrigger.ON_HIT, success);
+                ActionBattlePsycUpController.onSuccessfulEnemyMoveResolved(attacker, pokemonTarget, move, success);
             }
             return true;
         }
         if (isSelfOrAllyTargetCategory(moveTargetCategory(move))) {
             PokemonUtils.sendAnimationPacket(attacker, "special");
             LivingEntity finalTarget = target;
-            boolean success = withStatusMoveDataSuppressed(move, () -> PokemonAttackEffect.pokemonAttack(attacker, finalTarget));
+            ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, finalTarget, move,
+                    ActionBattleMoveEffectResolver.StatTrigger.BEFORE_USE, true);
+            ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, finalTarget, move,
+                    ActionBattleMoveEffectResolver.StatTrigger.ON_USE, true);
+            boolean success = withOwnedMoveDataSuppressed(move, () -> PokemonAttackEffect.pokemonAttack(attacker, finalTarget));
+            ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, finalTarget, move,
+                    ActionBattleMoveEffectResolver.StatTrigger.ON_HIT, success);
             if (success && target instanceof PokemonEntity pokemonTarget) {
                 ActionBattleWaterController.onSuccessfulInteraction(attacker, pokemonTarget, move);
                 ActionBattleGrassController.onSuccessfulMoveResolved(attacker, pokemonTarget, move);
@@ -362,27 +458,37 @@ public final class FightOrFlightAdapter {
     }
 
     public static void applyOnUseEffectsWithoutActionStatuses(PokemonEntity attacker, LivingEntity target, Move move) {
-        withStatusMoveDataSuppressed(move, () -> {
+        ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, target, move,
+                ActionBattleMoveEffectResolver.StatTrigger.BEFORE_USE, true);
+        ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, target, move,
+                ActionBattleMoveEffectResolver.StatTrigger.ON_USE, true);
+        withOwnedMoveDataSuppressed(move, () -> {
             PokemonAttackEffect.applyOnUseEffect(attacker, target, move);
             return true;
         });
     }
 
     public static void applyPostEffectsWithoutActionStatuses(PokemonEntity attacker, LivingEntity target, Move move, boolean success) {
-        withStatusMoveDataSuppressed(move, () -> {
+        withOwnedMoveDataSuppressed(move, () -> {
             PokemonAttackEffect.applyPostEffect(attacker, target, move, success);
             return true;
         });
+        ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, target, move,
+                ActionBattleMoveEffectResolver.StatTrigger.ON_HIT, success);
     }
 
-    private static boolean withStatusMoveDataSuppressed(Move move, BooleanOperation operation) {
+    private static boolean withOwnedMoveDataSuppressed(Move move, BooleanOperation operation) {
         if (move == null || operation == null) return false;
         synchronized (MoveData.moveData) {
             List<MoveData> original = MoveData.moveData.get(move.getName());
-            if (original == null || original.stream().noneMatch(StatusEffectMoveData.class::isInstance)) return operation.run();
+            if (original == null || original.stream().noneMatch(entry -> entry instanceof StatChangeMoveData
+                    || entry instanceof StatusEffectMoveData status && ActionBattleMoveEffectResolver.isOwnedActionStatus(status))) {
+                return operation.run();
+            }
             List<MoveData> filtered = new ArrayList<>(original.size());
             for (MoveData entry : original) {
                 if (entry instanceof StatusEffectMoveData status && ActionBattleMoveEffectResolver.isOwnedActionStatus(status)) continue;
+                if (entry instanceof StatChangeMoveData) continue;
                 filtered.add(entry);
             }
             MoveData.moveData.put(move.getName(), filtered);
