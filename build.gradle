@@ -267,6 +267,97 @@ def electricHudTest = tasks.register('electricHudTest', JavaExec) {
     mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricHudTest'
 }
 
+def pokemonHealthTest = tasks.register('pokemonHealthTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs shared ACTION Pokemon health synchronization tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattlePokemonHealthTest'
+}
+
+def lobRuntimeTest = tasks.register('lobRuntimeTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs reusable ACTION Lob trajectory and collision tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.projectile.lob.ActionBattleLobRuntimeTest'
+}
+
+def grassStateTest = tasks.register('grassStateTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Grass Empower, Movement Burst, and Leech Seed state tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassStateTest'
+}
+
+def waveRuntimeTest = tasks.register('waveRuntimeTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs reusable ACTION radial Wave collision tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.projectile.wave.ActionBattleWaveRuntimeTest'
+}
+
+def grassFieldLifecycleTest = tasks.register('grassFieldLifecycleTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Grass Seed arming and Flower lifetime tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.grass.GrassFieldLifecycleTest'
+}
+
+def grassActivationTest = tasks.register('grassActivationTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Grass Flower contact routing tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassActivationTest'
+}
+
+def grassDeliveryTest = tasks.register('grassDeliveryTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Grass move delivery qualification tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassDeliveryTest'
+}
+
+def grassHudTest = tasks.register('grassHudTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Grass HUD identity and resource tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassHudTest'
+}
+
+def grassMovementTest = tasks.register('grassMovementTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Grass locomotion multiplier and extension tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassMovementTest'
+}
+
+def grassWaveTest = tasks.register('grassWaveTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Grass healing Wave parameter tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassWaveTest'
+}
+
+def grassFieldControllerTest = tasks.register('grassFieldControllerTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Grass field-object cap and Seed-to-Flower identity tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassFieldControllerTest'
+}
+
+def grassCleanupTest = tasks.register('grassCleanupTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Grass session cleanup tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassCleanupTest'
+}
+
+def leechSeedTest = tasks.register('leechSeedTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs Grass Leech Seed damage and healing amount tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleLeechSeedTest'
+}
+
 def electricParalysisControllerTest = tasks.register('electricParalysisControllerTest', JavaExec) {
     group = 'verification'
     description = 'Runs explicit-amount Paralysis contribution and movement tests.'
@@ -293,6 +384,13 @@ def waterPlacementTest = tasks.register('waterPlacementTest', JavaExec) {
     description = 'Runs deterministic Water field placement regression tests.'
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.water.WaterFieldPlacementTest'
+}
+
+def fieldPlacementTest = tasks.register('fieldPlacementTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs reusable ACTION field placement regression tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldPlacementTest'
 }
 
 def waterFieldTrackerTest = tasks.register('waterFieldTrackerTest', JavaExec) {
@@ -352,7 +450,7 @@ def waterHudTest = tasks.register('waterHudTest', JavaExec) {
 }
 
 tasks.named('test') {
-    dependsOn fireStateTest, typeEffectControllerTest, iceTypeEffectTest, iceTypeEffectDeliveryTest, iceTypeEffectHudTest,
+    dependsOn fireStateTest, typeEffectControllerTest, pokemonHealthTest, lobRuntimeTest, waveRuntimeTest, grassStateTest, grassFieldLifecycleTest, grassFieldControllerTest, grassActivationTest, grassDeliveryTest, grassMovementTest, grassWaveTest, grassHudTest, grassCleanupTest, leechSeedTest, iceTypeEffectTest, iceTypeEffectDeliveryTest, iceTypeEffectHudTest,
             fairyDrowsyStateTest
     dependsOn actionBattleSleepRulesTest
     dependsOn fairyControllerTest
@@ -367,7 +465,7 @@ tasks.named('test') {
     dependsOn electricParalysisControllerTest
     dependsOn electricParalysisResolverTest
     dependsOn waterStateTest
-    dependsOn waterPlacementTest, waterFieldTrackerTest
+    dependsOn fieldPlacementTest, waterPlacementTest, waterFieldTrackerTest
     dependsOn aquaBubbleLifecycleTest
     dependsOn waterActivationTest
     dependsOn aquaShieldProtectTest

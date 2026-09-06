@@ -9,6 +9,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleSleepW
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.util.RandomSource;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 
 import java.util.UUID;
 
@@ -29,21 +31,82 @@ public final class ActionBattleSleepController {
         return session != null && pokemonUUID != null && ActionBattleEffectController.global().hasStatus(session.dungeonSessionId(), pokemonUUID, ActionBattleStatus.SLEEP, currentTick);
     }
 
+    public static boolean applySleep(ServerLevel level, UUID dungeonSessionId, UUID pokemonUUID, long currentTick,
+                                     long durationTicks) {
+        if (level == null || dungeonSessionId == null || pokemonUUID == null || currentTick < 0L || durationTicks <= 0L) {
+            return false;
+        }
+        if (!ActionBattleEffectController.global().beginSleep(dungeonSessionId, pokemonUUID, currentTick, durationTicks)) {
+            return false;
+        }
+        ActionBattleSession session = ActionBattleManager.findSessionForPokemon(pokemonUUID);
+        if (session != null && dungeonSessionId.equals(session.dungeonSessionId())) {
+            UUID entityUUID = pokemonUUID.equals(session.playerActivePokemonUUID())
+                    ? session.playerActiveEntityUUID() : session.trainerActiveEntityUUID();
+            Entity entity = entityUUID != null ? level.getEntity(entityUUID) : null;
+            if (entity instanceof PokemonEntity pokemon && !pokemon.isRemoved()) {
+                pokemon.getNavigation().stop();
+                pokemon.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+            }
+            ActionBattleConfusionController.cancelMeleeDash(pokemonUUID);
+            ActionBattleCommandController.cancelPendingOrders(session, pokemonUUID,
+                    ActionBattleCommandController.InterruptReason.SLEEP);
+            DebugLog.log("[CobblemonNML] ACTION Sleep applied. Battle=" + session.battleId() + ", pokemon="
+                    + pokemonUUID + ", durationTicks=" + durationTicks);
+        } else {
+            DebugLog.log("[CobblemonNML] ACTION Sleep applied. DungeonSession=" + dungeonSessionId + ", pokemon="
+                    + pokemonUUID + ", durationTicks=" + durationTicks);
+        }
+        return true;
+    }
+
+    public static void tickSession(ServerLevel level, UUID dungeonSessionId, long currentTick) {
+        if (level == null || dungeonSessionId == null || currentTick < 0L) return;
+        for (UUID pokemonUUID : ActionBattleEffectController.global().tickSleepStates(dungeonSessionId, currentTick)) {
+            ActionBattleSession session = ActionBattleManager.findSessionForPokemon(pokemonUUID);
+            if (session != null && dungeonSessionId.equals(session.dungeonSessionId())) {
+                ActionBattlePersistentController.global().onSleepEnded(session.battleId(), pokemonUUID);
+                UUID entityUUID = pokemonUUID.equals(session.playerActivePokemonUUID())
+                        ? session.playerActiveEntityUUID() : session.trainerActiveEntityUUID();
+                Entity entity = entityUUID != null ? level.getEntity(entityUUID) : null;
+                if (entity instanceof PokemonEntity pokemon && !pokemon.isRemoved()) {
+                    ActionBattleStatusParticleController.emitWakeBurst(level, pokemon);
+                }
+                DebugLog.log("[CobblemonNML] ACTION Sleep expired. Battle=" + session.battleId()
+                        + ", pokemon=" + pokemonUUID);
+            } else {
+                DebugLog.log("[CobblemonNML] ACTION Sleep expired. DungeonSession=" + dungeonSessionId
+                        + ", pokemon=" + pokemonUUID);
+            }
+        }
+    }
+
+    public static boolean canIssueCommand(boolean sleeping, CommandKind kind) {
+        if (!sleeping || kind == null) return true;
+        return kind == CommandKind.VOLUNTARY_SWAP || kind == CommandKind.MANDATORY_REPLACEMENT;
+    }
+
+    public static boolean canIssueCommand(ActionBattleSession session, UUID pokemonUUID, long currentTick, CommandKind kind) {
+        return canIssueCommand(isSleeping(session, pokemonUUID, currentTick), kind);
+    }
+
     public static int rollSleepDurationTicks(RandomSource random) {
         if (random == null) throw new IllegalArgumentException("Sleep duration random source cannot be null.");
         return ActionBattleSleepWakeRules.sleepDurationTicksFromRoll(random.nextInt(7));
     }
 
-    public static WakePlan planDamagingWake(boolean sleeping, boolean fairyMove, boolean explicitWake) {
+    public static WakePlan planDamagingWake(boolean sleeping, boolean ranged, boolean fairyTypedAttacker) {
         return sleeping
-                ? new WakePlan(true, ActionBattleSleepWakeRules.damageMultiplier(true, fairyMove, explicitWake), explicitWake)
+                ? new WakePlan(true, ActionBattleSleepWakeRules.damageMultiplier(true, ranged, fairyTypedAttacker),
+                ranged, fairyTypedAttacker)
                 : WakePlan.NONE;
     }
 
-    public static WakePlan planDamagingWake(ActionBattleSession session, PokemonEntity target, long currentTick, boolean ranged, boolean explicitWake) {
+    public static WakePlan planDamagingWake(ActionBattleSession session, PokemonEntity target, long currentTick,
+                                             boolean ranged, boolean fairyTypedAttacker) {
         boolean sleeping = session != null && target != null && currentTick >= 0L
                 && isSleeping(session, target.getPokemon().getUuid(), currentTick);
-        return planDamagingWake(sleeping, false, explicitWake);
+        return planDamagingWake(sleeping, ranged, fairyTypedAttacker);
     }
 
     public static boolean applyWakeDamageAndWake(ActionBattleSession session, PokemonEntity target, long currentTick, int beforeHp, WakePlan plan) {
@@ -54,7 +117,8 @@ public final class ActionBattleSleepController {
             ActionBattlePersistentController.global().onSleepEnded(session.battleId(), target.getPokemon().getUuid());
             if (target.level() instanceof net.minecraft.server.level.ServerLevel level) ActionBattleStatusParticleController.emitWakeBurst(level, target);
             DebugLog.log("[CobblemonNML] Action battle Pokemon woke from ability damage. Battle=" + session.battleId() + ", pokemon=" + target.getPokemon().getUuid()
-                    + ", explicitWake=" + plan.explicitWake() + ", multiplier=" + plan.damageMultiplier());
+                    + ", ranged=" + plan.ranged() + ", fairyAttacker=" + plan.fairyTypedAttacker()
+                    + ", multiplier=" + plan.damageMultiplier());
         }
         return woke;
     }
@@ -63,7 +127,9 @@ public final class ActionBattleSleepController {
         return plan != null && plan.wakesTarget() && beforeHp > afterHp;
     }
 
-    public record WakePlan(boolean wakesTarget, float damageMultiplier, boolean explicitWake) {
-        public static final WakePlan NONE = new WakePlan(false, 1.0F, false);
+    public record WakePlan(boolean wakesTarget, float damageMultiplier, boolean ranged, boolean fairyTypedAttacker) {
+        public static final WakePlan NONE = new WakePlan(false, 1.0F, false, false);
     }
+
+    public enum CommandKind { MOVE, MOVE_HERE, REPOSITION, PENDING_CONTINUATION, VOLUNTARY_SWAP, MANDATORY_REPLACEMENT }
 }

@@ -15,6 +15,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.water.field.WaterFieldPl
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.mixin.ActionBattleLivingEntityAccessor;
 import net.epiac9.cobblemonnml.registry.ModBlocks;
+import net.epiac9.cobblemonnml.battle.action.projectile.lob.ActionBattleLobPayload;
+import net.epiac9.cobblemonnml.battle.action.projectile.lob.ActionBattleLobProjectileEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -41,18 +43,31 @@ public final class ActionBattleWaterController {
     }
 
     public static boolean onSuccessfulInteraction(PokemonEntity attacker, PokemonEntity target, Move move) {
-        if (attacker == null || target == null || move == null || !isQualifyingInteraction(move)
+        if (attacker == null || move == null || !isQualifyingInteraction(move)
                 || !DungeonSession.isActive() || !(attacker.level() instanceof ServerLevel level)) return false;
-        ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(target.getUUID());
-        if (session == null || !session.battleId().equals(ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))
+        PokemonEntity affected = target != null ? target : attacker;
+        ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(attacker.getUUID());
+        if (session == null || !session.battleId().equals(ActionBattleManager.battleIdForPokemonEntity(affected.getUUID()))
                 || !session.dungeonSessionId().equals(DungeonSession.getSessionId())) return false;
         UUID owner = attacker.getPokemon().getUuid();
         ActionBattleFieldObject.OwnerSide side = owner.equals(session.playerActivePokemonUUID())
                 ? ActionBattleFieldObject.OwnerSide.PLAYER : owner.equals(session.trainerActivePokemonUUID())
                 ? ActionBattleFieldObject.OwnerSide.TRAINER : null;
         if (side == null) return false;
-        PokemonEntity anchor = level.random.nextBoolean() ? attacker : target;
-        return placeBubble(level, session.dungeonSessionId(), owner, side, anchor);
+        PokemonEntity anchor = level.random.nextBoolean() ? attacker : affected;
+        var candidates = WaterFieldPlacement.validCandidates(
+                new WaterFieldPlacement.Position(anchor.blockPosition().getX(), anchor.blockPosition().getY(), anchor.blockPosition().getZ()),
+                candidate -> {
+                    BlockPos pos = blockPos(candidate);
+                    var path = anchor.getNavigation().createPath(pos, 0);
+                    return validPlacement(level, pos) && path != null && path.canReach();
+                });
+        if (candidates.isEmpty()) return false;
+        BlockPos destination = blockPos(candidates.get(level.random.nextInt(candidates.size())));
+        var payload = new ActionBattleLobPayload(ActionBattleLobPayload.PayloadKind.AQUA_BUBBLE,
+                session.dungeonSessionId(), session.battleId(), owner, side, anchor.blockPosition(), destination);
+        return level.addFreshEntity(new ActionBattleLobProjectileEntity(level,
+                attacker.position().add(0, attacker.getBbHeight() * 0.5D, 0), payload, 20, 3.0D));
     }
 
     private static boolean placeBubble(ServerLevel level, UUID sessionId, UUID owner,
@@ -78,6 +93,17 @@ public final class ActionBattleWaterController {
                 candidate -> validPlacement(level, blockPos(candidate)) && reachable.test(blockPos(candidate)));
         if (candidates.isEmpty()) return false;
         BlockPos pos = blockPos(candidates.get(level.random.nextInt(candidates.size())));
+        return createBubbleAt(level, sessionId, owner, side, pos);
+    }
+
+    public static boolean onLobImpact(ServerLevel level, ActionBattleLobPayload payload, BlockPos pos) {
+        return payload != null && payload.kind() == ActionBattleLobPayload.PayloadKind.AQUA_BUBBLE
+                && validPlacement(level, pos) && createBubbleAt(level, payload.sessionId(),
+                payload.ownerPokemonId(), payload.ownerSide(), pos);
+    }
+
+    private static boolean createBubbleAt(ServerLevel level, UUID sessionId, UUID owner,
+                                          ActionBattleFieldObject.OwnerSide side, BlockPos pos) {
         long tick = level.getGameTime();
         long sequence = nextSequence++;
         var owned = BUBBLES.objectsForOwner(sessionId, owner);

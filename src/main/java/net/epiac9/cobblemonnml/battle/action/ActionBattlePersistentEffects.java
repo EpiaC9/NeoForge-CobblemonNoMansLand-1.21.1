@@ -2,8 +2,6 @@ package net.epiac9.cobblemonnml.battle.action;
 
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.cobblemon.mod.common.pokemon.Pokemon;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentType;
 
@@ -17,7 +15,7 @@ public final class ActionBattlePersistentEffects {
 
     public static boolean applyNightmare(ActionBattleSession session, PokemonEntity source, PokemonEntity target, long currentTick) {
         if (!valid(session, source, target, currentTick)) return false;
-        boolean sleeping = ActionBattleEffectController.global().hasStatus(session.battleId(), target.getPokemon().getUuid(), ActionBattleStatus.SLEEP, currentTick);
+        boolean sleeping = ActionBattleSleepController.isSleeping(session, target.getPokemon().getUuid(), currentTick);
         return ActionBattlePersistentController.global().applyNightmare(session.battleId(), target.getPokemon().getUuid(), source.getPokemon().getUuid(), sleeping, currentTick);
     }
 

@@ -10,6 +10,7 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricTracker;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterState;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassState;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -144,6 +145,46 @@ public final class ActionBattleTypeEffectController {
             UUID sessionId, UUID pokemonUUID) {
         ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
         return state == null ? java.util.List.of() : state.drainWaterShieldEndEvents();
+    }
+
+    public void applyGrassEmpower(UUID sessionId, UUID pokemonUUID, double multiplier) {
+        if (!validSession(sessionId) || pokemonUUID == null) return;
+        states.computeIfAbsent(pokemonUUID, ActionBattleTypeEffectState::new).applyGrassEmpower(multiplier);
+    }
+
+    public void applyGrassMovement(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        if (!validSession(sessionId) || pokemonUUID == null || currentTick < 0L) return;
+        states.computeIfAbsent(pokemonUUID, ActionBattleTypeEffectState::new).applyGrassMovement(currentTick);
+    }
+
+    public boolean applyLeechSeed(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        if (!validSession(sessionId) || pokemonUUID == null || currentTick < 0L) return false;
+        return states.computeIfAbsent(pokemonUUID, ActionBattleTypeEffectState::new).applyLeechSeed(currentTick);
+    }
+
+    public ActionBattleGrassState.GrassMoveCommit commitGrassMove(UUID sessionId, UUID pokemonUUID, boolean grassMove) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state == null ? new ActionBattleGrassState.GrassMoveCommit(1.0D, false) : state.commitGrassMove(grassMove);
+    }
+
+    public double grassMovementMultiplier(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state == null ? 1.0D : state.grassMovementMultiplier(currentTick);
+    }
+
+    public Optional<ActionBattleGrassState.EmpowerView> grassEmpowerView(UUID sessionId, UUID pokemonUUID) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state == null ? Optional.empty() : state.grassEmpowerView();
+    }
+
+    public Optional<ActionBattleGrassState.MovementView> grassMovementView(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state == null ? Optional.empty() : state.grassMovementView(currentTick);
+    }
+
+    public Optional<ActionBattleGrassState.LeechSeedView> leechSeedView(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        return state == null ? Optional.empty() : state.leechSeedView(currentTick);
     }
 
     public void tickSession(UUID sessionId, long currentTick) {

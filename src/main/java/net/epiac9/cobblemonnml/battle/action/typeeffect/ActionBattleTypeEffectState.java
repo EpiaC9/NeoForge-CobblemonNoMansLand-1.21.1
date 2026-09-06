@@ -13,6 +13,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleEle
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterState;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassState;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +26,7 @@ public final class ActionBattleTypeEffectState {
     private ActionBattlePoisonTracker poison;
     private ActionBattleElectricTracker electric;
     private ActionBattleWaterState water;
+    private ActionBattleGrassState grass;
 
     ActionBattleTypeEffectState(UUID pokemonUUID) {
         if (pokemonUUID == null) throw new IllegalArgumentException("Pokemon ID cannot be null.");
@@ -113,6 +115,10 @@ public final class ActionBattleTypeEffectState {
         if (water != null) {
             water.tick(currentTick);
             if (water.isEmpty()) water = null;
+        }
+        if (grass != null) {
+            grass.tick(currentTick);
+            if (grass.isEmpty(currentTick)) grass = null;
         }
     }
 
@@ -252,6 +258,41 @@ public final class ActionBattleTypeEffectState {
         return water == null ? java.util.List.of() : water.drainShieldEndEvents();
     }
 
+    void applyGrassEmpower(double multiplier) {
+        if (grass == null) grass = new ActionBattleGrassState();
+        grass.applyEmpower(multiplier);
+    }
+
+    void applyGrassMovement(long currentTick) {
+        if (grass == null) grass = new ActionBattleGrassState();
+        grass.applyMovementBurst(currentTick);
+    }
+
+    boolean applyLeechSeed(long currentTick) {
+        if (grass == null) grass = new ActionBattleGrassState();
+        return grass.applyLeechSeed(currentTick);
+    }
+
+    ActionBattleGrassState.GrassMoveCommit commitGrassMove(boolean grassMove) {
+        return grass == null ? new ActionBattleGrassState.GrassMoveCommit(1.0D, false) : grass.commitMove(grassMove);
+    }
+
+    double grassMovementMultiplier(long currentTick) {
+        return grass == null ? 1.0D : grass.movementMultiplier(currentTick);
+    }
+
+    Optional<ActionBattleGrassState.EmpowerView> grassEmpowerView() {
+        return grass == null ? Optional.empty() : grass.empowerView();
+    }
+
+    Optional<ActionBattleGrassState.MovementView> grassMovementView(long currentTick) {
+        return grass == null ? Optional.empty() : grass.movementView(currentTick);
+    }
+
+    Optional<ActionBattleGrassState.LeechSeedView> leechSeedView(long currentTick) {
+        return grass == null ? Optional.empty() : grass.leechSeedView(currentTick);
+    }
+
     int iceHitsRequired(long currentTick) {
         tick(currentTick);
         return ice != null ? ice.hitsRequired() : 3;
@@ -273,7 +314,7 @@ public final class ActionBattleTypeEffectState {
                 .map(state -> state.level() == ActionBattlePoisonRules.PoisonLevel.TOXIC).orElse(false);
     }
 
-    boolean isEmpty() { return fire == null && ice == null && drowsy == null && poison == null && electric == null && water == null; }
+    boolean isEmpty() { return fire == null && ice == null && drowsy == null && poison == null && electric == null && water == null && grass == null; }
     UUID pokemonUUID() { return pokemonUUID; }
 
     public record FireView(

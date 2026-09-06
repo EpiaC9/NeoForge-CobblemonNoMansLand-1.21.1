@@ -1,6 +1,7 @@
 package net.epiac9.cobblemonnml.client.battle.action;
 
 import net.minecraft.resources.ResourceLocation;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyVisuals;
 
 public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual SLEEP = typeEffectVisual("sleep", 0xFF7E73C7);
@@ -22,7 +23,7 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual TYPE_ICE_CHILL = typeEffectVisual("chill", 0xFF9EDFFF);
     private static final StatusVisual TYPE_ICE_FREEZE = typeEffectVisual("freeze", 0xFF63BDEB);
     private static final StatusVisual TYPE_ICE_FROSTBITE = typeEffectVisual("frostbite", 0xFF4A8FCB);
-    private static final StatusVisual TYPE_FAIRY_DROWSY = typeEffectVisual("sleep", 0xFFE890C8);
+    private static final StatusVisual TYPE_FAIRY_DROWSY = typeEffectVisual(ActionBattleFairyVisuals.drowsyTextureName(), 0xFFE890C8);
     private static final StatusVisual TYPE_POISON = visual("confusion", 0xFF70C968);
     private static final StatusVisual TYPE_POISON_LV1 = visual("confusion", 0xFF52AE5B);
     private static final StatusVisual TYPE_POISON_LV2 = visual("confusion", 0xFF8D5BC4);
@@ -31,6 +32,9 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual TYPE_ELECTRIC_PARALYSIS = typeEffectVisual("paralysis", 0xFFFFB300);
     private static final StatusVisual TYPE_AQUA_SHIELD = typeEffectVisual("aqua_shield", 0xFF42C7E8);
     private static final StatusVisual TYPE_IMMOBILIZED = typeEffectVisual("immobilized", 0xFF2488C9);
+    private static final StatusVisual TYPE_GRASS_EMPOWER = typeEffectVisual("grass_empower", 0xFF79D64A);
+    private static final StatusVisual TYPE_LEECH_SEED = typeEffectVisual("leech_seed", 0xFF4E9E3D);
+    private static final StatusVisual TYPE_GRASS_MOVEMENT = typeEffectVisual("grass_movement", 0xFF9EEA74);
     private static final StatusVisual[] DETERIORATING_SHIELD = {
             visual("deteriorating_shield_1", 0xFFD8E7EC), visual("deteriorating_shield_2", 0xFFD0DFE5), visual("deteriorating_shield_3", 0xFFC5D5DC),
             visual("deteriorating_shield_4", 0xFFBACAD2), visual("deteriorating_shield_5", 0xFFADBFC8), visual("deteriorating_shield_6", 0xFFA0B4BE),
@@ -79,6 +83,9 @@ public final class ActionBattleStatusVisualRegistry {
             case "TYPE_ELECTRIC_PARALYSIS" -> TYPE_ELECTRIC_PARALYSIS;
             case "TYPE_AQUA_SHIELD" -> TYPE_AQUA_SHIELD;
             case "TYPE_IMMOBILIZED" -> TYPE_IMMOBILIZED;
+            case "TYPE_GRASS_EMPOWER" -> TYPE_GRASS_EMPOWER;
+            case "TYPE_LEECH_SEED" -> TYPE_LEECH_SEED;
+            case "TYPE_GRASS_MOVEMENT" -> TYPE_GRASS_MOVEMENT;
             default -> null;
         };
     }

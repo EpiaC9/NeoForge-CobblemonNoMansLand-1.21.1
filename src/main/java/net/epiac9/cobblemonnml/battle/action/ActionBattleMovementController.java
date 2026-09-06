@@ -91,7 +91,9 @@ final class ActionBattleMovementController {
     static double movementSpeed(ActionBattleSession session, UUID pokemonUUID, long currentTick) {
         if (session == null || pokemonUUID == null || currentTick < 0L) return ACTION_MOVEMENT_SPEED;
         int stage = ActionBattleStatResolver.effectiveStage(session.battleId(), pokemonUUID, ActionBattleStat.SPEED, currentTick);
-        return ACTION_MOVEMENT_SPEED * ActionBattleStatRules.standardMultiplier(stage);
+        double grassMultiplier = ActionBattleTypeEffectController.global().grassMovementMultiplier(
+                session.dungeonSessionId(), pokemonUUID, currentTick);
+        return ACTION_MOVEMENT_SPEED * ActionBattleStatRules.standardMultiplier(stage) * grassMultiplier;
     }
 
     static ActionBattleParalysisState.FlinchContributionResult observeElectricParalysisMovement(

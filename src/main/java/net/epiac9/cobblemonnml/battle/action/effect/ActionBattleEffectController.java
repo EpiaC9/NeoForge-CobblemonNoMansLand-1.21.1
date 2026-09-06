@@ -3,6 +3,8 @@ package net.epiac9.cobblemonnml.battle.action.effect;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleSleepState;
 
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -98,6 +100,21 @@ public final class ActionBattleEffectController {
         ActionBattleSleepState.NaturalWakeResult result = state.tickSleepState(currentTick);
         removeIfEmpty(state, currentTick);
         return result;
+    }
+
+    public List<UUID> tickSleepStates(UUID scopeId, long currentTick) {
+        if (scopeId == null || currentTick < 0L) return List.of();
+        Map<UUID, ActionBattleEffectState> scopedStates = statesByBattle.get(scopeId);
+        if (scopedStates == null) return List.of();
+        List<UUID> wokeNaturally = new ArrayList<>();
+        for (Map.Entry<UUID, ActionBattleEffectState> entry : scopedStates.entrySet()) {
+            if (entry.getValue().tickSleepState(currentTick) == ActionBattleSleepState.NaturalWakeResult.WOKE_NATURALLY) {
+                wokeNaturally.add(entry.getKey());
+            }
+        }
+        scopedStates.entrySet().removeIf(entry -> entry.getValue().prune(currentTick));
+        if (scopedStates.isEmpty()) statesByBattle.remove(scopeId);
+        return List.copyOf(wokeNaturally);
     }
 
     public boolean hasStatus(UUID battleId, UUID pokemonUUID, ActionBattleStatus status, long currentTick) {

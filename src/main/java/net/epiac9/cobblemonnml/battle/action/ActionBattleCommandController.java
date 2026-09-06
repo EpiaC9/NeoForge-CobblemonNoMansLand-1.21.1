@@ -8,7 +8,7 @@ public final class ActionBattleCommandController {
     private ActionBattleCommandController() {}
 
     public enum Side { PLAYER, TRAINER }
-    public enum InterruptReason { NEW_COMMAND, SWAP, FAINT, RECALL, TARGET_INVALID, MOVE_FAILED, CONTROL_EFFECT, BATTLE_END }
+    public enum InterruptReason { NEW_COMMAND, SWAP, FAINT, RECALL, TARGET_INVALID, MOVE_FAILED, CONTROL_EFFECT, SLEEP, BATTLE_END }
 
     public static void onCommandIssued(ActionBattleSession session, UUID pokemonUUID) {
         if (!isActivePokemon(session, pokemonUUID)) return;
@@ -18,13 +18,15 @@ public final class ActionBattleCommandController {
     public static boolean cancelPendingOrders(ActionBattleSession session, UUID pokemonUUID, InterruptReason reason) {
         Side side = sideOf(session, pokemonUUID);
         if (side == null || reason == null) return false;
-        if (reason == InterruptReason.CONTROL_EFFECT) applyControlHooks(pokemonUUID);
         return cancelPendingOrders(session, side, reason);
     }
 
     public static boolean cancelPendingOrders(ActionBattleSession session, Side side, InterruptReason reason) {
         if (session == null || side == null || reason == null) return false;
-        if (reason == InterruptReason.CONTROL_EFFECT) applyControlEffect(session, side);
+        if (reason == InterruptReason.CONTROL_EFFECT || reason == InterruptReason.SLEEP) applyControlEffect(session, side);
+        if (reason == InterruptReason.SLEEP) {
+            return side == Side.PLAYER ? session.cancelPlayerOrdersForSleep() : session.cancelTrainerOrdersForSleep();
+        }
         return cancelOrdersForSide(session, side);
     }
 

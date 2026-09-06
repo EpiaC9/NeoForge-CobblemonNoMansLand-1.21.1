@@ -3,6 +3,7 @@ package net.epiac9.cobblemonnml.client.battle.action;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleHudPayload;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassVisuals;
 import net.minecraft.client.gui.GuiGraphics;
 
 import java.util.ArrayList;
@@ -49,7 +50,9 @@ public final class ActionBattleStatusHudRenderer {
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
             graphics.blit(entry.visual().icon(), x, y, 0.0F, 0.0F, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
-            renderTimerRing(graphics, x + ICON_SIZE / 2, y + ICON_SIZE / 2, entry.progress(), entry.visual().ringArgb());
+            if (ActionBattleGrassVisuals.hasCountdown(entry.state().statusId())) {
+                renderTimerRing(graphics, x + ICON_SIZE / 2, y + ICON_SIZE / 2, entry.progress(), entry.visual().ringArgb());
+            }
             renderPoisonBoundaries(graphics, x + ICON_SIZE / 2, y + ICON_SIZE / 2, entry.state().statusId());
             RenderSystem.disableBlend();
         }

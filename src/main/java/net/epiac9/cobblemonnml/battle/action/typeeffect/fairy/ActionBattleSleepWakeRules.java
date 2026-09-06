@@ -1,10 +1,10 @@
 package net.epiac9.cobblemonnml.battle.action.typeeffect.fairy;
 
 public final class ActionBattleSleepWakeRules {
-    public static final float ORDINARY_WAKE_DAMAGE_MULTIPLIER = 1.20F;
-    public static final float FAIRY_WAKE_DAMAGE_MULTIPLIER = 1.25F;
-    public static final float EXPLICIT_WAKE_DAMAGE_MULTIPLIER = 1.25F;
-    public static final float FAIRY_EXPLICIT_WAKE_DAMAGE_MULTIPLIER = 1.50F;
+    public static final float NORMAL_RANGED_DAMAGE_MULTIPLIER = 1.05F;
+    public static final float NORMAL_MELEE_DAMAGE_MULTIPLIER = 1.10F;
+    public static final float FAIRY_RANGED_DAMAGE_MULTIPLIER = 1.15F;
+    public static final float FAIRY_MELEE_DAMAGE_MULTIPLIER = 1.20F;
 
     private ActionBattleSleepWakeRules() {}
 
@@ -13,11 +13,9 @@ public final class ActionBattleSleepWakeRules {
         return (3 + roll) * 20;
     }
 
-    public static float damageMultiplier(boolean sleeping, boolean fairyMove, boolean explicitWakeMove) {
+    public static float damageMultiplier(boolean sleeping, boolean ranged, boolean fairyTypedAttacker) {
         if (!sleeping) return 1.0F;
-        if (fairyMove && explicitWakeMove) return FAIRY_EXPLICIT_WAKE_DAMAGE_MULTIPLIER;
-        if (fairyMove) return FAIRY_WAKE_DAMAGE_MULTIPLIER;
-        if (explicitWakeMove) return EXPLICIT_WAKE_DAMAGE_MULTIPLIER;
-        return ORDINARY_WAKE_DAMAGE_MULTIPLIER;
+        if (fairyTypedAttacker) return ranged ? FAIRY_RANGED_DAMAGE_MULTIPLIER : FAIRY_MELEE_DAMAGE_MULTIPLIER;
+        return ranged ? NORMAL_RANGED_DAMAGE_MULTIPLIER : NORMAL_MELEE_DAMAGE_MULTIPLIER;
     }
 }

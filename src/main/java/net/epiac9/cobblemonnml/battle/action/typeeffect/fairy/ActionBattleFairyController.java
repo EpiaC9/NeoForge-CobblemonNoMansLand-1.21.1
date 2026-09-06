@@ -11,6 +11,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceContr
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSleepController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
 
 import java.util.Locale;
@@ -21,9 +22,17 @@ public final class ActionBattleFairyController {
     private ActionBattleFairyController() {}
 
     public static boolean onSuccessfulEnemyTargetingMove(PokemonEntity attacker, PokemonEntity target, Move move) {
-        if (attacker == null || target == null || move == null || !isQualifyingAutomaticDrowsyMove(move)) return false;
+        if (attacker == null || target == null || move == null) return false;
+        boolean qualifying = isQualifyingAutomaticDrowsyMove(move);
+        DebugLog.log("[CobblemonNML] Fairy Drowsy candidate classified. Move=" + move.getName()
+                + ", qualifying=" + qualifying + ", power=" + FightOrFlightAdapter.movePower(move)
+                + ", targetCategory=" + FightOrFlightAdapter.moveTargetCategory(move));
+        if (!qualifying) return false;
         UUID battleId = ActionBattleManager.battleIdForPokemonEntity(target.getUUID());
-        if (battleId == null || !battleId.equals(ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))) return false;
+        if (battleId == null || !battleId.equals(ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))) {
+            DebugLog.log("[CobblemonNML] Fairy Drowsy rejected. Move=" + move.getName() + ", reason=battle_mismatch");
+            return false;
+        }
         return applyDrowsy(target, battleId, target.level().getGameTime(), target.getRandom().nextDouble());
     }
 
@@ -31,15 +40,29 @@ public final class ActionBattleFairyController {
         UUID sessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
         if (sessionId == null || target == null || currentTick < 0L) return false;
         Pokemon pokemon = target.getPokemon();
-        if (!canReceiveDrowsy(hasType(pokemon, "steel"))) return false;
+        if (!canReceiveDrowsy(hasType(pokemon, "steel"))) {
+            DebugLog.log("[CobblemonNML] Fairy Drowsy rejected. Pokemon=" + pokemon.getUuid() + ", reason=steel_immune");
+            return false;
+        }
         ActionBattleTypeEffectController controller = ActionBattleTypeEffectController.global();
         controller.guardSession(sessionId);
-        if (controller.hasActiveDrowsy(sessionId, pokemon.getUuid(), currentTick)) return false;
+        if (controller.hasActiveDrowsy(sessionId, pokemon.getUuid(), currentTick)) {
+            DebugLog.log("[CobblemonNML] Fairy Drowsy rejected. Pokemon=" + pokemon.getUuid() + ", reason=already_active");
+            return false;
+        }
         double chance = penetrationChance(ActionBattleProtectController.global(), battleId, pokemon.getUuid(), currentTick);
-        if (!passesPenetration(chance, penetrationRoll)) return false;
+        if (!passesPenetration(chance, penetrationRoll)) {
+            DebugLog.log("[CobblemonNML] Fairy Drowsy rejected. Pokemon=" + pokemon.getUuid()
+                    + ", reason=protect, chance=" + chance);
+            return false;
+        }
         ActionBattleDrowsyTracker.CompletionRoute route = completionRoute(
                 hasType(pokemon, "dragon"), hasType(pokemon, "fairy"));
-        return controller.applyDrowsy(sessionId, pokemon.getUuid(), currentTick, route);
+        boolean applied = controller.applyDrowsy(sessionId, pokemon.getUuid(), currentTick, route);
+        DebugLog.log("[CobblemonNML] Fairy Drowsy " + (applied ? "created" : "rejected") + ". Pokemon="
+                + pokemon.getUuid() + ", durationTicks=" + controller.nextDrowsyDurationTicks(sessionId, pokemon.getUuid())
+                + ", route=" + route);
+        return applied;
     }
 
     public static void tickSession(ServerLevel level, UUID sessionId) {
@@ -52,8 +75,10 @@ public final class ActionBattleFairyController {
             int duration = ActionBattleSleepController.rollSleepDurationTicks(level.getRandom());
             ActionBattleDrowsyTracker.CompletionRoute route = controller.pendingDrowsyCompletionRoute(sessionId, pokemonUUID);
             if (!controller.completeDrowsy(sessionId, pokemonUUID, currentTick, duration, route)) continue;
+            DebugLog.log("[CobblemonNML] Fairy Drowsy completed. Pokemon=" + pokemonUUID + ", route=" + route
+                    + ", durationTicks=" + duration);
             if (route == ActionBattleDrowsyTracker.CompletionRoute.SLEEP) {
-                ActionBattleEffectController.global().beginSleep(sessionId, pokemonUUID, currentTick, duration);
+                ActionBattleSleepController.applySleep(level, sessionId, pokemonUUID, currentTick, duration);
             } else if (route == ActionBattleDrowsyTracker.CompletionRoute.DRAGON_UPROAR) {
                 uproarCompletionHook.onDragonUproar(pokemonUUID, duration);
             }
@@ -73,9 +98,15 @@ public final class ActionBattleFairyController {
     }
 
     public static boolean isQualifyingAutomaticDrowsyMove(Move move) {
-        return move != null && FightOrFlightAdapter.movePower(move) == 0
-                && move.getType() != null && "fairy".equals(normalize(move.getType().getName()))
-                && isEnemyTargetCategory(FightOrFlightAdapter.moveTargetCategory(move));
+        return move != null && move.getType() != null && isQualifyingAutomaticDrowsyResolution(
+                move.getType().getName(), FightOrFlightAdapter.movePower(move),
+                FightOrFlightAdapter.moveTargetCategory(move), true);
+    }
+
+    public static boolean isQualifyingAutomaticDrowsyResolution(String type, int power, String targetCategory,
+                                                                  boolean successfulResolution) {
+        return successfulResolution && power == 0 && "fairy".equals(normalize(type))
+                && isEnemyTargetCategory(targetCategory);
     }
 
     public static boolean canReceiveDrowsy(boolean steelTyped) { return !steelTyped; }

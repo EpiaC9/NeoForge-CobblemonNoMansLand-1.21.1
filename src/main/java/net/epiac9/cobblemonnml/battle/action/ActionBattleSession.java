@@ -124,6 +124,12 @@ public final class ActionBattleSession {
         clearPlayerMoveState();
     }
 
+    public boolean cancelPlayerOrdersForSleep() {
+        boolean hadOrders = hasPlayerMovementIntent();
+        clearPlayerMoveState();
+        return hadOrders;
+    }
+
     public long replaceTrainerMoveCommand(int moveSlot, UUID targetEntityUUID) {
         if (state != ActionBattleState.ACTIVE || moveSlot < 0 || moveSlot > 3 || targetEntityUUID == null) return trainerCommandRevision;
         trainerMoveCommandPending = true;
@@ -145,6 +151,13 @@ public final class ActionBattleSession {
 
     public void cancelTrainerOrders() {
         clearTrainerMoveState();
+    }
+
+    public boolean cancelTrainerOrdersForSleep() {
+        boolean hadOrders = hasTrainerMovementIntent();
+        clearTrainerMoveCommand();
+        clearTrainerRepositionTarget();
+        return hadOrders;
     }
 
     public void setTrainerRepositionTarget(double x, double y, double z) {

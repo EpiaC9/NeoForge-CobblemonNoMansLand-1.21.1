@@ -1,14 +1,9 @@
 package net.epiac9.cobblemonnml.battle.action.typeeffect.water;
 
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattlePokemonHealth;
+
 public final class ActionBattleWaterHealth {
-    public interface Access {
-        int currentHealth();
-        int maxHealth();
-        boolean deployed();
-        float liveMaxHealth();
-        void setCurrentHealth(int value);
-        void setLiveHealth(float value);
-    }
+    public interface Access extends ActionBattlePokemonHealth.Access {}
 
     public record Result(int finalPokemonHealth, float finalLiveHealth, boolean fainted) {}
 
@@ -16,9 +11,8 @@ public final class ActionBattleWaterHealth {
 
     public static Result heal(Access access) {
         requireAccess(access);
-        int finalHealth = Math.min(access.maxHealth(), access.currentHealth()
-                + ActionBattleWaterRules.healAmount(access.maxHealth()));
-        return synchronize(access, finalHealth);
+        ActionBattlePokemonHealth.heal(access, ActionBattleWaterRules.healAmount(access.maxHealth()));
+        return result(access);
     }
 
     public static Result applyShieldHit(Access access, int beforeHealth, int finalDamage, boolean healEligible) {
@@ -53,6 +47,12 @@ public final class ActionBattleWaterHealth {
         }
         access.setCurrentHealth(finalHealth);
         return new Result(finalHealth, liveHealth, finalHealth <= 0);
+    }
+
+    private static Result result(Access access) {
+        float liveHealth = access.deployed() ? access.liveMaxHealth() * access.currentHealth()
+                / (float) access.maxHealth() : 0.0F;
+        return new Result(access.currentHealth(), liveHealth, access.currentHealth() <= 0);
     }
 
     private static void requireAccess(Access access) {

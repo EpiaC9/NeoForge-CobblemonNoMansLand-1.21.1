@@ -22,6 +22,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterVisuals;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassVisuals;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -114,6 +116,14 @@ public final class ActionBattleHudSync {
                         view.remainingTicks(), view.totalDurationTicks())));
         typeEffects.immobilizedView(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view ->
                 states.add(new ActionBattleHudPayload.StatusState(ActionBattleWaterVisuals.IMMOBILIZED_STATUS_ID,
+                        view.remainingTicks(), view.totalDurationTicks())));
+        typeEffects.grassEmpowerView(dungeonSessionId, pokemonUUID).ifPresent(view ->
+                states.add(new ActionBattleHudPayload.StatusState(ActionBattleGrassVisuals.EMPOWER_STATUS_ID, 1L, 1L)));
+        typeEffects.leechSeedView(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view ->
+                states.add(new ActionBattleHudPayload.StatusState(ActionBattleGrassVisuals.LEECH_SEED_STATUS_ID,
+                        view.remainingTicks(), ActionBattleGrassRules.LEECH_SEED_DURATION_TICKS)));
+        typeEffects.grassMovementView(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view ->
+                states.add(new ActionBattleHudPayload.StatusState(ActionBattleGrassVisuals.MOVEMENT_STATUS_ID,
                         view.remainingTicks(), view.totalDurationTicks())));
         return List.copyOf(states);
     }

@@ -11,7 +11,10 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyC
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonParticleController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleSleepController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
+import net.epiac9.cobblemonnml.battle.action.projectile.wave.ActionBattleWaveServerRuntime;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -28,8 +31,10 @@ public final class ActionBattleTypeEffectRuntime {
         if (level == null) return;
         ActionBattleTypeEffectController controller = ActionBattleTypeEffectController.global();
         controller.guardSession(sessionId);
+        ActionBattleSleepController.tickSession(level, sessionId, level.getGameTime());
         controller.tickSession(sessionId, level.getGameTime());
         ActionBattleWaterController.tickSession(sessionId);
+        ActionBattleWaveServerRuntime.tick(level, sessionId);
         ActionBattleFairyController.tickSession(level, sessionId);
         ActionBattleFireParticleController.tick(level);
         ActionBattleIceVisuals.tick(level);
@@ -56,6 +61,8 @@ public final class ActionBattleTypeEffectRuntime {
 
     public static void clearSession(ServerLevel level, UUID sessionId) {
         ActionBattleWaterController.clearSession(level, sessionId);
+        ActionBattleGrassController.clearSession(level, sessionId);
+        ActionBattleWaveServerRuntime.clearSession(sessionId);
         clearSession(sessionId);
     }
 
@@ -65,5 +72,7 @@ public final class ActionBattleTypeEffectRuntime {
 
     public static void clearAll() {
         ActionBattleTypeEffectController.global().clearAll();
+        ActionBattleGrassController.clearAll();
+        ActionBattleWaveServerRuntime.clearAll();
     }
 }

@@ -15,5 +15,6 @@ public final class ActionBattleProjectileClientEvents {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.ACTION_BATTLE_PROJECTILE.get(), NoopRenderer::new);
+        event.registerEntityRenderer(ModEntities.ACTION_BATTLE_LOB_PROJECTILE.get(), NoopRenderer::new);
     }
 }

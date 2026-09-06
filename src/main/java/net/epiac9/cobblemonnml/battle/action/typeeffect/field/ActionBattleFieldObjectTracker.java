@@ -39,6 +39,21 @@ public final class ActionBattleFieldObjectTracker {
         return removed;
     }
 
+    public boolean replace(UUID sessionId, ActionBattleFieldObject.Position position,
+                           ActionBattleFieldObject replacement) {
+        if (sessionId == null || position == null || replacement == null
+                || !sessionId.equals(replacement.sessionId()) || !position.equals(replacement.position())) return false;
+        List<ActionBattleFieldObject> objects = bySession.get(sessionId);
+        if (objects == null) return false;
+        for (int index = 0; index < objects.size(); index++) {
+            if (position.equals(objects.get(index).position())) {
+                objects.set(index, replacement);
+                return true;
+            }
+        }
+        return false;
+    }
+
     public List<ActionBattleFieldObject> objectsForOwner(UUID sessionId, UUID ownerPokemonUUID) {
         if (sessionId == null || ownerPokemonUUID == null) return List.of();
         return bySession.getOrDefault(sessionId, List.of()).stream()
@@ -55,6 +70,8 @@ public final class ActionBattleFieldObjectTracker {
     public int trackedCount(UUID sessionId) {
         return sessionId == null ? 0 : bySession.getOrDefault(sessionId, List.of()).size();
     }
+
+    public void clearAll() { bySession.clear(); }
 
     private static Comparator<ActionBattleFieldObject> order() {
         return Comparator.comparingLong(ActionBattleFieldObject::creationSequence)

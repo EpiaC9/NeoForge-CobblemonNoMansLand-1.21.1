@@ -23,6 +23,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoiso
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterHealth;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.registry.ModEntities;
 import net.minecraft.core.BlockPos;
@@ -49,12 +50,18 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
     private transient Move committedMove;
     private boolean confusedShot;
     private double accuracySpeedMultiplier = 1.0D;
+    private double committedGrassMultiplier = 1.0D;
 
     public ActionBattleProjectileEntity(EntityType<? extends AbstractPokemonProjectile> entityType, Level level) {
         super(entityType, level);
     }
 
     public ActionBattleProjectileEntity(Level level, PokemonEntity shooter, LivingEntity target, Move move) {
+        this(level, shooter, target, move, 1.0D);
+    }
+
+    public ActionBattleProjectileEntity(Level level, PokemonEntity shooter, LivingEntity target, Move move,
+                                        double committedGrassMultiplier) {
         super(ModEntities.ACTION_BATTLE_PROJECTILE.get(), level);
         initPosition(shooter);
         setOwner(shooter);
@@ -63,8 +70,11 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         committedMoveName = move.getName();
         entityData.set(DATA_MOVE_NAME, committedMoveName);
         committedMove = move;
+        this.committedGrassMultiplier = Math.max(1.0D, committedGrassMultiplier);
         setElementalType(move.getType().getName());
-        setDamage(FightOrFlightAdapter.isNativeDamageMove(move) ? FightOrFlightAdapter.scaleActionDamage(shooter, target, move, PokemonAttackEffect.calculatePokemonDamage(shooter, target, move)) : 0.0F);
+        setDamage(FightOrFlightAdapter.isNativeDamageMove(move) ? FightOrFlightAdapter.scaleActionDamage(
+                shooter, target, move, PokemonAttackEffect.calculatePokemonDamage(shooter, target, move),
+                this.committedGrassMultiplier) : 0.0F);
         accuracySpeedMultiplier = FightOrFlightAdapter.actionAccuracyProjectileMultiplier(shooter);
         maxLifetimeTicks = ActionProjectileProfile.maxLifetimeTicks(move.getName());
         Vec3 trackedTarget = target instanceof PokemonEntity pokemonTarget
@@ -79,6 +89,11 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
 
 
     public ActionBattleProjectileEntity(Level level, PokemonEntity shooter, Move move, Vec3 direction) {
+        this(level, shooter, move, direction, 1.0D);
+    }
+
+    public ActionBattleProjectileEntity(Level level, PokemonEntity shooter, Move move, Vec3 direction,
+                                        double committedGrassMultiplier) {
         super(ModEntities.ACTION_BATTLE_PROJECTILE.get(), level);
         initPosition(shooter);
         setOwner(shooter);
@@ -88,6 +103,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         committedMoveName = move.getName();
         entityData.set(DATA_MOVE_NAME, committedMoveName);
         committedMove = move;
+        this.committedGrassMultiplier = Math.max(1.0D, committedGrassMultiplier);
         setElementalType(move.getType().getName());
         setDamage(0.0F);
         accuracySpeedMultiplier = FightOrFlightAdapter.actionAccuracyProjectileMultiplier(shooter);
@@ -162,7 +178,8 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             return;
         }
         boolean nativeDamageMove = FightOrFlightAdapter.isNativeDamageMove(move);
-        if (nativeDamageMove) setDamage(FightOrFlightAdapter.scaleActionDamage(attacker, target, move, PokemonAttackEffect.calculatePokemonDamage(attacker, target, move)));
+        if (nativeDamageMove) setDamage(FightOrFlightAdapter.scaleActionDamage(attacker, target, move,
+                PokemonAttackEffect.calculatePokemonDamage(attacker, target, move), committedGrassMultiplier));
         PokemonEntity pokemonTarget = target instanceof PokemonEntity value ? value : null;
         int beforeHp = pokemonTarget != null ? pokemonTarget.getPokemon().getCurrentHealth() : 0;
         int attemptedPokemonDamage = pokemonTarget != null ? ActionBattleWaterHealth.toPokemonDamage(
@@ -170,7 +187,8 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         ActionBattleSession sleepSession = pokemonTarget != null ? ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID()) : null;
         long currentTick = attacker.level().getGameTime();
         ActionBattleSleepController.WakePlan wakePlan = nativeDamageMove && pokemonTarget != null
-                ? ActionBattleSleepController.planDamagingWake(sleepSession, pokemonTarget, currentTick, true, false)
+                ? ActionBattleSleepController.planDamagingWake(sleepSession, pokemonTarget, currentTick, true,
+                ActionBattleFairyController.hasType(attacker.getPokemon(), "fairy"))
                 : ActionBattleSleepController.WakePlan.NONE;
         if (nativeDamageMove) FightOrFlightAdapter.applyOnUseEffectsWithoutActionStatuses(attacker, target, move);
         boolean success = !nativeDamageMove || target.hurt(damageSources().indirectMagic(this, attacker), getDamage());
@@ -180,12 +198,14 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         PokemonAttackEffect.applySFX(attacker.level(), move, attacker.blockPosition());
         if (nativeDamageMove) FightOrFlightAdapter.applyPostEffectsWithoutActionStatuses(attacker, target, move, success);
         if (pokemonTarget != null) {
-            boolean qualifyingWaterInteraction = success && (!nativeDamageMove
-                    || beforeHp > pokemonTarget.getPokemon().getCurrentHealth());
+            boolean qualifyingWaterInteraction = success;
             FightOrFlightAdapter.applyProtectImpact(
                     attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
+            if (success) ActionBattleGrassController.onPokemonDamageResolved(attacker, pokemonTarget,
+                    Math.max(0, beforeHp - pokemonTarget.getPokemon().getCurrentHealth()));
             if (nativeDamageMove && success) ActionBattleFireController.onSuccessfulMoveHit(attacker, pokemonTarget, move, ActionBattleFireRules.NORMAL_PRESSURE);
             if (qualifyingWaterInteraction) ActionBattleWaterController.onSuccessfulInteraction(attacker, pokemonTarget, move);
+            if (success) ActionBattleGrassController.onSuccessfulMoveResolved(attacker, pokemonTarget, move);
             if (nativeDamageMove && success && beforeHp > pokemonTarget.getPokemon().getCurrentHealth()) {
                 ActionBattleElectricController.onSuccessfulMoveHit(attacker, pokemonTarget, move);
             }
@@ -231,6 +251,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         tag.putInt("ActionLifetime", maxLifetimeTicks);
         tag.putBoolean("ActionConfusedShot", confusedShot);
         tag.putDouble("ActionAccuracySpeedMultiplier", accuracySpeedMultiplier);
+        tag.putDouble("ActionGrassMultiplier", committedGrassMultiplier);
     }
 
     @Override
@@ -242,6 +263,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         maxLifetimeTicks = tag.contains("ActionLifetime") ? tag.getInt("ActionLifetime") : 80;
         confusedShot = tag.getBoolean("ActionConfusedShot");
         accuracySpeedMultiplier = tag.contains("ActionAccuracySpeedMultiplier") ? tag.getDouble("ActionAccuracySpeedMultiplier") : 1.0D;
+        committedGrassMultiplier = tag.contains("ActionGrassMultiplier") ? Math.max(1.0D, tag.getDouble("ActionGrassMultiplier")) : 1.0D;
     }
     private double projectileSpeed(String moveName) {
         return ActionProjectileProfile.speedBlocksPerTick(moveName) * accuracySpeedMultiplier;

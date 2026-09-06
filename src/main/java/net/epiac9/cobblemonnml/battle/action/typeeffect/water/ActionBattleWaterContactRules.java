@@ -19,8 +19,7 @@ public final class ActionBattleWaterContactRules {
 
     public static boolean isQualifyingInteraction(String moveType, boolean damaging, int movePower,
                                                    String targetCategory) {
-        if (!"water".equals(normalize(moveType))) return false;
-        return damaging || (movePower == 0 && enemyTargetCategory(targetCategory));
+        return "water".equals(normalize(moveType));
     }
 
     private static boolean enemyTargetCategory(String targetCategory) {
