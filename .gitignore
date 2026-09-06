@@ -41,4 +41,5 @@ repo/
 
 ### Testing purposes
 test/
+**/test/
 docs/
