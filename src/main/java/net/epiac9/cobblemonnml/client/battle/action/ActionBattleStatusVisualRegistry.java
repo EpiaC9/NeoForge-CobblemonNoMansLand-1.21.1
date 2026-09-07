@@ -35,6 +35,8 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual TYPE_GRASS_EMPOWER = typeEffectVisual("grass_empower", 0xFF79D64A);
     private static final StatusVisual TYPE_LEECH_SEED = typeEffectVisual("leech_seed", 0xFF4E9E3D);
     private static final StatusVisual TYPE_GRASS_MOVEMENT = typeEffectVisual("grass_movement", 0xFF9EEA74);
+    private static final StatusVisual TYPE_ROCK_STOCKPILE = typeEffectVisual("stockpile", 0xFF9C8975);
+    private static final StatusVisual TYPE_ROCK_ENDURANCE = typeEffectVisual("endurance", 0xFF6F737C);
     private static final StatusVisual[] DETERIORATING_SHIELD = {
             visual("deteriorating_shield_1", 0xFFD8E7EC), visual("deteriorating_shield_2", 0xFFD0DFE5), visual("deteriorating_shield_3", 0xFFC5D5DC),
             visual("deteriorating_shield_4", 0xFFBACAD2), visual("deteriorating_shield_5", 0xFFADBFC8), visual("deteriorating_shield_6", 0xFFA0B4BE),
@@ -86,6 +88,8 @@ public final class ActionBattleStatusVisualRegistry {
             case "TYPE_GRASS_EMPOWER" -> TYPE_GRASS_EMPOWER;
             case "TYPE_LEECH_SEED" -> TYPE_LEECH_SEED;
             case "TYPE_GRASS_MOVEMENT" -> TYPE_GRASS_MOVEMENT;
+            case "TYPE_ROCK_STOCKPILE" -> TYPE_ROCK_STOCKPILE;
+            case "TYPE_ROCK_ENDURANCE" -> TYPE_ROCK_ENDURANCE;
             default -> null;
         };
     }

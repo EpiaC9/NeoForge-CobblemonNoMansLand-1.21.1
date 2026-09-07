@@ -23,6 +23,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectCo
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsycUpController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockVisuals;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
@@ -61,6 +63,7 @@ final class ActionBattleEffectRuntime {
         observeDamageFeedback(session, refs);
         ActionBattleEffectController.global().tickBattle(session.battleId(), currentTick);
         ActionBattlePsycUpController.global().tickBattle(session.battleId(), currentTick);
+        ActionBattleRockController.global().tickBattle(session.battleId(), currentTick);
         List<ActionBattlePersistentTick> persistentTicks = ActionBattlePersistentController.global().tickBattle(session.battleId(), currentTick);
         applyPersistentTicks(session, level, persistentTicks, currentTick);
         if (refs != null) {
@@ -85,17 +88,20 @@ final class ActionBattleEffectRuntime {
         ActionBattleControlController.global().clearBattle(battleId);
         ActionBattleDamageFeedbackController.global().clearBattle(battleId);
         ActionBattleEvasionController.clearBattle(battleId);
+        ActionBattleRockController.global().clearBattle(battleId);
     }
 
     static void clearAll() {
         STAT_LINK_CLEANUP.clearAll();
+        ActionBattleRockController.global().clearAll();
     }
 
     static void onPokemonUnavailable(ActionBattleSession session, UUID pokemonId,
                                      boolean fainted, long currentTick) {
         if (session == null || pokemonId == null || currentTick < 0L) return;
         ActionBattleFairyController.onPokemonRecalled(pokemonId, currentTick);
-        ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), pokemonId);
+        ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), pokemonId, currentTick);
+        ActionBattleRockController.global().onPokemonUnavailable(session.battleId(), pokemonId);
         STAT_LINK_CLEANUP.onPokemonUnavailable(session.battleId(), pokemonId, currentTick);
         ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), pokemonId, fainted, currentTick);
         ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), pokemonId, fainted, currentTick);
@@ -109,6 +115,10 @@ final class ActionBattleEffectRuntime {
         ActionBattleEvasionController.record(session, entity, currentTick);
         ActionBattleSleepController.tickPokemon(session, entity, currentTick);
         syncNightmareWithSleep(session, entity, currentTick);
+        if (ActionBattleRockController.global().enduranceView(
+                session.battleId(), pokemon.getUuid(), currentTick).isPresent()) {
+            ActionBattleRockVisuals.emitEnduranceAura(entity, currentTick);
+        }
     }
 
     private static void syncNightmareWithSleep(ActionBattleSession session, PokemonEntity entity, long currentTick) {

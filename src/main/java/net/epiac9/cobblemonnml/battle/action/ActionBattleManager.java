@@ -16,6 +16,7 @@ import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectControll
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundVisualSync;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.dimension.DungeonDimension;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.events.trainer.DungeonTrainerBattleResultHandler;
@@ -271,6 +272,7 @@ public final class ActionBattleManager {
             ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick);
             FightOrFlightAdapter.executeConfusedRanged(pokemonEntity, move,
                     ActionBattleConfusionController.randomShotDirection(pokemonEntity), grassCommit.capturedDamageMultiplier());
+            ActionBattleRockRuntime.onMoveCommitted(pokemonEntity, move);
             DebugLog.log("[CobblemonNML] Confusion fired ranged move in random direction. Battle=" + session.battleId() + ", move=" + move.getName());
             return true;
         }
@@ -283,6 +285,7 @@ public final class ActionBattleManager {
             ActionBattleConfusionController.applyCooldownPenalty(session, pokemonEntity, currentTick);
             ActionBattleConfusionController.startMeleeDash(session, level, pokemonEntity, move, currentTick,
                     grassCommit.capturedDamageMultiplier());
+            ActionBattleRockRuntime.onMoveCommitted(pokemonEntity, move);
             DebugLog.log("[CobblemonNML] Confusion started uncontrolled melee dash. Battle=" + session.battleId() + ", move=" + move.getName());
             return true;
         }
@@ -461,6 +464,7 @@ public final class ActionBattleManager {
                 }
                 var grassCommit = ActionBattleGrassController.commitMove(pokemonEntity, move);
                 if (FightOrFlightAdapter.execute(pokemonEntity, targetEntity, move, grassCommit.capturedDamageMultiplier())) {
+                    ActionBattleRockRuntime.onMoveCommitted(pokemonEntity, move);
                     long cooldownTicks = FightOrFlightAdapter.cooldownTicks(move);
                     session.startPokemonMoveCooldown(pokemonUUID, currentTick, cooldownTicks);
                     ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), pokemonUUID);
@@ -603,13 +607,14 @@ public final class ActionBattleManager {
             ServerPlayer player = ActionBattlePokemonRuntime.findServerPlayer(session);
             ServerLevel level = player != null && player.getServer() != null
                     ? player.getServer().getLevel(DungeonDimension.DUNGEON_DIMENSION) : null;
+            long cleanupTick = level != null ? level.getGameTime() : 0L;
             if (refs.playerPokemon() != null) {
                 clearGroundState(session, level, refs.playerPokemon().getUuid(), session.playerActiveEntityUUID());
-                ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), refs.playerPokemon().getUuid());
+                ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), refs.playerPokemon().getUuid(), cleanupTick);
             }
             if (refs.trainerPokemon() != null) {
                 clearGroundState(session, level, refs.trainerPokemon().getUuid(), session.trainerActiveEntityUUID());
-                ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), refs.trainerPokemon().getUuid());
+                ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), refs.trainerPokemon().getUuid(), cleanupTick);
             }
             ActionBattlePokemonRuntime.recall(refs.playerPokemon());
             ActionBattlePokemonRuntime.recall(refs.trainerPokemon());

@@ -23,6 +23,7 @@ import net.epiac9.cobblemonnml.battle.action.projectile.wave.ActionBattleWaveSer
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsycUpController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockController;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.server.MinecraftServer;
@@ -81,6 +82,7 @@ public final class ActionBattleTypeEffectRuntime {
                     ActionBattleEffectController.global().onPokemonRecalled(
                             battle.battleId(), pokemon.getUuid(), player.level().getGameTime());
                     ActionBattlePsycUpController.global().onPokemonUnavailable(battle.battleId(), pokemon.getUuid());
+                    ActionBattleRockController.global().onPokemonUnavailable(battle.battleId(), pokemon.getUuid());
                 }
             }
         }
@@ -99,8 +101,13 @@ public final class ActionBattleTypeEffectRuntime {
         ActionBattleGroundVisualSync.clearSession(sessionId);
     }
 
-    public static void onPokemonRecalled(UUID sessionId, UUID pokemonUUID) {
+    public static void onPokemonRecalled(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        ActionBattleTypeEffectController.global().onPokemonUnavailable(sessionId, pokemonUUID, currentTick);
         ActionBattleParalysisController.global().clearPokemon(sessionId, pokemonUUID);
+    }
+
+    public static void onPokemonAvailable(UUID sessionId, UUID pokemonUUID) {
+        ActionBattleTypeEffectController.global().onPokemonAvailable(sessionId, pokemonUUID);
     }
 
     public static void flushStatStageEvents(UUID sessionId) {
@@ -119,6 +126,7 @@ public final class ActionBattleTypeEffectRuntime {
         ActionBattleTypeEffectController.global().clearAll();
         ActionBattleEffectController.global().clearAll();
         ActionBattlePsycUpController.global().clearAll();
+        ActionBattleRockController.global().clearAll();
         ActionBattleGrassController.clearAll();
         ActionBattleWaveServerRuntime.clearAll();
         ActionBattleGroundVisualSync.clearAll();

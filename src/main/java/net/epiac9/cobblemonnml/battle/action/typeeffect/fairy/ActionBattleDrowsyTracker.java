@@ -47,6 +47,14 @@ public final class ActionBattleDrowsyTracker {
         return true;
     }
 
+    public void clearOnUnavailable() {
+        activeDrowsy = null;
+        completion = null;
+        nextDrowsyDurationTicks = ActionBattleFairyRules.BASE_DROWSY_DURATION_TICKS;
+        cleanResetEndTick = -1L;
+        pendingCompletionRoute = CompletionRoute.SLEEP;
+    }
+
     public boolean tick(long currentTick, boolean sleepCompletionActive) {
         if (currentTick < 0L) return false;
         boolean changed = false;

@@ -14,6 +14,7 @@ import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.BlockPos;
@@ -116,6 +117,7 @@ final class ActionBattleTrainerAiController {
             var grassCommit = ActionBattleGrassController.commitMove(trainerPokemonEntity, move);
             if (FightOrFlightAdapter.execute(trainerPokemonEntity, playerPokemonEntity, move,
                     grassCommit.capturedDamageMultiplier())) {
+                ActionBattleRockRuntime.onMoveCommitted(trainerPokemonEntity, move);
                 long cooldownTicks = FightOrFlightAdapter.cooldownTicks(move);
                 session.startPokemonMoveCooldown(trainerPokemon.getUuid(), currentTick, cooldownTicks);
                 ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), trainerPokemon.getUuid());
@@ -177,6 +179,7 @@ final class ActionBattleTrainerAiController {
             ActionBattleConfusionController.applyCooldownPenalty(session, trainerEntity, currentTick);
             FightOrFlightAdapter.executeConfusedRanged(trainerEntity, move,
                     ActionBattleConfusionController.randomShotDirection(trainerEntity), grassCommit.capturedDamageMultiplier());
+            ActionBattleRockRuntime.onMoveCommitted(trainerEntity, move);
             DebugLog.log("[CobblemonNML] Trainer Confusion fired ranged move in random direction. Battle=" + session.battleId() + ", move=" + move.getName());
             return true;
         }
@@ -188,6 +191,7 @@ final class ActionBattleTrainerAiController {
             ActionBattleConfusionController.applyCooldownPenalty(session, trainerEntity, currentTick);
             ActionBattleConfusionController.startMeleeDash(session, level, trainerEntity, move, currentTick,
                     grassCommit.capturedDamageMultiplier());
+            ActionBattleRockRuntime.onMoveCommitted(trainerEntity, move);
             DebugLog.log("[CobblemonNML] Trainer Confusion started uncontrolled melee dash. Battle=" + session.battleId() + ", move=" + move.getName());
             return true;
         }

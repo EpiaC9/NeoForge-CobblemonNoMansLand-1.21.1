@@ -12,7 +12,9 @@ import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectControll
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterHealth;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
@@ -159,13 +161,21 @@ public final class ActionBattleConfusionController {
         float targetDamage = Math.max(1.0F, FightOrFlightAdapter.scaleActionDamage(attacker, target, move,
                 PokemonAttackEffect.calculatePokemonDamage(attacker, target, move), committedGrassMultiplier));
         int beforeHp = pokemonTarget != null ? pokemonTarget.getPokemon().getCurrentHealth() : 0;
+        int attemptedPokemonDamage = pokemonTarget != null ? ActionBattleWaterHealth.toPokemonDamage(
+                pokemonTarget.getPokemon().getMaxHealth(), pokemonTarget.getMaxHealth(), targetDamage) : 0;
         boolean success = target.hurt(attacker.damageSources().mobAttack(attacker), targetDamage);
         if (success && pokemonTarget != null) {
+            FightOrFlightAdapter.ProtectionOutcome protection = FightOrFlightAdapter.applyProtectImpact(
+                    attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, true);
+            ActionBattleRockRuntime.HitResult rockHit = ActionBattleRockRuntime.resolveDirectHit(
+                    attacker, pokemonTarget, beforeHp, protection.incomingDamage(), true,
+                    protection.protectParticipated());
             ActionBattleGrassController.onPokemonDamageResolved(attacker, pokemonTarget,
                     Math.max(0, beforeHp - pokemonTarget.getPokemon().getCurrentHealth()));
             ActionBattleWaterController.onSuccessfulInteraction(attacker, pokemonTarget, move);
             ActionBattleGrassController.onSuccessfulMoveResolved(attacker, pokemonTarget, move);
             ActionBattleSleepController.applyWakeDamageAndWake(sleepSession, pokemonTarget, currentTick, beforeHp, wakePlan);
+            ActionBattleRockRuntime.applyReflection(attacker, rockHit);
         }
         damageSelf(attacker, move, committedGrassMultiplier);
     }

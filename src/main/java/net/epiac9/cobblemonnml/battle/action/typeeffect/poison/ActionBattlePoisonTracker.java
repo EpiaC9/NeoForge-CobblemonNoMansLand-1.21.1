@@ -9,6 +9,7 @@ public final class ActionBattlePoisonTracker {
     private int moveAccumulationGain = ActionBattlePoisonRules.BASE_MOVE_GAIN;
     private long cleanResetEndTick = -1L;
     private boolean poisonTyped;
+    private boolean activeInCombat = true;
 
     public boolean applyMove(long currentTick, boolean receiverPoisonTyped, int penetratedDirectGain) {
         if (currentTick < 0L || penetratedDirectGain <= 0) return false;
@@ -30,7 +31,11 @@ public final class ActionBattlePoisonTracker {
             ActionBattlePoisonState.TickResult result = activeState.tick(currentTick);
             if (result == ActionBattlePoisonState.TickResult.COMPLETED_NATURALLY) {
                 activeState = null;
-                moveAccumulationGain = Math.max(1, moveAccumulationGain - 1);
+                if (activeInCombat) moveAccumulationGain = Math.max(1, moveAccumulationGain - 1);
+                else {
+                    moveAccumulationGain = ActionBattlePoisonRules.BASE_MOVE_GAIN;
+                    cleanResetEndTick = -1L;
+                }
             }
             return result;
         }
@@ -41,6 +46,17 @@ public final class ActionBattlePoisonTracker {
         }
         return ActionBattlePoisonState.TickResult.NONE;
     }
+
+    public void onPokemonUnavailable(long currentTick) {
+        tick(currentTick);
+        activeInCombat = false;
+        if (activeState == null) {
+            moveAccumulationGain = ActionBattlePoisonRules.BASE_MOVE_GAIN;
+            cleanResetEndTick = -1L;
+        }
+    }
+
+    public void onPokemonAvailable() { activeInCombat = true; }
 
     public void suppressSpecialAttackByHaze() {
         if (activeState != null) activeState.suppressSpecialAttackByHaze();

@@ -39,6 +39,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassR
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterHealth;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsycUpController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import me.rufia.fightorflight.utils.PokemonUtils;
 import net.minecraft.world.entity.LivingEntity;
@@ -244,26 +245,32 @@ public final class FightOrFlightAdapter {
         return attacker.distanceToSqr(target) <= range * range;
     }
 
-    public static void applyProtectImpact(PokemonEntity attacker, PokemonEntity target, Move move, int beforeHp,
+    public static ProtectionOutcome applyProtectImpact(PokemonEntity attacker, PokemonEntity target, Move move, int beforeHp,
                                           int attemptedPokemonDamage, boolean hitSucceeded) {
-        if (!hitSucceeded || attacker == null || target == null || move == null || attacker.level().isClientSide) return;
+        if (!hitSucceeded || attacker == null || target == null || move == null || attacker.level().isClientSide) return ProtectionOutcome.NONE;
         UUID battleId = ActionBattleManager.battleIdForPokemonEntity(target.getUUID());
-        if (battleId == null || !battleId.equals(ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))) return;
+        if (battleId == null || !battleId.equals(ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))) return ProtectionOutcome.NONE;
         long currentTick = attacker.level().getGameTime();
         UUID pokemonUUID = target.getPokemon().getUuid();
         var stance = ActionBattleProtectController.global().activeStance(battleId, pokemonUUID, currentTick);
         UUID sessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
         boolean aquaActive = sessionId != null && ActionBattleTypeEffectController.global()
                 .aquaShieldView(sessionId, pokemonUUID, currentTick).isPresent();
-        if (stance == null && !aquaActive) return;
+        if (stance == null && !aquaActive) {
+            int after = target.getPokemon().getCurrentHealth();
+            int actual = Math.max(0, beforeHp - after);
+            return new ProtectionOutcome(false, false, after == 0 ? Math.max(actual, attemptedPokemonDamage) : actual);
+        }
         int afterHp = target.getPokemon().getCurrentHealth();
         int actualDamage = Math.max(0, beforeHp - afterHp);
+        int resolvedDamage = actualDamage;
         if (actualDamage > 0) {
             int damageForProtection = afterHp == 0
                     ? Math.max(actualDamage, attemptedPokemonDamage) : actualDamage;
             int dsLevel = ActionBattleProtectController.global().deterioratingShieldLevel(battleId, pokemonUUID);
             ActionBattleAquaShieldProtection.Result protection = ActionBattleAquaShieldProtection.resolve(
                     damageForProtection, dsLevel, stance != null, aquaActive);
+            resolvedDamage = protection.finalDamage();
             if (stance != null && aquaActive) ActionBattleProtectController.global().breakStance(battleId, pokemonUUID);
             if (aquaActive) {
                 ActionBattleTypeEffectController.global().breakAquaShield(
@@ -274,6 +281,11 @@ public final class FightOrFlightAdapter {
                 target.getPokemon().setCurrentHealth(Math.max(0, beforeHp - protection.finalDamage()));
             }
         }
+        return new ProtectionOutcome(stance != null, aquaActive, resolvedDamage);
+    }
+
+    public record ProtectionOutcome(boolean protectParticipated, boolean aquaParticipated, int incomingDamage) {
+        public static final ProtectionOutcome NONE = new ProtectionOutcome(false, false, 0);
     }
 
     public static boolean resolveRangedNativePokemonHit(PokemonEntity attacker, PokemonEntity target, Move move,
@@ -301,7 +313,9 @@ public final class FightOrFlightAdapter {
         PokemonAttackEffect.applySFX(attacker.level(), move, attacker.blockPosition());
         applyPostEffectsWithoutActionStatuses(attacker, target, move, success);
         boolean qualifyingWaterInteraction = success;
-        applyProtectImpact(attacker, target, move, beforeHp, attemptedPokemonDamage, success);
+        ProtectionOutcome protection = applyProtectImpact(attacker, target, move, beforeHp, attemptedPokemonDamage, success);
+        ActionBattleRockRuntime.HitResult rockHit = ActionBattleRockRuntime.resolveDirectHit(attacker, target,
+                beforeHp, protection.incomingDamage(), success, protection.protectParticipated());
         ActionBattleGroundController.resolveAfterDamage(groundPlan, attacker, target, beforeHp);
         if (success) ActionBattleGrassController.onPokemonDamageResolved(attacker, target,
                 Math.max(0, beforeHp - target.getPokemon().getCurrentHealth()));
@@ -331,6 +345,7 @@ public final class FightOrFlightAdapter {
         ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, target, move, success);
         ActionBattleMoveEffectResolver.applyDeclaredParalysisOnHit(attacker, target, move, success);
         ActionBattlePsycUpController.onSuccessfulEnemyMoveResolved(attacker, target, move, success);
+        ActionBattleRockRuntime.applyReflection(attacker, rockHit);
         return success;
     }
 
@@ -402,7 +417,9 @@ public final class FightOrFlightAdapter {
                 if (success) applyPostHitActionStatScaling(attacker, pokemonTarget, move, beforeHp,
                         committedGrassMultiplier, groundPlan.damageMultiplier());
                 boolean qualifyingWaterHit = success;
-                applyProtectImpact(attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
+                ProtectionOutcome protection = applyProtectImpact(attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
+                ActionBattleRockRuntime.HitResult rockHit = ActionBattleRockRuntime.resolveDirectHit(attacker, pokemonTarget,
+                        beforeHp, protection.incomingDamage(), success, protection.protectParticipated());
                 ActionBattleGroundController.resolveAfterDamage(groundPlan, attacker, pokemonTarget, beforeHp);
                 if (success) ActionBattleGrassController.onPokemonDamageResolved(attacker, pokemonTarget,
                         Math.max(0, beforeHp - pokemonTarget.getPokemon().getCurrentHealth()));
@@ -428,6 +445,7 @@ public final class FightOrFlightAdapter {
                 ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, pokemonTarget, move,
                         ActionBattleMoveEffectResolver.StatTrigger.ON_HIT, success);
                 ActionBattlePsycUpController.onSuccessfulEnemyMoveResolved(attacker, pokemonTarget, move, success);
+                ActionBattleRockRuntime.applyReflection(attacker, rockHit);
             }
             return true;
         }

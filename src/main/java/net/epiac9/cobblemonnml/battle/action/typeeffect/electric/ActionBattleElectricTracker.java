@@ -12,6 +12,7 @@ public final class ActionBattleElectricTracker {
     private int depletionPerTick = ActionBattleElectricRules.BASE_DEPLETION_PER_TICK;
     private long cleanResetEndTick = -1L;
     private long lastTick = -1L;
+    private boolean activeInCombat = true;
 
     public ApplyChargeResult addCharge(int amount, long currentTick, boolean electricTyped, boolean hazeActive) {
         if (amount <= 0 || !validTick(currentTick) || currentTick < lastTick) return ApplyChargeResult.IGNORED;
@@ -69,19 +70,34 @@ public final class ActionBattleElectricTracker {
             charge.depleteTo(currentTick, depletionPerTick);
             if (charge.isEmpty()) {
                 charge = null;
+                if (!activeInCombat) resetHistory();
             }
         }
         if (paralysis != null && !paralysis.active(currentTick)) {
             boolean naturalCharge = paralysis.origin() == ActionBattleParalysisState.ParalysisOrigin.ELECTRIC_CHARGE;
             long expiryTick = paralysis.endTick();
             paralysis = null;
-            if (naturalCharge) depletionPerTick = ActionBattleElectricRules.saturatingIncrement(depletionPerTick);
+            if (naturalCharge && activeInCombat) depletionPerTick = ActionBattleElectricRules.saturatingIncrement(depletionPerTick);
+            if (!activeInCombat) resetHistory();
         }
         if (paralysis == null && charge == null && cleanResetEndTick >= 0L && currentTick >= cleanResetEndTick) {
             depletionPerTick = ActionBattleElectricRules.BASE_DEPLETION_PER_TICK;
             cleanResetEndTick = -1L;
         }
         lastTick = currentTick;
+    }
+
+    public void onPokemonUnavailable(long currentTick) {
+        tick(currentTick);
+        activeInCombat = false;
+        if (charge == null && paralysis == null) resetHistory();
+    }
+
+    public void onPokemonAvailable() { activeInCombat = true; }
+
+    private void resetHistory() {
+        depletionPerTick = ActionBattleElectricRules.BASE_DEPLETION_PER_TICK;
+        cleanResetEndTick = -1L;
     }
 
     public Optional<ActionBattleElectricState> activeCharge() { return Optional.ofNullable(charge); }

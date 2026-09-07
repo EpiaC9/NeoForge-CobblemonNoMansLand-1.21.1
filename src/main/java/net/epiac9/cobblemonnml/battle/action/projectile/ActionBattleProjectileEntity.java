@@ -26,6 +26,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterC
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterHealth;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.registry.ModEntities;
 import net.minecraft.core.BlockPos;
@@ -226,8 +227,12 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         }
         if (pokemonTarget != null) {
             boolean qualifyingWaterInteraction = success;
-            FightOrFlightAdapter.applyProtectImpact(
+            FightOrFlightAdapter.ProtectionOutcome protection = FightOrFlightAdapter.applyProtectImpact(
                     attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
+            ActionBattleRockRuntime.HitResult rockHit = nativeDamageMove
+                    ? ActionBattleRockRuntime.resolveDirectHit(attacker, pokemonTarget, beforeHp,
+                    protection.incomingDamage(), success, protection.protectParticipated())
+                    : ActionBattleRockRuntime.HitResult.NONE;
             if (nativeDamageMove) ActionBattleGroundController.resolveAfterDamage(
                     groundPlan, attacker, pokemonTarget, beforeHp);
             if (success) ActionBattleGrassController.onPokemonDamageResolved(attacker, pokemonTarget,
@@ -258,6 +263,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             ActionBattlePsycUpController.onSuccessfulEnemyMoveResolved(attacker, pokemonTarget, move, success);
             if (!nativeDamageMove && success) ActionBattleFairyController.onSuccessfulEnemyTargetingMove(attacker, pokemonTarget, move);
             if (!nativeDamageMove && success) ActionBattlePoisonController.onSuccessfulEnemyInteraction(attacker, pokemonTarget, move);
+            ActionBattleRockRuntime.applyReflection(attacker, rockHit);
         }
         discard();
     }

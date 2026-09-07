@@ -61,6 +61,8 @@ final class ActionBattlePokemonRuntime {
                 ? session.bindPlayerActivePokemon(partyIndex, pokemon.getUuid(), entity.getUUID())
                 : session.bindTrainerActivePokemon(partyIndex, pokemon.getUuid(), entity.getUUID());
         if (!bound) return false;
+        net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectRuntime.onPokemonAvailable(
+                session.dungeonSessionId(), pokemon.getUuid());
         if (playerSide) session.setPlayerSendOutPending(false);
         else session.setTrainerSendOutPending(false);
         if (entity.level() instanceof ServerLevel level) {

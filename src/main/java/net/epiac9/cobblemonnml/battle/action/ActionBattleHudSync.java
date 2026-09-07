@@ -24,6 +24,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleEle
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassVisuals;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockVisualRules;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -110,6 +112,13 @@ public final class ActionBattleHudSync {
         drowsyStatusState(pokemonUUID, currentTick).ifPresent(states::add);
         poisonStatusState(pokemonUUID, currentTick).ifPresent(states::add);
         electricStatusState(pokemonUUID, currentTick).ifPresent(states::add);
+        ActionBattleRockController rock = ActionBattleRockController.global();
+        rock.stockpileView(battleId, pokemonUUID, currentTick).ifPresent(view ->
+                states.add(new ActionBattleHudPayload.StatusState(ActionBattleRockVisualRules.STOCKPILE_STATUS_ID,
+                        view.remainingTicks(), view.totalDurationTicks())));
+        rock.enduranceView(battleId, pokemonUUID, currentTick).ifPresent(view ->
+                states.add(new ActionBattleHudPayload.StatusState(ActionBattleRockVisualRules.ENDURANCE_STATUS_ID,
+                        view.remainingTicks(), view.totalDurationTicks())));
         ActionBattleTypeEffectController typeEffects = ActionBattleTypeEffectController.global();
         typeEffects.aquaShieldView(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view ->
                 states.add(new ActionBattleHudPayload.StatusState(ActionBattleWaterVisuals.AQUA_SHIELD_STATUS_ID,

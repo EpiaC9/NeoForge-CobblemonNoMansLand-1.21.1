@@ -265,6 +265,22 @@ public final class ActionBattleTypeEffectState {
         return drowsy != null && drowsy.cancelOnRecall(currentTick);
     }
 
+    void onPokemonUnavailable(long currentTick) {
+        if (drowsy != null) {
+            drowsy.clearOnUnavailable();
+            drowsy = null;
+        }
+        if (ice != null) ice.onPokemonUnavailable(currentTick);
+        if (poison != null) poison.onPokemonUnavailable(currentTick);
+        if (electric != null) electric.onPokemonUnavailable(currentTick);
+    }
+
+    void onPokemonAvailable() {
+        if (ice != null) ice.onPokemonAvailable();
+        if (poison != null) poison.onPokemonAvailable();
+        if (electric != null) electric.onPokemonAvailable();
+    }
+
     ActionBattleWaterState.ApplyShieldResult applyAquaShield(long currentTick, boolean waterTyped,
                                                               boolean protectActive) {
         if (water == null) water = new ActionBattleWaterState();

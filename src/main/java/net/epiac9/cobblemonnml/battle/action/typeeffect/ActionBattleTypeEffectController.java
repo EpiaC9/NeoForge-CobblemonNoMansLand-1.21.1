@@ -401,6 +401,19 @@ public final class ActionBattleTypeEffectController {
         return state != null && state.cancelDrowsyOnRecall(currentTick);
     }
 
+    public void onPokemonUnavailable(UUID sessionId, UUID pokemonUUID, long currentTick) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        if (state != null) {
+            state.onPokemonUnavailable(currentTick);
+            if (state.isEmpty()) states.remove(pokemonUUID);
+        }
+    }
+
+    public void onPokemonAvailable(UUID sessionId, UUID pokemonUUID) {
+        ActionBattleTypeEffectState state = validSession(sessionId) && pokemonUUID != null ? states.get(pokemonUUID) : null;
+        if (state != null) state.onPokemonAvailable();
+    }
+
     public double modifyDamage(UUID sessionId, UUID targetPokemonUUID, boolean fireMove, double damage, long currentTick) {
         return modifyDamage(sessionId, targetPokemonUUID, fireMove, false, damage, currentTick);
     }
