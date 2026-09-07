@@ -5,6 +5,8 @@ import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.ActionBattlePosition;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleConfusionController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleTiming;
+import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
 import net.epiac9.cobblemonnml.battle.action.area.ActionBattlePersistentAreaController;
 import net.epiac9.cobblemonnml.battle.action.area.ActionBattlePersistentAreaPreset;
 import net.epiac9.cobblemonnml.battle.action.area.ActionBattlePersistentAreaState;
@@ -17,6 +19,11 @@ import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleHailVisuals;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleChannelVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostDamageRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCurseType;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostVisuals;
+import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -41,7 +48,8 @@ public final class ActionBattleHailHandler {
     public static final double RADIUS = 7.0D;
     public static final double HEIGHT = 6.0D;
 
-    private static final ActionBattleChannelPreset HAIL_CHANNEL = new ActionBattleChannelPreset(CHANNEL_TICKS, true, true, true, true);
+    private static final ActionBattleChannelPreset HAIL_CHANNEL = new ActionBattleChannelPreset(
+            CHANNEL_TICKS, true, true, true, true, false);
     private static final ActionBattlePersistentAreaPreset HAIL_NORMAL = new ActionBattlePersistentAreaPreset(RADIUS, HEIGHT, NORMAL_DURATION_TICKS, PULSE_INTERVAL_TICKS, true);
     private static final ActionBattlePersistentAreaPreset HAIL_ICY_ROCK = new ActionBattlePersistentAreaPreset(RADIUS, HEIGHT, ICY_ROCK_DURATION_TICKS, PULSE_INTERVAL_TICKS, true);
     private static final ResourceLocation ICY_ROCK_ID = ResourceLocation.fromNamespaceAndPath("cobblemon", "icy_rock");
@@ -65,28 +73,42 @@ public final class ActionBattleHailHandler {
             session.setPokemonAllCommandCooldown(casterPokemonUUID, currentTick, FAILURE_COOLDOWN_TICKS);
             return StartResult.TARGET_UNREACHABLE;
         }
-        if (!FightOrFlightAdapter.consumeOnePp(move)) return StartResult.NO_PP;
-        session.startPokemonMoveCooldown(casterPokemonUUID, currentTick, FightOrFlightAdapter.cooldownTicks(move));
+        if (!FightOrFlightAdapter.hasPp(move)) return StartResult.NO_PP;
         boolean playerSide = casterPokemonUUID.equals(session.playerActivePokemonUUID());
         boolean confusedChannel = confusionBonusTicks > 0L;
         ActionBattlePosition initialTargetPosition = ActionBattleAreaEffectSupport.targetPosition(caster, target, confusionBonusTicks);
         int totalChannelTicks = ActionBattleAreaEffectSupport.totalChannelTicks(confusionBonusTicks);
         int cancelAtElapsedTick = ActionBattleAreaEffectSupport.cancelAtElapsedTick(caster, totalChannelTicks, confusionSelfCancel);
-        HailCastContext context = new HailCastContext(session, level, move, casterPokemonUUID, playerSide, confusedChannel, cancelAtElapsedTick);
+        int moveSlot = ActionBattleGhostRuntime.global().findMoveSlot(caster, move);
+        HailCastContext context = new HailCastContext(session, level, move, casterPokemonUUID,
+                playerSide, confusedChannel, cancelAtElapsedTick, moveSlot, null);
         CASTS.put(casterPokemonUUID, context);
         boolean started = ActionBattleChannelController.global().start(
                 session.battleId(), casterPokemonUUID, confusedChannel ? null : target.getPokemon().getUuid(), MOVE_ID,
-                confusedChannel ? new ActionBattleChannelPreset(totalChannelTicks, true, true, false, true) : HAIL_CHANNEL,
+                confusedChannel ? new ActionBattleChannelPreset(totalChannelTicks, true, true, false, true, false) : HAIL_CHANNEL,
                 initialTargetPosition, caster.getPokemon().getCurrentHealth(),
                 ActionBattleHailHandler::complete,
                 ActionBattleHailHandler::cancel
         );
         if (!started) {
             CASTS.remove(casterPokemonUUID);
-            FightOrFlightAdapter.refundOnePp(move);
             return StartResult.INVALID;
         }
+        ActionBattleGhostDamageRules.CooldownPlan cooldownPlan = ActionBattleGhostRuntime.global()
+                .abilityCooldownPlan(session.battleId(), casterPokemonUUID, moveSlot, currentTick);
+        ActionBattleGhostRuntime.global().emitAbilityCooldownConsumption(caster, cooldownPlan);
+        CASTS.put(casterPokemonUUID, new HailCastContext(session, level, move, casterPokemonUUID,
+                playerSide, confusedChannel, cancelAtElapsedTick, moveSlot, cooldownPlan));
         caster.getNavigation().stop();
+        var silence = ActionBattleGhostRuntime.global().damageRules().silencePlan(
+                session.battleId(), casterPokemonUUID, currentTick, true);
+        if (silence.interrupted()) {
+            FightOrFlightAdapter.consumeOnePp(caster, move);
+            ActionBattleGhostVisuals.emitEvent(caster, ActionBattleGhostCurseType.SILENCE);
+            ActionBattleChannelController.global().cancel(
+                    casterPokemonUUID, ActionBattleChannelCancelReason.CONTROL_EFFECT);
+            return StartResult.SILENCED;
+        }
         DebugLog.log("[CobblemonNML] Hail channel started. Battle=" + session.battleId() + ", caster=" + casterPokemonUUID + ", target=" + (target != null ? target.getPokemon().getUuid() : "none") + ", confused=" + confusedChannel + ", durationTicks=" + totalChannelTicks);
         return StartResult.STARTED;
     }
@@ -143,7 +165,15 @@ public final class ActionBattleHailHandler {
     private static void complete(ActionBattleChannelState state) {
         HailCastContext context = CASTS.remove(state.casterPokemonUUID());
         if (context == null || state.lastTargetablePosition() == null) return;
-        PokemonEntity caster = ActionBattleAreaEffectSupport.activePokemonEntity(context.session(), context.level(), state.casterPokemonUUID());
+        PokemonEntity caster = ActionBattleAreaEffectSupport.activePokemonEntity(
+                context.session(), context.level(), state.casterPokemonUUID());
+        if (!FightOrFlightAdapter.consumeOnePp(caster, context.move())) return;
+        long currentTick = context.level().getGameTime();
+        applyCooldown(context, currentTick);
+        ActionBattleControlController.global().recordSuccessfulMove(
+                state.battleId(), state.casterPokemonUUID(), context.move());
+        ActionBattleProtectController.global().onSuccessfulNonProtectMove(
+                state.battleId(), state.casterPokemonUUID());
         ActionBattlePersistentAreaPreset preset = caster != null && holdsIcyRock(caster) ? HAIL_ICY_ROCK : HAIL_NORMAL;
         UUID areaId = ActionBattlePersistentAreaController.global().create(
                 state.battleId(), state.casterPokemonUUID(), MOVE_ID, state.lastTargetablePosition(), preset,
@@ -164,8 +194,12 @@ public final class ActionBattleHailHandler {
         HailCastContext context = CASTS.remove(state.casterPokemonUUID());
         if (context == null) return;
         if (reason == ActionBattleChannelCancelReason.TARGET_UNREACHABLE) {
-            FightOrFlightAdapter.refundOnePp(context.move());
             context.session().setPokemonAllCommandCooldown(state.casterPokemonUUID(), context.level().getGameTime(), FAILURE_COOLDOWN_TICKS);
+        } else if (reason == ActionBattleChannelCancelReason.DAMAGE
+                || reason == ActionBattleChannelCancelReason.COMMAND
+                || reason == ActionBattleChannelCancelReason.CONTROL_EFFECT
+                || reason == ActionBattleChannelCancelReason.CONFUSION_SELF_CANCEL) {
+            applyCooldown(context, context.level().getGameTime());
         }
         PokemonEntity caster = ActionBattleAreaEffectSupport.activePokemonEntity(context.session(), context.level(), state.casterPokemonUUID());
         if (caster != null) ActionBattleChannelVisuals.emitCancellationBurst(context.level(), caster, "ice");
@@ -252,7 +286,20 @@ public final class ActionBattleHailHandler {
         return false;
     }
 
-    public enum StartResult { STARTED, TARGET_UNREACHABLE, NO_PP, ALREADY_CHANNELING, INVALID }
-    private record HailCastContext(ActionBattleSession session, ServerLevel level, Move move, UUID casterPokemonUUID, boolean playerSide, boolean confused, int cancelAtElapsedTick) {}
+    private static void applyCooldown(HailCastContext context, long currentTick) {
+        ActionBattleGhostDamageRules.CooldownPlan plan = context.cooldownPlan();
+        long shared = plan != null ? plan.sharedTicks() : ActionBattleTiming.ABILITY_SHARED_COOLDOWN_TICKS;
+        context.session().startPokemonSharedAbilityCooldown(context.casterPokemonUUID(), currentTick, shared);
+        if (plan != null && plan.personalTicks() > 0L && context.moveSlot() >= 0) {
+            context.session().startPokemonPersonalMoveCooldown(context.casterPokemonUUID(), context.moveSlot(),
+                    currentTick, plan.personalTicks());
+        }
+    }
+
+    public enum StartResult { STARTED, SILENCED, TARGET_UNREACHABLE, NO_PP, ALREADY_CHANNELING, INVALID }
+    private record HailCastContext(ActionBattleSession session, ServerLevel level, Move move,
+                                   UUID casterPokemonUUID, boolean playerSide, boolean confused,
+                                   int cancelAtElapsedTick, int moveSlot,
+                                   ActionBattleGhostDamageRules.CooldownPlan cooldownPlan) {}
     private record HailCloudContext(UUID battleId, ServerLevel level, UUID entityUUID) {}
 }

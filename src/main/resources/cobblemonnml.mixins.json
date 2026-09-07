@@ -9,7 +9,8 @@
     "ActionBattleSendOutPokemonHandlerMixin",
     "ActionBattlePokemonBrainMixin",
     "ActionBattleLivingEntityAccessor",
-    "ActionBattleStatChangeMoveDataAccessor"
+    "ActionBattleStatChangeMoveDataAccessor",
+    "ActionBattlePokemonHealthMixin"
   ],
   "client": [],
   "injectors": {

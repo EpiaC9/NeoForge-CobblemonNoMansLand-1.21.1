@@ -40,6 +40,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterH
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsycUpController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCast;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import me.rufia.fightorflight.utils.PokemonUtils;
 import net.minecraft.world.entity.LivingEntity;
@@ -114,13 +116,17 @@ public final class FightOrFlightAdapter {
     }
 
     private static void applyPostHitActionStatScaling(PokemonEntity attacker, PokemonEntity target, Move move, int beforeHp,
-                                                       double committedGrassMultiplier, double groundMultiplier) {
+                                                       double committedGrassMultiplier, double groundMultiplier,
+                                                       double ghostDamageMultiplier) {
         if (attacker == null || target == null || move == null || beforeHp <= 0) return;
         int afterHp = target.getPokemon().getCurrentHealth();
         int baseDamage = Math.max(0, beforeHp - afterHp);
         if (baseDamage <= 0) return;
         int scaledDamage = Math.max(1, Math.round(scaleActionDamage(
-                attacker, target, move, baseDamage, committedGrassMultiplier) * (float) groundMultiplier));
+                attacker, target, move, baseDamage, committedGrassMultiplier)
+                * (float) groundMultiplier * (float) ghostDamageMultiplier));
+        scaledDamage = Math.max(1, (int) Math.ceil(ActionBattleGhostRuntime.global()
+                .modifyIncomingDirectDamage(target, scaledDamage)));
         target.getPokemon().setCurrentHealth(Math.max(0, beforeHp - scaledDamage));
     }
 
@@ -208,10 +214,13 @@ public final class FightOrFlightAdapter {
     }
 
     public static long cooldownTicks(Move move) {
-        int priority = movePriority(move);
-        if (priority > 0) return 40L;
-        if (priority < 0) return 80L;
-        return 60L;
+        return net.epiac9.cobblemonnml.battle.action.ActionBattleAbilityCooldownRules.normal().sharedTicks();
+    }
+
+    public static boolean consumeOnePp(PokemonEntity caster, Move move) {
+        if (!consumeOnePp(move)) return false;
+        ActionBattleGhostRuntime.global().onPpConsumed(caster, 1);
+        return true;
     }
 
     public static boolean canCommitHail(PokemonEntity attacker, LivingEntity target) {
@@ -345,6 +354,7 @@ public final class FightOrFlightAdapter {
         ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, target, move, success);
         ActionBattleMoveEffectResolver.applyDeclaredParalysisOnHit(attacker, target, move, success);
         ActionBattlePsycUpController.onSuccessfulEnemyMoveResolved(attacker, target, move, success);
+        ActionBattleGhostRuntime.global().onDamageResolved(target, beforeHp);
         ActionBattleRockRuntime.applyReflection(attacker, rockHit);
         return success;
     }
@@ -356,11 +366,14 @@ public final class FightOrFlightAdapter {
     public static boolean executeConfusedRanged(PokemonEntity attacker, Move move, net.minecraft.world.phys.Vec3 direction,
                                                  double committedGrassMultiplier) {
         if (attacker == null || move == null || direction == null || !isRangedMove(move)) return false;
+        double ghostDamageMultiplier = ActionBattleGhostRuntime.global().prepareDamagingAbility(attacker, move);
+        ActionBattleGhostCast ghostCast = ActionBattleGhostRuntime.global().completeMove(attacker, move).orElse(null);
         ((PokemonInterface) attacker).setCurrentMove(move);
         attacker.setTarget(null);
         PokemonUtils.sendAnimationPacket(attacker, "special");
         ActionBattleProjectileEntity projectile = new ActionBattleProjectileEntity(
-                attacker.level(), attacker, move, direction, committedGrassMultiplier);
+                attacker.level(), attacker, move, direction, committedGrassMultiplier,
+                ghostDamageMultiplier, ghostCast);
         attacker.level().addFreshEntity(projectile);
         return true;
     }
@@ -376,6 +389,8 @@ public final class FightOrFlightAdapter {
         LivingEntity executionTarget = resolveMoveTarget(attacker, target, move);
         if (!canCommit(attacker, executionTarget, move)) return false;
         target = executionTarget;
+        double ghostDamageMultiplier = ActionBattleGhostRuntime.global().prepareDamagingAbility(attacker, move);
+        ActionBattleGhostCast ghostCast = ActionBattleGhostRuntime.global().completeMove(attacker, move).orElse(null);
         ((PokemonInterface) attacker).setCurrentMove(move);
         attacker.setTarget(target);
         if (PokemonUtils.isMeleeAttackMove(move)) {
@@ -392,6 +407,7 @@ public final class FightOrFlightAdapter {
                 net.minecraft.world.phys.AABB staleHitBox = targetHitBox.move(tracked.subtract(pokemonTarget.position())).inflate(0.10D);
                 if (!staleHitBox.intersects(targetHitBox)) {
                     PokemonAttackEffect.applySFX(attacker.level(), move, attacker.blockPosition());
+                    ActionBattleGhostRuntime.global().discard(ghostCast);
                     return true;
                 }
             }
@@ -400,7 +416,7 @@ public final class FightOrFlightAdapter {
                     pokemonTarget.getPokemon().getMaxHealth(), pokemonTarget.getMaxHealth(),
                     scaleActionDamage(attacker, pokemonTarget, move,
                             PokemonAttackEffect.calculatePokemonDamage(attacker, pokemonTarget, move), committedGrassMultiplier)
-                            * (float) groundPlan.damageMultiplier()) : 0;
+                            * (float) groundPlan.damageMultiplier() * (float) ghostDamageMultiplier) : 0;
             ActionBattleSession sleepSession = pokemonTarget != null ? ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID()) : null;
             long currentTick = attacker.level().getGameTime();
             ActionBattleSleepController.WakePlan wakePlan = pokemonTarget != null
@@ -415,7 +431,7 @@ public final class FightOrFlightAdapter {
             boolean success = withOwnedMoveDataSuppressed(move, () -> PokemonAttackEffect.pokemonAttack(attacker, finalTarget));
             if (pokemonTarget != null) {
                 if (success) applyPostHitActionStatScaling(attacker, pokemonTarget, move, beforeHp,
-                        committedGrassMultiplier, groundPlan.damageMultiplier());
+                        committedGrassMultiplier, groundPlan.damageMultiplier(), ghostDamageMultiplier);
                 boolean qualifyingWaterHit = success;
                 ProtectionOutcome protection = applyProtectImpact(attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
                 ActionBattleRockRuntime.HitResult rockHit = ActionBattleRockRuntime.resolveDirectHit(attacker, pokemonTarget,
@@ -445,7 +461,12 @@ public final class FightOrFlightAdapter {
                 ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, pokemonTarget, move,
                         ActionBattleMoveEffectResolver.StatTrigger.ON_HIT, success);
                 ActionBattlePsycUpController.onSuccessfulEnemyMoveResolved(attacker, pokemonTarget, move, success);
+                if (success) ActionBattleGhostRuntime.global().connect(ghostCast, pokemonTarget);
+                else ActionBattleGhostRuntime.global().discard(ghostCast);
+                ActionBattleGhostRuntime.global().onDamageResolved(pokemonTarget, beforeHp);
                 ActionBattleRockRuntime.applyReflection(attacker, rockHit);
+            } else {
+                ActionBattleGhostRuntime.global().discard(ghostCast);
             }
             return true;
         }
@@ -462,16 +483,21 @@ public final class FightOrFlightAdapter {
             if (success && target instanceof PokemonEntity pokemonTarget) {
                 ActionBattleWaterController.onSuccessfulInteraction(attacker, pokemonTarget, move);
                 ActionBattleGrassController.onSuccessfulMoveResolved(attacker, pokemonTarget, move);
+                ActionBattleGhostRuntime.global().connect(ghostCast, pokemonTarget);
+            } else {
+                ActionBattleGhostRuntime.global().discard(ghostCast);
             }
             return true;
         }
         if (PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || ActionBattleElectricController.isQualifyingEnemyInteraction(move) || ActionBattleWaterController.isQualifyingInteraction(move) || ActionBattleGrassController.isQualifyingMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move)))) {
             PokemonUtils.sendAnimationPacket(attacker, "special");
             ActionBattleProjectileEntity projectile = new ActionBattleProjectileEntity(
-                    attacker.level(), attacker, target, move, committedGrassMultiplier);
+                    attacker.level(), attacker, target, move, committedGrassMultiplier,
+                    ghostDamageMultiplier, ghostCast);
             attacker.level().addFreshEntity(projectile);
             return true;
         }
+        ActionBattleGhostRuntime.global().discard(ghostCast);
         return false;
     }
 

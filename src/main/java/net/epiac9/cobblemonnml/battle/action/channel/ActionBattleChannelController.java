@@ -42,7 +42,11 @@ public final class ActionBattleChannelController {
             }
             if (state.preset().trackTargetPosition() && tracker != null) {
                 TargetUpdate update = tracker.update(state);
-                if (update == null || !update.reachable()) state.queueCancel(ActionBattleChannelCancelReason.TARGET_UNREACHABLE);
+                if (update == null || !update.reachable()) {
+                    if (state.preset().cancelWhenTargetLost()) {
+                        state.queueCancel(ActionBattleChannelCancelReason.TARGET_UNREACHABLE);
+                    }
+                }
                 else state.updateLastTargetablePosition(update.position());
             }
             ActionBattleChannelCancelReason reason = state.consumeQueuedCancel();

@@ -37,6 +37,17 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual TYPE_GRASS_MOVEMENT = typeEffectVisual("grass_movement", 0xFF9EEA74);
     private static final StatusVisual TYPE_ROCK_STOCKPILE = typeEffectVisual("stockpile", 0xFF9C8975);
     private static final StatusVisual TYPE_ROCK_ENDURANCE = typeEffectVisual("endurance", 0xFF6F737C);
+    private static final StatusVisual TYPE_GHOST_FRAILTY = typeEffectVisual("frailty", 0xFFB59AD8);
+    private static final StatusVisual TYPE_GHOST_WEAKNESS = typeEffectVisual("weakness", 0xFF8F72B5);
+    private static final StatusVisual TYPE_GHOST_SILENCE = typeEffectVisual("silence", 0xFF695582);
+    private static final StatusVisual TYPE_GHOST_DECAY = typeEffectVisual("decay", 0xFF80704D);
+    private static final StatusVisual TYPE_GHOST_WITHERING = typeEffectVisual("withering", 0xFF75618F);
+    private static final StatusVisual TYPE_GHOST_BURDEN = typeEffectVisual("burden", 0xFF665276);
+    private static final StatusVisual TYPE_GHOST_TORMENT = typeEffectVisual("torment", 0xFF9A4C86);
+    private static final StatusVisual TYPE_GHOST_BINDING = typeEffectVisual("binding", 0xFF51456B);
+    private static final StatusVisual TYPE_GHOST_HUNGER = typeEffectVisual("hunger", 0xFFA45B72);
+    private static final StatusVisual TYPE_GHOST_MISFORTUNE = typeEffectVisual("misfortune", 0xFF75539D);
+    private static final StatusVisual TYPE_GHOST_HAUNTING = typeEffectVisual("haunting", 0xFFC09ADB);
     private static final StatusVisual[] DETERIORATING_SHIELD = {
             visual("deteriorating_shield_1", 0xFFD8E7EC), visual("deteriorating_shield_2", 0xFFD0DFE5), visual("deteriorating_shield_3", 0xFFC5D5DC),
             visual("deteriorating_shield_4", 0xFFBACAD2), visual("deteriorating_shield_5", 0xFFADBFC8), visual("deteriorating_shield_6", 0xFFA0B4BE),
@@ -90,6 +101,17 @@ public final class ActionBattleStatusVisualRegistry {
             case "TYPE_GRASS_MOVEMENT" -> TYPE_GRASS_MOVEMENT;
             case "TYPE_ROCK_STOCKPILE" -> TYPE_ROCK_STOCKPILE;
             case "TYPE_ROCK_ENDURANCE" -> TYPE_ROCK_ENDURANCE;
+            case "TYPE_GHOST_FRAILTY" -> TYPE_GHOST_FRAILTY;
+            case "TYPE_GHOST_WEAKNESS" -> TYPE_GHOST_WEAKNESS;
+            case "TYPE_GHOST_SILENCE" -> TYPE_GHOST_SILENCE;
+            case "TYPE_GHOST_DECAY" -> TYPE_GHOST_DECAY;
+            case "TYPE_GHOST_WITHERING" -> TYPE_GHOST_WITHERING;
+            case "TYPE_GHOST_BURDEN" -> TYPE_GHOST_BURDEN;
+            case "TYPE_GHOST_TORMENT" -> TYPE_GHOST_TORMENT;
+            case "TYPE_GHOST_BINDING" -> TYPE_GHOST_BINDING;
+            case "TYPE_GHOST_HUNGER" -> TYPE_GHOST_HUNGER;
+            case "TYPE_GHOST_MISFORTUNE" -> TYPE_GHOST_MISFORTUNE;
+            case "TYPE_GHOST_HAUNTING" -> TYPE_GHOST_HAUNTING;
             default -> null;
         };
     }

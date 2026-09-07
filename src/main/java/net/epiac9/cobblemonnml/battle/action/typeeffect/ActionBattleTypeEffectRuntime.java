@@ -24,6 +24,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsycUpController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.server.MinecraftServer;
@@ -83,6 +84,7 @@ public final class ActionBattleTypeEffectRuntime {
                             battle.battleId(), pokemon.getUuid(), player.level().getGameTime());
                     ActionBattlePsycUpController.global().onPokemonUnavailable(battle.battleId(), pokemon.getUuid());
                     ActionBattleRockController.global().onPokemonUnavailable(battle.battleId(), pokemon.getUuid());
+                    ActionBattleGhostRuntime.global().onPokemonUnavailable(battle.battleId(), pokemon.getUuid());
                 }
             }
         }

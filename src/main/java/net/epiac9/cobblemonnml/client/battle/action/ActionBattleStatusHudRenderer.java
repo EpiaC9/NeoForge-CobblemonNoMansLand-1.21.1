@@ -2,8 +2,6 @@ package net.epiac9.cobblemonnml.client.battle.action;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleHudPayload;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassVisuals;
 import net.minecraft.client.gui.GuiGraphics;
 
 import java.util.ArrayList;
@@ -38,7 +36,8 @@ public final class ActionBattleStatusHudRenderer {
         if (statuses == null || statuses.isEmpty()) return;
         List<ActionBattleStatusHudEntry> entries = new ArrayList<>();
         for (ActionBattleHudPayload.StatusState state : statuses) {
-            if (state == null || !ActionBattleIceRules.shouldDisplayHudState(state.statusId(), state.remainingTicks())) continue;
+            if (state == null || !ActionBattleStatusHudRules.shouldDisplay(
+                    state.statusId(), state.remainingTicks())) continue;
             ActionBattleStatusVisualRegistry.StatusVisual visual = ActionBattleStatusVisualRegistry.visualFor(state.statusId());
             if (visual != null) entries.add(new ActionBattleStatusHudEntry(state, visual));
         }
@@ -50,7 +49,7 @@ public final class ActionBattleStatusHudRenderer {
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
             graphics.blit(entry.visual().icon(), x, y, 0.0F, 0.0F, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
-            if (ActionBattleGrassVisuals.hasCountdown(entry.state().statusId())) {
+            if (ActionBattleStatusHudRules.hasCountdown(entry.state().statusId())) {
                 renderTimerRing(graphics, x + ICON_SIZE / 2, y + ICON_SIZE / 2, entry.progress(), entry.visual().ringArgb());
             }
             renderPoisonBoundaries(graphics, x + ICON_SIZE / 2, y + ICON_SIZE / 2, entry.state().statusId());

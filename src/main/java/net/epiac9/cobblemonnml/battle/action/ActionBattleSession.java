@@ -195,6 +195,38 @@ public final class ActionBattleSession {
     public long pokemonMoveCooldownEndTick(UUID pokemonUUID) { return commandCooldowns.moveEndTick(pokemonUUID); }
     public long pokemonMoveCooldownDurationTicks(UUID pokemonUUID) { return commandCooldowns.moveDurationTicks(pokemonUUID); }
 
+    public boolean startPokemonSharedAbilityCooldown(UUID pokemonUUID, long currentTick, long durationTicks) {
+        return state == ActionBattleState.ACTIVE
+                && commandCooldowns.startSharedAbility(pokemonUUID, currentTick, durationTicks);
+    }
+
+    public boolean isPokemonSharedAbilityOnCooldown(UUID pokemonUUID, long currentTick) {
+        return commandCooldowns.sharedAbilityOnCooldown(pokemonUUID, currentTick);
+    }
+
+    public boolean startPokemonPersonalMoveCooldown(UUID pokemonUUID, int moveSlot,
+                                                     long currentTick, long durationTicks) {
+        return state == ActionBattleState.ACTIVE
+                && commandCooldowns.startPersonalMove(pokemonUUID, moveSlot, currentTick, durationTicks);
+    }
+
+    public boolean isPokemonPersonalMoveOnCooldown(UUID pokemonUUID, int moveSlot, long currentTick) {
+        return commandCooldowns.personalMoveOnCooldown(pokemonUUID, moveSlot, currentTick);
+    }
+
+    public boolean isPokemonAbilitySlotOnCooldown(UUID pokemonUUID, int moveSlot, long currentTick) {
+        return isPokemonSharedAbilityOnCooldown(pokemonUUID, currentTick)
+                || isPokemonPersonalMoveOnCooldown(pokemonUUID, moveSlot, currentTick);
+    }
+
+    public long pokemonAbilitySlotCooldownRemainingTicks(UUID pokemonUUID, int moveSlot, long currentTick) {
+        return commandCooldowns.effectiveMoveCooldown(pokemonUUID, moveSlot, currentTick).remainingTicks();
+    }
+
+    public long pokemonAbilitySlotCooldownDurationTicks(UUID pokemonUUID, int moveSlot, long currentTick) {
+        return commandCooldowns.effectiveMoveCooldown(pokemonUUID, moveSlot, currentTick).durationTicks();
+    }
+
     public boolean startPokemonMovementCommandCooldown(UUID pokemonUUID, long currentTick, long durationTicks) {
         return state == ActionBattleState.ACTIVE && commandCooldowns.startMovement(pokemonUUID, currentTick, durationTicks);
     }

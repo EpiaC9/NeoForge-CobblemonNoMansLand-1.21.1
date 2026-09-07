@@ -8,6 +8,7 @@ public enum ActionMoveDeliveryType {
     ARCING_LOBBED,
     GROUND_HUGGING_WAVE,
     PERSISTENT_AREA,
+    CHANNELING,
     INSTANT,
     TARGET_LOCKED,
     PHYSICAL_CONTACT,

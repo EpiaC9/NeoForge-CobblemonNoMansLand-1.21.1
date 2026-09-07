@@ -6,6 +6,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectStance;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 
 public final class ActionBattleBalefulBunkerHandler {
     private static final String MOVE_ID = "banefulbunker";
@@ -21,8 +22,8 @@ public final class ActionBattleBalefulBunkerHandler {
     public static StartResult tryStart(ActionBattleSession session, PokemonEntity caster, Move move) {
         if (session == null || caster == null || move == null || !isBalefulBunker(move) || caster.isRemoved()) return StartResult.INVALID;
         long currentTick = caster.level().getGameTime();
-        if (session.isPokemonMoveOnCooldown(caster.getPokemon().getUuid(), currentTick)) return StartResult.COOLDOWN;
-        if (!FightOrFlightAdapter.consumeOnePp(move)) return StartResult.NO_PP;
+        if (session.isPokemonSharedAbilityOnCooldown(caster.getPokemon().getUuid(), currentTick)) return StartResult.COOLDOWN;
+        if (!FightOrFlightAdapter.consumeOnePp(caster, move)) return StartResult.NO_PP;
         caster.getNavigation().stop();
         ActionBattleProtectStance stance = ActionBattleProtectController.global().startBalefulBunker(
                 session.battleId(), caster.getPokemon().getUuid(), currentTick
@@ -31,7 +32,8 @@ public final class ActionBattleBalefulBunkerHandler {
             FightOrFlightAdapter.refundOnePp(move);
             return StartResult.INVALID;
         }
-        session.startPokemonMoveCooldown(caster.getPokemon().getUuid(), currentTick, GLOBAL_COOLDOWN_TICKS);
+        ActionBattleGhostRuntime.global().applyAbilityCooldown(session, caster,
+                ActionBattleGhostRuntime.global().findMoveSlot(caster, move), currentTick);
         return StartResult.STARTED;
     }
 

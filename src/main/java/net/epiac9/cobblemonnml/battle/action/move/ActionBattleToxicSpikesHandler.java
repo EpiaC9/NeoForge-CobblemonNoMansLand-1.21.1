@@ -13,6 +13,7 @@ import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelControll
 import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelPreset;
 import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelState;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleChannelVisuals;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.particles.ParticleTypes;
@@ -32,7 +33,8 @@ public final class ActionBattleToxicSpikesHandler {
     public static final double RADIUS = 7.0D;
     public static final double HEIGHT = 2.0D;
 
-    private static final ActionBattleChannelPreset CHANNEL = new ActionBattleChannelPreset(CHANNEL_TICKS, true, true, true, true);
+    private static final ActionBattleChannelPreset CHANNEL = new ActionBattleChannelPreset(
+            CHANNEL_TICKS, true, true, true, true, true);
     private static final ActionBattlePersistentAreaPreset AREA = new ActionBattlePersistentAreaPreset(RADIUS, HEIGHT, DURATION_TICKS, PULSE_INTERVAL_TICKS, true);
     private static final ActionBattleChannelController CHANNELS = new ActionBattleChannelController();
     private static final ActionBattlePersistentAreaController AREAS = new ActionBattlePersistentAreaController();
@@ -55,8 +57,9 @@ public final class ActionBattleToxicSpikesHandler {
             session.setPokemonAllCommandCooldown(casterPokemonUUID, currentTick, FAILURE_COOLDOWN_TICKS);
             return StartResult.TARGET_UNREACHABLE;
         }
-        if (!FightOrFlightAdapter.consumeOnePp(move)) return StartResult.NO_PP;
-        session.startPokemonMoveCooldown(casterPokemonUUID, currentTick, FightOrFlightAdapter.cooldownTicks(move));
+        if (!FightOrFlightAdapter.consumeOnePp(caster, move)) return StartResult.NO_PP;
+        ActionBattleGhostRuntime.global().applyAbilityCooldown(session, caster,
+                ActionBattleGhostRuntime.global().findMoveSlot(caster, move), currentTick);
         boolean playerSide = casterPokemonUUID.equals(session.playerActivePokemonUUID());
         boolean confusedChannel = confusionBonusTicks > 0L;
         ActionBattlePosition initialTargetPosition = ActionBattleAreaEffectSupport.targetPosition(caster, target, confusionBonusTicks);
@@ -66,7 +69,7 @@ public final class ActionBattleToxicSpikesHandler {
         CASTS.put(casterPokemonUUID, context);
         boolean started = CHANNELS.start(
                 session.battleId(), casterPokemonUUID, confusedChannel ? null : target.getPokemon().getUuid(), MOVE_ID,
-                confusedChannel ? new ActionBattleChannelPreset(totalChannelTicks, true, true, false, true) : CHANNEL,
+                confusedChannel ? new ActionBattleChannelPreset(totalChannelTicks, true, true, false, true, true) : CHANNEL,
                 initialTargetPosition, caster.getPokemon().getCurrentHealth(),
                 ActionBattleToxicSpikesHandler::complete,
                 ActionBattleToxicSpikesHandler::cancel

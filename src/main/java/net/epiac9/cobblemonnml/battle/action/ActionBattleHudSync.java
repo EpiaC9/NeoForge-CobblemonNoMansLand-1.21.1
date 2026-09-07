@@ -26,6 +26,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassR
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockVisualRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -41,11 +42,15 @@ public final class ActionBattleHudSync {
     public static void send(ServerPlayer player, ActionBattleSession session, Pokemon playerPokemon, Pokemon trainerPokemon) {
         if (player == null || session == null || playerPokemon == null || trainerPokemon == null || session.state() != ActionBattleState.ACTIVE) return;
         long currentTick = player.serverLevel().getGameTime();
-        long cooldownEnd = session.pokemonMoveCooldownEndTick(playerPokemon.getUuid());
-        long remaining = Math.max(0L, cooldownEnd - currentTick);
-        long cooldownDuration = session.pokemonMoveCooldownDurationTicks(playerPokemon.getUuid());
         long swapCooldownRemaining = Math.max(0L, session.playerSwapCooldownEndTick() - currentTick);
         long swapCooldownDuration = session.playerSwapCooldownDurationTicks();
+        var binding = ActionBattleGhostRuntime.global().curses().view(session.battleId(),
+                playerPokemon.getUuid(), net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCurseType.BINDING,
+                currentTick);
+        if (binding.isPresent() && binding.orElseThrow().remainingTicks() > swapCooldownRemaining) {
+            swapCooldownRemaining = binding.orElseThrow().remainingTicks();
+            swapCooldownDuration = binding.orElseThrow().totalTicks();
+        }
         long moveHereCooldownRemaining = Math.max(0L, session.pokemonMovementCommandCooldownEndTick(playerPokemon.getUuid()) - currentTick);
         long moveHereCooldownDuration = session.pokemonMovementCommandCooldownDurationTicks(playerPokemon.getUuid());
         ActionBattleHudPayload payload = new ActionBattleHudPayload(
@@ -60,8 +65,8 @@ public final class ActionBattleHudSync {
                 damageStates(ActionBattleDamageFeedbackController.global().drain(session.battleId(), trainerPokemon.getUuid())),
                 swapCooldownRemaining, swapCooldownDuration,
                 moveHereCooldownRemaining, moveHereCooldownDuration,
-                moveState(session.battleId(), playerPokemon, 0, currentTick, remaining, cooldownDuration), moveState(session.battleId(), playerPokemon, 1, currentTick, remaining, cooldownDuration),
-                moveState(session.battleId(), playerPokemon, 2, currentTick, remaining, cooldownDuration), moveState(session.battleId(), playerPokemon, 3, currentTick, remaining, cooldownDuration)
+                moveState(session, playerPokemon, 0, currentTick), moveState(session, playerPokemon, 1, currentTick),
+                moveState(session, playerPokemon, 2, currentTick), moveState(session, playerPokemon, 3, currentTick)
         );
         PacketDistributor.sendToPlayer(player, payload);
     }
@@ -119,6 +124,11 @@ public final class ActionBattleHudSync {
         rock.enduranceView(battleId, pokemonUUID, currentTick).ifPresent(view ->
                 states.add(new ActionBattleHudPayload.StatusState(ActionBattleRockVisualRules.ENDURANCE_STATUS_ID,
                         view.remainingTicks(), view.totalDurationTicks())));
+        for (var view : ActionBattleGhostRuntime.global().curses().views(
+                battleId, pokemonUUID, currentTick)) {
+            states.add(new ActionBattleHudPayload.StatusState("TYPE_GHOST_" + view.type().name(),
+                    view.remainingTicks(), view.totalTicks()));
+        }
         ActionBattleTypeEffectController typeEffects = ActionBattleTypeEffectController.global();
         typeEffects.aquaShieldView(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view ->
                 states.add(new ActionBattleHudPayload.StatusState(ActionBattleWaterVisuals.AQUA_SHIELD_STATUS_ID,
@@ -225,13 +235,16 @@ public final class ActionBattleHudSync {
         return List.copyOf(states);
     }
 
-    private static ActionBattleHudPayload.MoveState moveState(UUID battleId, Pokemon pokemon, int slot, long currentTick, long cooldownRemaining, long cooldownDuration) {
+    private static ActionBattleHudPayload.MoveState moveState(ActionBattleSession session, Pokemon pokemon,
+                                                               int slot, long currentTick) {
         Move move = pokemon.getMoveSet().get(slot);
         if (move == null) return ActionBattleHudPayload.MoveState.empty();
-        boolean controlAllowed = ActionBattleControlController.global().canUseMove(battleId, pokemon.getUuid(), move, currentTick);
+        boolean controlAllowed = ActionBattleControlController.global().canUseMove(
+                session.battleId(), pokemon.getUuid(), move, currentTick);
         return new ActionBattleHudPayload.MoveState(
                 move.getName(), move.getType().getName(), FightOrFlightAdapter.currentPp(move), FightOrFlightAdapter.maxPp(move), FightOrFlightAdapter.supports(move) && controlAllowed,
-                cooldownRemaining, cooldownDuration
+                session.pokemonAbilitySlotCooldownRemainingTicks(pokemon.getUuid(), slot, currentTick),
+                session.pokemonAbilitySlotCooldownDurationTicks(pokemon.getUuid(), slot, currentTick)
         );
     }
 

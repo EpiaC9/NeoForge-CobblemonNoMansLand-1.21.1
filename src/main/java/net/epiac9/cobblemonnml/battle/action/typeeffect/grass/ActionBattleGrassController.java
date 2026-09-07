@@ -7,6 +7,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattlePokemonHealth;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldObject;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldObjectTracker;
@@ -131,8 +132,10 @@ public final class ActionBattleGrassController {
             case ENEMY_MOVEMENT -> effects.applyGrassMovement(life.sessionId(), toucherId, tick);
             case ENEMY_LEECH_SEED -> effects.applyLeechSeed(life.sessionId(), toucherId, tick);
             case ENEMY_LEECH_REACTIVATION -> {
+                int beforeHealth = toucher.getPokemon().getCurrentHealth();
                 int actualDamage = ActionBattlePokemonHealth.damage(healthAccess(toucher.getPokemon()),
                         ActionBattleGrassRules.reactivationDamage(toucher.getPokemon().getMaxHealth()));
+                ActionBattleGhostRuntime.global().onDamageResolved(toucher, beforeHealth);
                 int waveHeal = ActionBattleGrassRules.waveHealAmount(actualDamage);
                 if (waveHeal > 0) ActionBattleWaveServerRuntime.launchHealing(
                         life.sessionId(), toucher.getPokemon().getUuid(), toucher.position(), waveHeal, tick);

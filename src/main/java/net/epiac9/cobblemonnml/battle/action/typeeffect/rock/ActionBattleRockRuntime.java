@@ -9,6 +9,7 @@ import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCa
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import java.util.UUID;
 
 public final class ActionBattleRockRuntime {
@@ -53,6 +54,7 @@ public final class ActionBattleRockRuntime {
         int before = attacker.getPokemon().getCurrentHealth();
         int after = Math.max(0, before - result.reflectedDamage());
         attacker.getPokemon().setCurrentHealth(after);
+        ActionBattleGhostRuntime.global().onDamageResolved(attacker, before);
         UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
         if (battleId != null) ActionBattleDamageFeedbackController.global().recordDamage(
                 battleId, attacker.getPokemon().getUuid(), before, after, ActionBattleDamageFeedbackCategory.REFLECTED);

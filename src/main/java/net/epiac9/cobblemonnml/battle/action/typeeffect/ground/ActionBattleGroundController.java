@@ -11,6 +11,7 @@ import net.epiac9.cobblemonnml.battle.action.projectile.ActionProjectileProfile;
 import net.epiac9.cobblemonnml.battle.action.projectile.wave.ActionBattleWaveParameters;
 import net.epiac9.cobblemonnml.battle.action.projectile.wave.ActionBattleWaveServerRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattlePokemonHealth;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
 import net.epiac9.cobblemonnml.mixin.ActionBattleLivingEntityAccessor;
 import net.minecraft.server.level.ServerLevel;
@@ -167,7 +168,11 @@ public final class ActionBattleGroundController {
         boolean fullyBuried = view != null && view.depthPercent() == 90;
         ActionBattleGroundState.Branch branch = view != null ? view.branch() : null;
         return resolveRadialHit(fullyBuried, branch,
-                () -> ActionBattlePokemonHealth.damage(healthAccess(target), fixedDamage),
+                () -> {
+                    int beforeHealth = target.getPokemon().getCurrentHealth();
+                    ActionBattlePokemonHealth.damage(healthAccess(target), fixedDamage);
+                    ActionBattleGhostRuntime.global().onDamageResolved(target, beforeHealth);
+                },
                 () -> {
                     if (ActionBattleTypeEffectController.global().expelGround(
                             sessionId, target.getPokemon().getUuid())) {

@@ -25,6 +25,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyC
 import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsycUpController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockVisuals;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
@@ -47,6 +48,7 @@ final class ActionBattleEffectRuntime {
         if (session == null || level == null) return;
         ActionBattleHailHandler.tickBattle(session, level);
         ActionBattleToxicSpikesHandler.tickBattle(session, level);
+        ActionBattleGhostRuntime.global().tickBattle(session, level);
 
         Set<UUID> activeProtectPokemon = new HashSet<>();
         if (session.playerActivePokemonUUID() != null) activeProtectPokemon.add(session.playerActivePokemonUUID());
@@ -89,11 +91,13 @@ final class ActionBattleEffectRuntime {
         ActionBattleDamageFeedbackController.global().clearBattle(battleId);
         ActionBattleEvasionController.clearBattle(battleId);
         ActionBattleRockController.global().clearBattle(battleId);
+        ActionBattleGhostRuntime.global().clearBattle(battleId);
     }
 
     static void clearAll() {
         STAT_LINK_CLEANUP.clearAll();
         ActionBattleRockController.global().clearAll();
+        ActionBattleGhostRuntime.global().clearAll();
     }
 
     static void onPokemonUnavailable(ActionBattleSession session, UUID pokemonId,
@@ -102,6 +106,7 @@ final class ActionBattleEffectRuntime {
         ActionBattleFairyController.onPokemonRecalled(pokemonId, currentTick);
         ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), pokemonId, currentTick);
         ActionBattleRockController.global().onPokemonUnavailable(session.battleId(), pokemonId);
+        ActionBattleGhostRuntime.global().onPokemonUnavailable(session.battleId(), pokemonId);
         STAT_LINK_CLEANUP.onPokemonUnavailable(session.battleId(), pokemonId, currentTick);
         ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), pokemonId, fainted, currentTick);
         ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), pokemonId, fainted, currentTick);
@@ -152,6 +157,15 @@ final class ActionBattleEffectRuntime {
         int maxHealth = Math.max(1, target.getMaxHealth());
         int before = target.getCurrentHealth();
         int damage = Math.max(1, (int) Math.floor(maxHealth * event.maxHealthFraction()));
+        PokemonEntity deployed = target.getEntity();
+        if (deployed != null && !deployed.isRemoved() && deployed.level() == level) {
+            int actualDamage = ActionBattleGhostRuntime.global().applyDot(
+                    deployed, damage, event.type().name().toLowerCase(java.util.Locale.ROOT), currentTick);
+            DebugLog.log("[CobblemonNML] Action battle persistent tick. Battle=" + session.battleId()
+                    + ", effect=" + event.type() + ", pokemon=" + target.getUuid()
+                    + ", damage=" + actualDamage + ", hp=" + target.getCurrentHealth() + "/" + maxHealth);
+            return;
+        }
         int after = Math.max(0, before - damage);
         target.setCurrentHealth(after);
         int actualDamage = Math.max(0, before - after);

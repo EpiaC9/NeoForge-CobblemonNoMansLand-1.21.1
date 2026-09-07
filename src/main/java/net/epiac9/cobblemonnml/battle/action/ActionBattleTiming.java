@@ -3,7 +3,9 @@ package net.epiac9.cobblemonnml.battle.action;
 public final class ActionBattleTiming {
     public static final long TICKS_PER_SECOND = 20L;
     public static final long MOVE_HERE_COOLDOWN_TICKS = TICKS_PER_SECOND;
-    public static final long SWAP_COOLDOWN_TICKS = 16L * TICKS_PER_SECOND;
+    public static final long SWAP_COOLDOWN_TICKS = 18L * TICKS_PER_SECOND;
+    public static final long ABILITY_SHARED_COOLDOWN_TICKS = 3L * TICKS_PER_SECOND;
+    public static final long PERSONAL_MOVE_BASE_COOLDOWN_TICKS = 0L;
     public static final long HUD_SYNC_INTERVAL_TICKS = 2L;
     public static final long UNIVERSAL_RESET_WINDOW_TICKS = 18L * TICKS_PER_SECOND;
 
