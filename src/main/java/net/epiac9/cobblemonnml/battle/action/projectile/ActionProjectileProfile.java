@@ -1,5 +1,7 @@
 package net.epiac9.cobblemonnml.battle.action.projectile;
 
+import net.epiac9.cobblemonnml.battle.action.ActionBattleRangeRules;
+
 import java.util.List;
 import java.util.Locale;
 
@@ -14,12 +16,11 @@ public final class ActionProjectileProfile {
     public static final double TARGET_LOCKED_SPEED = 1.0D;
     public static final double DASH_RANGE_BONUS = 3.0D;
     private static final int DEFAULT_MAX_LIFETIME_TICKS = 80;
-    private static final double RANGED_COMMIT_DISTANCE = 12.0D;
 
     private ActionProjectileProfile() {}
 
     public static double rangedCommitDistance() {
-        return RANGED_COMMIT_DISTANCE;
+        return ActionBattleRangeRules.DEFAULT_RANGED_EXECUTION_RANGE;
     }
 
     public static ActionMoveDeliveryType deliveryType(String moveName) {

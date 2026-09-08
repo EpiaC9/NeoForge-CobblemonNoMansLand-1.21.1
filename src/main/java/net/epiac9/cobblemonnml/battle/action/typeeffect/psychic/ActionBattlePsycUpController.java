@@ -6,6 +6,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleTiming;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -31,11 +32,20 @@ public final class ActionBattlePsycUpController {
         if (!ActionBattlePsycUpMoveRules.qualifies(moveType, FightOrFlightAdapter.moveTargetCategory(move),
                 FightOrFlightAdapter.movePower(move), success && sameBattle)) return ApplyResult.INVALID;
         return GLOBAL.applyMark(session.battleId(), attacker.getPokemon().getUuid(), target.getPokemon().getUuid(),
-                hasPsychicType(attacker), attacker.level().getGameTime());
+                hasPsychicType(attacker), ActionBattleFairyController.hasType(target.getPokemon(), "dark"),
+                attacker.level().getGameTime());
     }
 
     public ApplyResult applyMark(UUID battleId, UUID casterPokemonId, UUID markedPokemonId,
                                  boolean casterPsychicTyped, long currentTick) {
+        return applyMark(battleId, casterPokemonId, markedPokemonId,
+                casterPsychicTyped, false, currentTick);
+    }
+
+    public ApplyResult applyMark(UUID battleId, UUID casterPokemonId, UUID markedPokemonId,
+                                 boolean casterPsychicTyped, boolean targetDarkTyped,
+                                 long currentTick) {
+        if (targetDarkTyped) return ApplyResult.IMMUNE;
         if (battleId == null || casterPokemonId == null || markedPokemonId == null || currentTick < 0L
                 || casterPokemonId.equals(markedPokemonId)) return ApplyResult.INVALID;
         tickBattle(battleId, currentTick);
@@ -116,7 +126,7 @@ public final class ActionBattlePsycUpController {
     public void clearBattle(UUID battleId) { if (battleId != null) battles.remove(battleId); }
     public void clearAll() { battles.clear(); }
 
-    public enum ApplyResult { APPLIED, IGNORED_ACTIVE, INVALID }
+    public enum ApplyResult { APPLIED, IGNORED_ACTIVE, IMMUNE, INVALID }
 
     public record View(UUID casterPokemonId, UUID markedPokemonId, boolean casterPsychicTyped,
                        long startTick, long endTick, long remainingTicks, long historyResetEndTick) {}

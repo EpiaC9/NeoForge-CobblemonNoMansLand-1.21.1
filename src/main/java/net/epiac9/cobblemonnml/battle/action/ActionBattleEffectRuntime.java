@@ -29,6 +29,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostR
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
@@ -54,14 +55,20 @@ final class ActionBattleEffectRuntime {
         ActionBattleGhostRuntime.global().tickBattle(session, level);
 
         Set<UUID> activeProtectPokemon = new HashSet<>();
-        if (session.playerActivePokemonUUID() != null) activeProtectPokemon.add(session.playerActivePokemonUUID());
+        for (UUID playerUUID : session.playerUUIDs()) {
+            if (session.playerActivePokemonUUID(playerUUID) != null) activeProtectPokemon.add(session.playerActivePokemonUUID(playerUUID));
+        }
         if (session.trainerActivePokemonUUID() != null) activeProtectPokemon.add(session.trainerActivePokemonUUID());
         ActionBattleProtectController.global().tickBattle(session.battleId(), activeProtectPokemon);
 
         long currentTick = level.getGameTime();
         ActionBattleControlController.global().tickBattle(session.battleId(), currentTick);
         if (refs != null) {
-            trackRuntimeState(session, level, refs.playerPokemon(), currentTick);
+            for (Pokemon pokemon : refs.allPlayerPokemon()) {
+                ActionBattleDarkRuntime.tickState(session, pokemon.getUuid(), currentTick);
+                trackRuntimeState(session, level, pokemon, currentTick);
+            }
+            if (refs.trainerPokemon() != null) ActionBattleDarkRuntime.tickState(session, refs.trainerPokemon().getUuid(), currentTick);
             trackRuntimeState(session, level, refs.trainerPokemon(), currentTick);
         }
         syncHazeBattleZone(session, level, currentTick);
@@ -72,8 +79,10 @@ final class ActionBattleEffectRuntime {
         List<ActionBattlePersistentTick> persistentTicks = ActionBattlePersistentController.global().tickBattle(session.battleId(), currentTick);
         applyPersistentTicks(session, level, persistentTicks, currentTick);
         if (refs != null) {
-            ActionBattleStatusParticleController.tickBattle(session, level, refs.playerPokemon(), refs.trainerPokemon());
-            ActionBattleProtectVisuals.tickBattle(session, level, refs.playerPokemon(), refs.trainerPokemon());
+            for (Pokemon pokemon : refs.allPlayerPokemon()) {
+                ActionBattleStatusParticleController.tickBattle(session, level, pokemon, refs.trainerPokemon());
+                ActionBattleProtectVisuals.tickBattle(session, level, pokemon, refs.trainerPokemon());
+            }
         }
         observeDamageFeedback(session, refs);
     }
@@ -103,6 +112,7 @@ final class ActionBattleEffectRuntime {
         ActionBattleGhostRuntime.global().clearAll();
         ActionBattleFightingController.global().clearAll();
         ActionBattleDragonRuntime.clearAll();
+        ActionBattleDarkRuntime.clearAll();
     }
 
     static void onPokemonUnavailable(ActionBattleSession session, UUID pokemonId,
@@ -119,6 +129,7 @@ final class ActionBattleEffectRuntime {
         ActionBattleGhostRuntime.global().onPokemonUnavailable(session.battleId(), pokemonId);
         ActionBattleFightingRuntime.onPokemonUnavailable(session, pokemonId, currentTick);
         if (applyDragonCleanup) ActionBattleDragonRuntime.onPokemonUnavailable(session, pokemonId, fainted, currentTick);
+        ActionBattleDarkRuntime.onPokemonUnavailable(session, pokemonId, fainted, currentTick);
         STAT_LINK_CLEANUP.onPokemonUnavailable(session.battleId(), pokemonId, currentTick);
         ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), pokemonId, fainted, currentTick);
         ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), pokemonId, fainted, currentTick);
@@ -133,6 +144,7 @@ final class ActionBattleEffectRuntime {
         ActionBattleSleepController.tickPokemon(session, entity, currentTick);
         ActionBattleFightingRuntime.tickPokemon(session, entity, currentTick);
         ActionBattleDragonRuntime.tickPokemon(session, level, entity, currentTick);
+        ActionBattleDarkRuntime.tickPokemon(session, entity, currentTick);
         syncNightmareWithSleep(session, entity, currentTick);
         if (ActionBattleRockController.global().enduranceView(
                 session.battleId(), pokemon.getUuid(), currentTick).isPresent()) {
@@ -195,12 +207,14 @@ final class ActionBattleEffectRuntime {
     }
 
     private static Pokemon findPlayerPokemon(ActionBattleSession session, ServerLevel level, UUID pokemonUUID) {
-        ServerPlayer player = level.getServer().getPlayerList().getPlayer(session.playerUUID());
-        if (player == null) return null;
-        PlayerPartyStore party = Cobblemon.INSTANCE.getStorage().getParty(player);
-        for (int slot = 0; slot < party.size(); slot++) {
-            Pokemon pokemon = party.get(slot);
-            if (pokemon != null && pokemonUUID.equals(pokemon.getUuid())) return pokemon;
+        for (UUID playerUUID : session.playerUUIDs()) {
+            ServerPlayer player = level.getServer().getPlayerList().getPlayer(playerUUID);
+            if (player == null) continue;
+            PlayerPartyStore party = Cobblemon.INSTANCE.getStorage().getParty(player);
+            for (int slot = 0; slot < party.size(); slot++) {
+                Pokemon pokemon = party.get(slot);
+                if (pokemon != null && pokemonUUID.equals(pokemon.getUuid())) return pokemon;
+            }
         }
         return null;
     }
@@ -219,7 +233,9 @@ final class ActionBattleEffectRuntime {
     private static void syncHazeBattleZone(ActionBattleSession session, ServerLevel level, long currentTick) {
         long remaining = session.hazeRemainingTicks(currentTick);
         boolean active = session.isHazeActive(currentTick) && remaining > 0L;
-        syncPokemonHaze(session, level, session.playerActivePokemonUUID(), session.playerActiveEntityUUID(), active, currentTick);
+        for (UUID playerUUID : session.playerUUIDs()) {
+            syncPokemonHaze(session, level, session.playerActivePokemonUUID(playerUUID), session.playerActiveEntityUUID(playerUUID), active, currentTick);
+        }
         syncPokemonHaze(session, level, session.trainerActivePokemonUUID(), session.trainerActiveEntityUUID(), active, currentTick);
     }
 
@@ -240,13 +256,15 @@ final class ActionBattleEffectRuntime {
 
     private static boolean isInsideHazeZone(ActionBattleSession session, Entity entity, boolean hazeActive) {
         return hazeActive && entity instanceof PokemonEntity pokemonEntity && !pokemonEntity.isRemoved()
-                && session.battleZone().contains(pokemonEntity.getX(), pokemonEntity.getZ());
+                && session.containsArena(pokemonEntity.getX(), pokemonEntity.getZ());
     }
 
     private static void observeDamageFeedback(ActionBattleSession session, ActionBattlePokemonRefs refs) {
         if (session == null || refs == null) return;
         ActionBattleDamageFeedbackController feedback = ActionBattleDamageFeedbackController.global();
-        if (refs.playerPokemon() != null) feedback.observePokemon(session.battleId(), refs.playerPokemon().getUuid(), refs.playerPokemon().getCurrentHealth());
+        for (Pokemon pokemon : refs.allPlayerPokemon()) {
+            if (pokemon != null) feedback.observePokemon(session.battleId(), pokemon.getUuid(), pokemon.getCurrentHealth());
+        }
         if (refs.trainerPokemon() != null) feedback.observePokemon(session.battleId(), refs.trainerPokemon().getUuid(), refs.trainerPokemon().getCurrentHealth());
     }
 

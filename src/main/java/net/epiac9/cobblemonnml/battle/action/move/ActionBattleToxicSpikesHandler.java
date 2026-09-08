@@ -60,7 +60,7 @@ public final class ActionBattleToxicSpikesHandler {
         if (!FightOrFlightAdapter.consumeOnePp(caster, move)) return StartResult.NO_PP;
         ActionBattleGhostRuntime.global().applyAbilityCooldown(session, caster,
                 ActionBattleGhostRuntime.global().findMoveSlot(caster, move), currentTick);
-        boolean playerSide = casterPokemonUUID.equals(session.playerActivePokemonUUID());
+        boolean playerSide = session.isPlayerPokemon(casterPokemonUUID);
         boolean confusedChannel = confusionBonusTicks > 0L;
         ActionBattlePosition initialTargetPosition = ActionBattleAreaEffectSupport.targetPosition(caster, target, confusionBonusTicks);
         int totalChannelTicks = ActionBattleAreaEffectSupport.totalChannelTicks(confusionBonusTicks);

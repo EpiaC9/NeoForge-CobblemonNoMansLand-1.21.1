@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleRoomBounds;
 
 public final class DungeonTrainerTracker {
     // TRACKED DUNGEON TRAINERS
@@ -18,6 +19,8 @@ public final class DungeonTrainerTracker {
      * Runtime trainer ID: tbcs:test_trainer_tier_2_2__team_3__dungeon_12345678123412341234123456789abc
      */
     private static final Map<UUID, String> TRAINERS = new HashMap<>();
+    private static final Map<UUID, ActionBattleRoomBounds> ROOM_BOUNDS = new HashMap<>();
+    private static final Map<UUID, String> ROOM_IDS = new HashMap<>();
     // TRACK TRAINER + RCT ID
     public static void track( UUID trainerUUID, String rctTrainerId ) {
         track( trainerUUID, rctTrainerId, null );
@@ -32,6 +35,11 @@ public final class DungeonTrainerTracker {
     private static final Map<UUID, ResourceLocation> PRESETS = new HashMap<>();
     // TRACK TRAINER + RCT ID + PRESET
     public static void track( UUID trainerUUID, String rctTrainerId, ResourceLocation preset ) {
+        track(trainerUUID, rctTrainerId, preset, "", null);
+    }
+
+    public static void track(UUID trainerUUID, String rctTrainerId, ResourceLocation preset,
+                             String roomId, ActionBattleRoomBounds roomBounds) {
         if (trainerUUID == null) {
             return;
         }
@@ -41,6 +49,8 @@ public final class DungeonTrainerTracker {
         } else {
             PRESETS.remove( trainerUUID );
         }
+        if (roomBounds != null) ROOM_BOUNDS.put(trainerUUID, roomBounds); else ROOM_BOUNDS.remove(trainerUUID);
+        if (roomId != null && !roomId.isBlank()) ROOM_IDS.put(trainerUUID, roomId); else ROOM_IDS.remove(trainerUUID);
     }
     // UNTRACK
     public static void untrack(UUID trainerUUID) {
@@ -49,6 +59,8 @@ public final class DungeonTrainerTracker {
         }
         TRAINERS.remove( trainerUUID );
         PRESETS.remove( trainerUUID );
+        ROOM_BOUNDS.remove(trainerUUID);
+        ROOM_IDS.remove(trainerUUID);
     }
     // GET ALL TRACKED EASY NPC UUIDS
     public static Set<UUID> getTrackedTrainers() {
@@ -68,6 +80,12 @@ public final class DungeonTrainerTracker {
         }
         return PRESETS.get( trainerUUID );
     }
+    public static ActionBattleRoomBounds getRoomBounds(UUID trainerUUID) {
+        return trainerUUID != null ? ROOM_BOUNDS.get(trainerUUID) : null;
+    }
+    public static String getRoomId(UUID trainerUUID) {
+        return trainerUUID != null ? ROOM_IDS.get(trainerUUID) : null;
+    }
     // SIZE
     public static int size() {
         return TRAINERS.size();
@@ -76,5 +94,7 @@ public final class DungeonTrainerTracker {
     public static void clear() {
         TRAINERS.clear();
         PRESETS.clear();
+        ROOM_BOUNDS.clear();
+        ROOM_IDS.clear();
     }
 }

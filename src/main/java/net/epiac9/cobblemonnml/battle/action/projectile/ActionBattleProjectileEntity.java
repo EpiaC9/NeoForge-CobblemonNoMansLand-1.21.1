@@ -269,6 +269,8 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
                     attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
             ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, success,
                     protection.protectParticipated() || protection.aquaParticipated());
+            net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime
+                    .onConnectedHit(attacker, pokemonTarget, move, success);
             ActionBattleRockRuntime.HitResult rockHit = nativeDamageMove
                     ? ActionBattleRockRuntime.resolveDirectHit(attacker, pokemonTarget, beforeHp,
                     protection.incomingDamage(), success, protection.protectParticipated())

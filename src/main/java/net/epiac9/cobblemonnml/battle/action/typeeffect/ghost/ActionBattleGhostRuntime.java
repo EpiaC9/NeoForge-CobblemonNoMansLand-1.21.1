@@ -390,8 +390,8 @@ public final class ActionBattleGhostRuntime {
 
     private static PokemonEntity activeEntity(ActionBattleSession session, ServerLevel level, UUID pokemonUUID) {
         if (session == null || level == null || pokemonUUID == null) return null;
-        UUID entityUUID = pokemonUUID.equals(session.playerActivePokemonUUID())
-                ? session.playerActiveEntityUUID()
+        UUID entityUUID = session.isPlayerPokemon(pokemonUUID)
+                ? session.playerEntityForPokemon(pokemonUUID)
                 : pokemonUUID.equals(session.trainerActivePokemonUUID())
                 ? session.trainerActiveEntityUUID() : null;
         Entity raw = entityUUID != null ? level.getEntity(entityUUID) : null;

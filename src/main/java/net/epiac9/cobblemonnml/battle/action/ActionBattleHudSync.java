@@ -1,6 +1,8 @@
 package net.epiac9.cobblemonnml.battle.action;
 
 import com.cobblemon.mod.common.api.moves.Move;
+import com.cobblemon.mod.common.Cobblemon;
+import com.cobblemon.mod.common.api.storage.party.PlayerPartyStore;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
@@ -29,6 +31,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockVis
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingVisuals;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -68,7 +71,7 @@ public final class ActionBattleHudSync {
         }
         ActionBattleHudPayload payload = new ActionBattleHudPayload(
                 true,
-                playerPokemon.getSpecies().getName(), playerPokemon.getUuid().toString(), playerPokemon.getLevel(), currentHealth(playerPokemon), maxHealth(playerPokemon), session.playerActivePartyIndex(),
+                playerPokemon.getSpecies().getName(), playerPokemon.getUuid().toString(), playerPokemon.getLevel(), currentHealth(playerPokemon), maxHealth(playerPokemon), session.playerActivePartyIndex(player.getUUID()),
                 trainerPokemon.getSpecies().getName(), trainerPokemon.getUuid().toString(), trainerPokemon.getLevel(), currentHealth(trainerPokemon), maxHealth(trainerPokemon), session.trainerActivePartyIndex(),
                 statusStates(session.battleId(), session.dungeonSessionId(), playerPokemon.getUuid(), currentTick),
                 statusStates(session.battleId(), session.dungeonSessionId(), trainerPokemon.getUuid(), currentTick),
@@ -76,6 +79,13 @@ public final class ActionBattleHudSync {
                 statStages(session.battleId(), trainerPokemon.getUuid(), currentTick),
                 damageStates(ActionBattleDamageFeedbackController.global().drain(session.battleId(), playerPokemon.getUuid())),
                 damageStates(ActionBattleDamageFeedbackController.global().drain(session.battleId(), trainerPokemon.getUuid())),
+                ActionBattleDarkRuntime.view(session, playerPokemon.getUuid(), currentTick)
+                        .map(view -> new ActionBattleHudPayload.ObscurityState(view.obscurityStage()))
+                        .orElseGet(ActionBattleHudPayload.ObscurityState::clear),
+                ActionBattleDarkRuntime.view(session, trainerPokemon.getUuid(), currentTick)
+                        .map(view -> new ActionBattleHudPayload.ObscurityState(view.obscurityStage()))
+                        .orElseGet(ActionBattleHudPayload.ObscurityState::clear),
+                partyState(player, session, currentTick),
                 swapCooldownRemaining, swapCooldownDuration,
                 moveHereCooldownRemaining, moveHereCooldownDuration,
                 moveState(session, playerPokemon, 0, currentTick), moveState(session, playerPokemon, 1, currentTick),
@@ -86,6 +96,31 @@ public final class ActionBattleHudSync {
 
     public static void hide(ServerPlayer player) {
         if (player != null) PacketDistributor.sendToPlayer(player, ActionBattleHudPayload.hidden());
+    }
+
+    private static ActionBattleHudPayload.PartyState partyState(ServerPlayer player, ActionBattleSession session,
+                                                                 long currentTick) {
+        PlayerPartyStore party = Cobblemon.INSTANCE.getStorage().getParty(player);
+        List<ActionBattlePartyProjection.Input> inputs = new ArrayList<>();
+        for (int slot = 0; slot < ActionBattlePartyProjection.MAX_SLOTS; slot++) {
+            Pokemon pokemon = party.get(slot);
+            if (pokemon == null) continue;
+            List<ActionBattleHudPayload.StatusState> effects = statusStates(session.battleId(), session.dungeonSessionId(),
+                    pokemon.getUuid(), currentTick);
+            List<ActionBattlePartyProjection.Effect> projectedEffects = effects.stream()
+                    .map(effect -> new ActionBattlePartyProjection.Effect(effect.statusId(),
+                            effect.remainingTicks(), effect.totalTicks()))
+                    .toList();
+            inputs.add(new ActionBattlePartyProjection.Input(slot, pokemon.getUuid(), pokemon.getSpecies().getName(),
+                    currentHealth(pokemon), maxHealth(pokemon), projectedEffects));
+        }
+        List<ActionBattleHudPayload.PartyPokemonState> entries = ActionBattlePartyProjection.from(inputs).entries().stream()
+                .map(entry -> new ActionBattleHudPayload.PartyPokemonState(entry.partySlot(), entry.pokemonUUID().toString(), entry.name(),
+                        entry.currentHp(), entry.maxHp(), entry.fainted(),
+                        entry.effects().stream().map(effect -> new ActionBattleHudPayload.StatusState(
+                                effect.effectId(), effect.remainingTicks(), effect.totalTicks())).toList()))
+                .toList();
+        return new ActionBattleHudPayload.PartyState(entries);
     }
 
     private static List<ActionBattleHudPayload.StatusState> statusStates(UUID battleId, UUID dungeonSessionId, UUID pokemonUUID, long currentTick) {

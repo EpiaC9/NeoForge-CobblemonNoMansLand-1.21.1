@@ -205,7 +205,7 @@ public final class ActionBattleGrassController {
         return session != null && session.state() == ActionBattleState.ACTIVE && sessionId.equals(session.dungeonSessionId());
     }
     private static ActionBattleFieldObject.OwnerSide side(ActionBattleSession session, UUID pokemonId) {
-        return pokemonId.equals(session.playerActivePokemonUUID()) ? ActionBattleFieldObject.OwnerSide.PLAYER
+        return session.isPlayerPokemon(pokemonId) ? ActionBattleFieldObject.OwnerSide.PLAYER
                 : pokemonId.equals(session.trainerActivePokemonUUID()) ? ActionBattleFieldObject.OwnerSide.TRAINER : null;
     }
     private static boolean hasType(Pokemon pokemon, String type) {

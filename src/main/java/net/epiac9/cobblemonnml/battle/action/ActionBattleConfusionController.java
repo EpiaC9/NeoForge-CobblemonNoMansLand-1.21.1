@@ -196,6 +196,8 @@ public final class ActionBattleConfusionController {
                     attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, true);
             ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, true,
                     protection.protectParticipated() || protection.aquaParticipated());
+            net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime
+                    .onConnectedHit(attacker, pokemonTarget, move, true);
             ActionBattleRockRuntime.HitResult rockHit = ActionBattleRockRuntime.resolveDirectHit(
                     attacker, pokemonTarget, beforeHp, protection.incomingDamage(), true,
                     protection.protectParticipated());
@@ -239,7 +241,7 @@ public final class ActionBattleConfusionController {
 
     private static PokemonEntity activeEntity(ActionBattleSession session, ServerLevel level, UUID pokemonUUID) {
         UUID entityUUID = null;
-        if (pokemonUUID.equals(session.playerActivePokemonUUID())) entityUUID = session.playerActiveEntityUUID();
+        if (session.isPlayerPokemon(pokemonUUID)) entityUUID = session.playerEntityForPokemon(pokemonUUID);
         else if (pokemonUUID.equals(session.trainerActivePokemonUUID())) entityUUID = session.trainerActiveEntityUUID();
         Entity raw = entityUUID != null ? level.getEntity(entityUUID) : null;
         return raw instanceof PokemonEntity pokemon ? pokemon : null;

@@ -14,6 +14,7 @@ import net.epiac9.cobblemonnml.dimension.encounter.DungeonEncounterManager;
 import net.epiac9.cobblemonnml.dimension.encounter.DungeonMarkerCapture;
 import net.epiac9.cobblemonnml.dimension.theme.DungeonTheme;
 import net.epiac9.cobblemonnml.dimension.tier.DungeonTier;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleRoomBounds;
 import net.epiac9.cobblemonnml.portal.DungeonPortalManager;
 import net.epiac9.cobblemonnml.portal.DungeonPortalVisualState;
 import net.epiac9.cobblemonnml.events.quest.item.DungeonQuestItemMarkerManager;
@@ -218,7 +219,8 @@ public final class DungeonGenerationQueue {
     // ROOM DATA
     private record RoomMarker( BlockPos pos, String marker, boolean specialRoom ) {
     }
-    private record DungeonRoom( BlockPos anchor, List<RoomMarker> markers ) {
+    private record DungeonRoom( BlockPos anchor, String roomId, ActionBattleRoomBounds bounds,
+                                List<RoomMarker> markers ) {
     }
     private record SpecialRoomMarker( BlockPos pos, Direction facing ) {
     }
@@ -780,7 +782,9 @@ public final class DungeonGenerationQueue {
         // CREATE LOGICAL ROOMS
         List<DungeonRoom> rooms = new ArrayList<>();
         for (BlockPos roomAnchor : roomAnchors) {
-            rooms.add( new DungeonRoom( roomAnchor, new ArrayList<>() ) );
+            ActionBattleRoomBounds roomBounds = smallestContainingBounds(bounds, roomAnchor);
+            String roomId = "room:" + roomAnchor.getX() + ":" + roomAnchor.getY() + ":" + roomAnchor.getZ();
+            rooms.add(new DungeonRoom(roomAnchor, roomId, roomBounds, new ArrayList<>()));
         }
         // ASSIGN MARKERS TO NEAREST ROOM
         for (RoomMarker encounterMarker : encounterMarkers) {
@@ -1404,11 +1408,21 @@ public final class DungeonGenerationQueue {
         }
         return nearestRoom;
     }
+    private static ActionBattleRoomBounds smallestContainingBounds(List<BoundingBox> pieces, BlockPos anchor) {
+        if (anchor == null || pieces == null) return null;
+        List<ActionBattleRoomBounds> recorded = pieces.stream().filter(java.util.Objects::nonNull)
+                .map(box -> new ActionBattleRoomBounds(box.minX(), box.minY(), box.minZ(),
+                        box.maxX(), box.maxY(), box.maxZ()))
+                .toList();
+        return ActionBattleRoomBounds.smallestContaining(recorded, anchor.getX(), anchor.getY(), anchor.getZ())
+                .orElse(null);
+    }
     // RESOLVE ONE ROOM
-    private static void resolveRoomMarkers( List<RoomMarker> markers ) {
-        if (level == null || markers == null || markers.isEmpty()) {
+    private static void resolveRoomMarkers(DungeonRoom room) {
+        if (level == null || room == null || room.markers() == null || room.markers().isEmpty()) {
             return;
         }
+        List<RoomMarker> markers = room.markers();
 
         RandomSource random = level.getRandom();
         Config.TierConfig tierConfig = getCurrentTierConfig();
@@ -1485,6 +1499,7 @@ public final class DungeonGenerationQueue {
 
             boolean success = tryActivateRoomCategory(
                     selectedCategory,
+                    room,
                     raids,
                     alphas,
                     trainers,
@@ -1528,6 +1543,7 @@ public final class DungeonGenerationQueue {
     // TRY ONE ROOM CATEGORY
     private static boolean tryActivateRoomCategory(
             RoomCategory category,
+            DungeonRoom room,
             List<RoomMarker> raids,
             List<RoomMarker> alphas,
             List<RoomMarker> trainers,
@@ -1544,9 +1560,9 @@ public final class DungeonGenerationQueue {
         }
 
         return switch (category) {
-            case RAID -> processMarker( chooseRandom( raids, random ) );
-            case ALPHA -> processMarker( chooseRandom( alphas, random ) );
-            case TRAINER -> processMarker( chooseRandom( trainers, random ) );
+            case RAID -> processMarker(chooseRandom(raids, random), room);
+            case ALPHA -> processMarker(chooseRandom(alphas, random), room);
+            case TRAINER -> processMarker(chooseRandom(trainers, random), room);
             case VAULT_SPAWNER -> {
                 RoomMarker selectedSpawner =
                         chooseWeightedSpawner(
@@ -1580,7 +1596,7 @@ public final class DungeonGenerationQueue {
                 }
 
                 DebugLog.log( "Selected dungeon spawner: " + selectedSpawner.marker() );
-                boolean spawnerSuccess = processMarker( selectedSpawner );
+                boolean spawnerSuccess = processMarker(selectedSpawner, room);
 
                 if (!spawnerSuccess) {
                     yield false;
@@ -1592,7 +1608,7 @@ public final class DungeonGenerationQueue {
                  * a second encounter just because the companion vault failed.
                  */
                 DebugLog.log( "Selected dungeon vault: " + selectedVault.marker() );
-                if (!processMarker( selectedVault )) {
+                if (!processMarker(selectedVault, room)) {
                     DebugLog.log(
                             "[CobblemonNML] ROOM FALLBACK: Spawner succeeded but companion vault failed; "
                                     + "keeping the successful spawner encounter."
@@ -1890,7 +1906,8 @@ public final class DungeonGenerationQueue {
     }
     // PROCESS SELECTED MARKER
     private static boolean processMarker(
-            RoomMarker marker
+            RoomMarker marker,
+            DungeonRoom room
     ) {
 
         if (level == null
@@ -1909,10 +1926,9 @@ public final class DungeonGenerationQueue {
         long markerStartedNanos =
                 System.nanoTime();
 
-        DungeonEncounterContext context =
-                marker.specialRoom()
-                        ? DungeonEncounterContext.specialRoom()
-                        : DungeonEncounterContext.normalRoom();
+        DungeonEncounterContext context = marker.specialRoom()
+                ? DungeonEncounterContext.specialRoom(room.roomId(), room.bounds())
+                : DungeonEncounterContext.normalRoom(room.roomId(), room.bounds());
 
         boolean success =
                 DungeonEncounterManager.tryHandleMarker(
@@ -2007,7 +2023,7 @@ public final class DungeonGenerationQueue {
                             + " marker(s)."
             );
             long roomStartedNanos = System.nanoTime();
-            resolveRoomMarkers( room.markers() );
+            resolveRoomMarkers(room);
             resolvedRooms++;
             resolvedThisTick++;
             logTiming(

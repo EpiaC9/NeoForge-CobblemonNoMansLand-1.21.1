@@ -1,6 +1,7 @@
 package net.epiac9.cobblemonnml.client.battle.action;
 
 import com.cobblemon.mod.common.api.gui.GuiUtilsKt;
+import com.cobblemon.mod.common.client.gui.PartyOverlay;
 import com.cobblemon.mod.common.client.render.models.blockbench.FloatingState;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -9,6 +10,8 @@ import net.epiac9.cobblemonnml.dimension.DungeonDimension;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 
@@ -30,6 +33,8 @@ public final class ActionBattleHud {
     private static final int TYPE_ATLAS_WIDTH = 648;
     private static final int TYPE_ATLAS_HEIGHT = 36;
     private static final String[] KEYS = {"Z", "X", "C", "B"};
+    private static final ResourceLocation ENCHANTMENT_FONT =
+            ResourceLocation.fromNamespaceAndPath("minecraft", "alt");
 
     private ActionBattleHud() {}
 
@@ -47,44 +52,109 @@ public final class ActionBattleHud {
         ActionBattleDamageHudState.RenderSnapshot trainerDamage = ActionBattleHudClientState.enemyDamage();
         ActionBattleHudLayout.Rect playerPanel = layout.playerPanel();
         ActionBattleHudLayout.Rect trainerPanel = layout.trainerPanel();
-        renderPokemonPanel(graphics, font, playerPanel, false, state.playerPokemonName(), state.playerPokemonUuid(), state.playerPokemonLevel(), state.playerCurrentHp(), state.playerMaxHp(), playerDamage.trailingHp());
-        renderPokemonPanel(graphics, font, trainerPanel, true, state.trainerPokemonName(), state.trainerPokemonUuid(), state.trainerPokemonLevel(), state.trainerCurrentHp(), state.trainerMaxHp(), trainerDamage.trailingHp());
-        ActionBattleStatStageHudRenderer.render(graphics, font, playerPanel, state.playerStatStages(), false);
-        ActionBattleStatStageHudRenderer.render(graphics, font, trainerPanel, state.trainerStatStages(), true);
-        ActionBattleStatusHudRenderer.renderEnemy(graphics, playerPanel, state.playerStatuses());
-        ActionBattleStatusHudRenderer.renderAlly(graphics, trainerPanel, state.trainerStatuses());
-        ActionBattleDamageHudRenderer.renderFloating(graphics, font, playerPanel, false, playerDamage);
-        ActionBattleDamageHudRenderer.renderFloating(graphics, font, trainerPanel, true, trainerDamage);
-        renderCommand(graphics, font, layout.commandButton(0), "Swap", "G", state.playerSwapCooldownRemainingTicks(), state.playerSwapCooldownDurationTicks());
-        renderCommand(graphics, font, layout.commandButton(1), "Move Here", "V", state.playerMoveHereCooldownRemainingTicks(), state.playerMoveHereCooldownDurationTicks());
-        for (int slot = 0; slot < 4; slot++) renderMove(graphics, font, layout.moveButton(slot), slot, state.move(slot));
+        ActionBattleObscurityProjection obscurity = new ActionBattleObscurityProjection(
+                state.playerObscurity().stage());
+        renderPokemonPanel(graphics, font, playerPanel, false, state.playerPokemonName(), state.playerPokemonUuid(), state.playerPokemonLevel(), state.playerCurrentHp(), state.playerMaxHp(), playerDamage.trailingHp(), obscurity, ActionBattleObscurityProjection.Side.ALLY);
+        renderPokemonPanel(graphics, font, trainerPanel, true, state.trainerPokemonName(), state.trainerPokemonUuid(), state.trainerPokemonLevel(), state.trainerCurrentHp(), state.trainerMaxHp(), trainerDamage.trailingHp(), obscurity, ActionBattleObscurityProjection.Side.ENEMY);
+        renderStats(graphics, font, playerPanel, state.playerStatStages(), false, obscurity, ActionBattleObscurityProjection.Side.ALLY);
+        renderStats(graphics, font, trainerPanel, state.trainerStatStages(), true, obscurity, ActionBattleObscurityProjection.Side.ENEMY);
+        renderStatuses(graphics, playerPanel, state.playerStatuses(), false, obscurity, ActionBattleObscurityProjection.Side.ALLY);
+        renderStatuses(graphics, trainerPanel, state.trainerStatuses(), true, obscurity, ActionBattleObscurityProjection.Side.ENEMY);
+        renderNativePartyEffects(graphics, graphics.guiHeight(), state.playerParty(), obscurity.partyStage());
+        renderNativePartyObscurity(graphics, graphics.guiHeight(), state.playerParty(),
+                state.playerPokemonUuid(), obscurity.partyStage());
+        ActionBattleDamageHudRenderer.renderFloating(graphics, font, playerPanel, false, playerDamage,
+                obscurity.stage(ActionBattleObscurityProjection.Side.ALLY, 0));
+        ActionBattleDamageHudRenderer.renderFloating(graphics, font, trainerPanel, true, trainerDamage,
+                obscurity.stage(ActionBattleObscurityProjection.Side.ENEMY, 0));
+        renderCommand(graphics, font, layout.commandButton(0), "Swap", "G", state.playerSwapCooldownRemainingTicks(), state.playerSwapCooldownDurationTicks(), obscurity.commandStage(6), 6);
+        renderCommand(graphics, font, layout.commandButton(1), "Move Here", "V", state.playerMoveHereCooldownRemainingTicks(), state.playerMoveHereCooldownDurationTicks(), obscurity.commandStage(7), 7);
+        for (int slot = 0; slot < 4; slot++) renderMove(graphics, font, layout.moveButton(slot), slot, state.move(slot), obscurity.commandStage(8 + slot));
     }
 
     public static ActionBattleHudLayout layoutForScreen(int width, int height) { return ActionBattleHudLayout.forScreen(width, height); }
 
-    private static void renderPokemonPanel(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect, boolean flipped, String rawName, String pokemonUuid, int level, int hp, int maxHp, double trailingHp) {
+    private static void renderPokemonPanel(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect,
+                                           boolean flipped, String rawName, String pokemonUuid, int level,
+                                           int hp, int maxHp, double trailingHp,
+                                           ActionBattleObscurityProjection obscurity,
+                                           ActionBattleObscurityProjection.Side side) {
         int x = rect.x();
         int y = rect.y();
+        int panelStage = obscurity.stage(side, 0);
+        int iconStage = Math.max(panelStage, obscurity.stage(side, 2));
+        int nameStage = Math.max(panelStage, obscurity.stage(side, 3));
+        int hpStage = Math.max(panelStage, obscurity.stage(side, 1));
+        applyTextureTint(panelStage, 1.0F);
         graphics.blit(flipped ? BATTLE_INFO_FLIPPED : BATTLE_INFO, x, y, 0.0F, 0.0F, rect.width(), rect.height(), rect.width(), rect.height());
-        renderPokemonPortrait(graphics, rect, flipped, pokemonUuid);
+        resetTextureTint();
+        renderPokemonPortrait(graphics, rect, flipped, pokemonUuid, iconStage);
         int infoX = flipped ? x + 7 : x + 40;
         String name = displayName(rawName);
-        drawScaled(graphics, font, name, infoX, y + 7, 0.75F, TEXT, false);
-        String levelText = "Lv. " + Math.max(1, level);
-        drawScaledRight(graphics, font, levelText, flipped ? x + 100 : x + 137, y + 7, 0.70F, TEXT);
+        ActionBattleHudLayout.Rect nameBounds = ActionBattleObscurityGeometry.name(rect, flipped);
+        enableScissor(graphics, nameBounds);
+        drawScaled(graphics, font, obscuredText(name, nameStage), infoX, y + 7, 0.75F,
+                ActionBattleObscurityHudRules.presentationColor(TEXT, nameStage), false);
+        if (!ActionBattleObscurityHudRules.hideInformation(nameStage)) {
+            String levelText = "Lv. " + Math.max(1, level);
+            drawScaledRight(graphics, font, obscuredText(levelText, nameStage), flipped ? x + 100 : x + 137, y + 7, 0.70F,
+                    ActionBattleObscurityHudRules.presentationColor(TEXT, nameStage));
+        }
+        graphics.disableScissor();
         double ratio = maxHp > 0 ? Math.clamp((double) hp / maxHp, 0.0D, 1.0D) : 0.0D;
         int fullWidth = 97;
         int barWidth = (int) Math.round(fullWidth * ratio);
         int barX = flipped ? infoX - 2 + (fullWidth - barWidth) : infoX - 2;
-        int barColor = hpColor(ratio);
-        ActionBattleDamageHudRenderer.renderTrailingHp(graphics, rect, flipped, hp, maxHp, trailingHp);
+        int barColor = ActionBattleObscurityHudRules.presentationColor(hpColor(ratio), hpStage);
+        if (!ActionBattleObscurityHudRules.hideInformation(hpStage)) {
+            ActionBattleDamageHudRenderer.renderTrailingHp(graphics, rect, flipped, hp, maxHp, trailingHp,
+                    hpStage);
+        }
         if (barWidth > 0) graphics.fill(barX, y + 22, barX + barWidth, y + 26, barColor);
-        String hpText = Math.max(0, hp) + "/" + Math.max(1, maxHp);
-        int centerX = flipped ? infoX + 49 : infoX + 48;
-        drawScaledCentered(graphics, font, hpText, centerX, y + 22, 0.50F, TEXT);
+        if (!ActionBattleObscurityHudRules.hideInformation(hpStage)) {
+            String hpText = Math.max(0, hp) + "/" + Math.max(1, maxHp);
+            int centerX = flipped ? infoX + 49 : infoX + 48;
+            enableScissor(graphics, ActionBattleObscurityGeometry.hpBar(rect, flipped));
+            drawScaledCentered(graphics, font, obscuredText(hpText, hpStage), centerX, y + 22, 0.50F,
+                    ActionBattleObscurityHudRules.presentationColor(TEXT, hpStage));
+            graphics.disableScissor();
+        }
+        ActionBattleObscurityHudRenderer.renderSurface(graphics, ActionBattleObscurityGeometry.icon(rect, flipped), iconStage, side == ActionBattleObscurityProjection.Side.ALLY ? 2 : 102);
+        ActionBattleObscurityHudRenderer.renderSurface(graphics, ActionBattleObscurityGeometry.name(rect, flipped), nameStage, side == ActionBattleObscurityProjection.Side.ALLY ? 3 : 103);
+        ActionBattleObscurityHudRenderer.renderSurface(graphics, ActionBattleObscurityGeometry.hpBar(rect, flipped), hpStage, side == ActionBattleObscurityProjection.Side.ALLY ? 1 : 101);
+        ActionBattleObscurityHudRenderer.renderMaskedSurface(graphics,
+                ActionBattleObscurityGeometry.panel(rect), panelStage,
+                side == ActionBattleObscurityProjection.Side.ALLY ? 0 : 100,
+                flipped ? ActionBattleObscuritySurfaceMask.Shape.PANEL_FLIPPED
+                        : ActionBattleObscuritySurfaceMask.Shape.PANEL);
     }
 
-    private static void renderPokemonPortrait(GuiGraphics graphics, ActionBattleHudLayout.Rect panel, boolean flipped, String pokemonUuid) {
+    private static void renderStats(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect panel,
+                                    ActionBattleHudPayload.StatStageState stages, boolean flipped,
+                                    ActionBattleObscurityProjection obscurity,
+                                    ActionBattleObscurityProjection.Side side) {
+        int stage = Math.max(obscurity.stage(side, 0), obscurity.stage(side, 5));
+        ActionBattleStatStageHudRenderer.render(graphics, font, panel, stages, flipped, stage);
+        ActionBattleObscurityHudRenderer.renderSurface(graphics, ActionBattleObscurityGeometry.stats(panel, flipped), stage,
+                side == ActionBattleObscurityProjection.Side.ALLY ? 5 : 105);
+    }
+
+    private static void renderStatuses(GuiGraphics graphics, ActionBattleHudLayout.Rect panel,
+                                       java.util.List<ActionBattleHudPayload.StatusState> statuses, boolean allyAligned,
+                                       ActionBattleObscurityProjection obscurity,
+                                       ActionBattleObscurityProjection.Side side) {
+        int stage = Math.max(obscurity.stage(side, 0), obscurity.stage(side, 4));
+        if (!ActionBattleObscurityHudRules.hideInformation(stage)) {
+            boolean grayscale = ActionBattleObscurityHudRules.grayscale(stage);
+            if (allyAligned) ActionBattleStatusHudRenderer.renderAlly(graphics, panel, statuses, grayscale);
+            else ActionBattleStatusHudRenderer.renderEnemy(graphics, panel, statuses, grayscale);
+        }
+        ActionBattleObscurityHudRenderer.renderSurface(graphics, ActionBattleObscurityGeometry.statuses(panel), stage,
+                side == ActionBattleObscurityProjection.Side.ALLY ? 4 : 104);
+    }
+
+    private static void renderPokemonPortrait(GuiGraphics graphics, ActionBattleHudLayout.Rect panel,
+                                              boolean flipped, String pokemonUuid, int obscurityStage) {
         PokemonEntity pokemonEntity = activePokemonEntity(pokemonUuid);
         if (pokemonEntity == null) return;
         int left = flipped ? panel.x() + 106 : panel.x() + 4;
@@ -92,6 +162,7 @@ public final class ActionBattleHud {
         int size = 30;
         graphics.enableScissor(left, top, left + size, top + size);
         graphics.pose().pushPose();
+        applyTextureTint(obscurityStage, 1.0F);
         graphics.pose().translate(left + size / 2.0D, top - 11.0D, 120.0D);
         FloatingState portraitState = new FloatingState();
         portraitState.setCurrentAspects(pokemonEntity.getPokemon().getAspects());
@@ -115,7 +186,48 @@ public final class ActionBattleHud {
                 1.0F
         );
         graphics.pose().popPose();
+        resetTextureTint();
         graphics.disableScissor();
+    }
+
+    private static void renderNativePartyEffects(GuiGraphics graphics, int guiHeight,
+                                                 ActionBattleHudPayload.PartyState party,
+                                                 int obscurityStage) {
+        if (party == null) return;
+        if (!PartyOverlay.Companion.canRender()) return;
+        if (ActionBattleObscurityHudRules.hideInformation(obscurityStage)) return;
+        for (ActionBattleHudPayload.PartyPokemonState pokemon : party.entries()) {
+            ActionBattleHudLayout.Rect anchor = ActionBattleNativePartyLayout.effectAnchor(
+                    guiHeight, 6, pokemon.partySlot());
+            int rendered = 0;
+            for (ActionBattleHudPayload.StatusState state : pokemon.effectStates()) {
+                if (state == null || !ActionBattleStatusHudRules.shouldDisplay(
+                        state.statusId(), state.remainingTicks())) continue;
+                ActionBattleStatusVisualRegistry.StatusVisual visual =
+                        ActionBattleStatusVisualRegistry.visualFor(state.statusId());
+                if (visual == null || rendered >= 3) continue;
+                int x = anchor.x() + rendered * (anchor.width() + 2);
+                ActionBattleEffectIconRenderer.render(graphics, x, anchor.y(), anchor.width(),
+                        state, visual, ActionBattleObscurityHudRules.grayscale(obscurityStage));
+                rendered++;
+            }
+        }
+    }
+
+    private static void renderNativePartyObscurity(GuiGraphics graphics, int guiHeight,
+                                                    ActionBattleHudPayload.PartyState party,
+                                                    String activePokemonUuid,
+                                                    int obscurityStage) {
+        if (party == null || !PartyOverlay.Companion.canRender()) return;
+        for (ActionBattleHudPayload.PartyPokemonState pokemon : party.entries()) {
+            ActionBattleHudLayout.Rect slot = ActionBattleNativePartyLayout.slotBounds(
+                    guiHeight, 6, pokemon.partySlot());
+            ActionBattleObscuritySurfaceMask.Shape shape = pokemon.pokemonUuid().equals(activePokemonUuid)
+                    ? ActionBattleObscuritySurfaceMask.Shape.PARTY_ACTIVE
+                    : ActionBattleObscuritySurfaceMask.Shape.PARTY;
+            ActionBattleObscurityHudRenderer.renderMaskedSurface(graphics, slot, obscurityStage,
+                    200 + pokemon.partySlot(), shape);
+        }
     }
 
     private static PokemonEntity activePokemonEntity(String pokemonUuid) {
@@ -130,7 +242,9 @@ public final class ActionBattleHud {
         return null;
     }
 
-    private static void renderCommand(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect, String label, String key, long cooldownRemainingTicks, long cooldownDurationTicks) {
+    private static void renderCommand(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect,
+                                      String label, String key, long cooldownRemainingTicks,
+                                      long cooldownDurationTicks, int obscurityStage, int seed) {
         int x = rect.x();
         int y = rect.y();
         RenderSystem.setShaderColor(0.68F, 0.68F, 0.68F, 1.0F);
@@ -141,19 +255,24 @@ public final class ActionBattleHud {
         graphics.blit(BATTLE_MOVE_OVERLAY, 0, 0, 0.0F, 0.0F, 92, 24, 92, 24);
         graphics.pose().popPose();
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        if (cooldownRemainingTicks > 0L && cooldownDurationTicks > 0L) {
+        if (!ActionBattleObscurityHudRules.hideInformation(obscurityStage) && cooldownRemainingTicks > 0L && cooldownDurationTicks > 0L) {
             double elapsedFraction = 1.0D - Math.clamp((double) cooldownRemainingTicks / cooldownDurationTicks, 0.0D, 1.0D);
             renderCommandCooldownFill(graphics, rect, elapsedFraction);
         }
+        int textColor = ActionBattleObscurityHudRules.presentationColor(TEXT, obscurityStage);
+        enableScissor(graphics, rect);
         if (label.contains(" ")) {
             String[] parts = label.split(" ", 2);
-            drawScaledCentered(graphics, font, parts[0], x + rect.width() / 2, y + 2, 0.38F, TEXT);
-            drawScaledCentered(graphics, font, parts[1], x + rect.width() / 2, y + 7, 0.38F, TEXT);
-            drawScaledCentered(graphics, font, key, x + rect.width() / 2, y + 14, 0.48F, TEXT);
+            drawScaledCentered(graphics, font, obscuredText(parts[0], obscurityStage), x + rect.width() / 2, y + 2, 0.38F, textColor);
+            drawScaledCentered(graphics, font, obscuredText(parts[1], obscurityStage), x + rect.width() / 2, y + 7, 0.38F, textColor);
+            if (!ActionBattleObscurityHudRules.hideInformation(obscurityStage)) drawScaledCentered(graphics, font, obscuredText(key, obscurityStage), x + rect.width() / 2, y + 14, 0.48F, textColor);
         } else {
-            drawScaledCentered(graphics, font, label, x + rect.width() / 2, y + 4, 0.42F, TEXT);
-            drawScaledCentered(graphics, font, key, x + rect.width() / 2, y + 13, 0.50F, TEXT);
+            drawScaledCentered(graphics, font, obscuredText(label, obscurityStage), x + rect.width() / 2, y + 4, 0.42F, textColor);
+            if (!ActionBattleObscurityHudRules.hideInformation(obscurityStage)) drawScaledCentered(graphics, font, obscuredText(key, obscurityStage), x + rect.width() / 2, y + 13, 0.50F, textColor);
         }
+        graphics.disableScissor();
+        ActionBattleObscurityHudRenderer.renderMaskedSurface(graphics, rect, obscurityStage, seed,
+                ActionBattleObscuritySurfaceMask.Shape.MOVE);
     }
 
     private static void renderCommandCooldownFill(GuiGraphics graphics, ActionBattleHudLayout.Rect rect, double fraction) {
@@ -174,33 +293,52 @@ public final class ActionBattleHud {
         RenderSystem.disableBlend();
     }
 
-    private static void renderMove(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect, int slot, ActionBattleHudPayload.MoveState move) {
+    private static void renderMove(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect, int slot,
+                                   ActionBattleHudPayload.MoveState move, int obscurityStage) {
         int x = rect.x();
         int y = rect.y();
         boolean missing = move.name() == null || move.name().isBlank();
         boolean disabled = missing || !move.supported() || move.currentPp() <= 0;
         float[] tint = typeTint(move.type());
+        if (ActionBattleObscurityHudRules.grayscale(obscurityStage)) {
+            float gray = (tint[0] + tint[1] + tint[2]) / 3.0F;
+            tint = new float[]{gray, gray, gray};
+        }
         RenderSystem.setShaderColor(tint[0], tint[1], tint[2], disabled ? 0.50F : 1.0F);
         graphics.blit(BATTLE_MOVE, x, y, 0.0F, 0.0F, rect.width(), rect.height(), rect.width(), rect.height() * 2);
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         graphics.blit(BATTLE_MOVE_OVERLAY, x, y, 0.0F, 0.0F, rect.width(), rect.height(), rect.width(), rect.height());
         String name = missing ? "---" : displayName(move.name());
-        drawScaled(graphics, font, name, x + 17, y + 3, 0.72F, disabled ? MUTED : TEXT, false);
+        enableScissor(graphics, rect);
+        drawScaled(graphics, font, obscuredText(name, obscurityStage), x + 17, y + 3, 0.72F,
+                ActionBattleObscurityHudRules.presentationColor(disabled ? MUTED : TEXT, obscurityStage), false);
         int ppColor = move.currentPp() <= 0 ? PP_EMPTY : move.maxPp() > 0 && move.currentPp() * 2 <= move.maxPp() ? PP_LOW : TEXT;
         String pp = move.maxPp() > 0 ? move.currentPp() + "/" + move.maxPp() : "--/--";
-        drawScaledCentered(graphics, font, pp, x + 75, y + 15, 0.58F, ppColor);
-        drawScaledRight(graphics, font, KEYS[slot], x + 89, y + 3, 0.55F, disabled ? MUTED : TEXT);
+        if (!ActionBattleObscurityHudRules.hideInformation(obscurityStage)) {
+            drawScaledCentered(graphics, font, obscuredText(pp, obscurityStage), x + 75, y + 15, 0.58F,
+                    ActionBattleObscurityHudRules.presentationColor(ppColor, obscurityStage));
+            drawScaledRight(graphics, font, obscuredText(KEYS[slot], obscurityStage), x + 89, y + 3, 0.55F,
+                    ActionBattleObscurityHudRules.presentationColor(disabled ? MUTED : TEXT, obscurityStage));
+        }
+        graphics.disableScissor();
         if (disabled) graphics.fill(x, y, x + rect.width(), y + rect.height(), DISABLED);
-        if (move.cooldownRemainingTicks() > 0L && move.cooldownDurationTicks() > 0L) {
+        if (!ActionBattleObscurityHudRules.hideInformation(obscurityStage) && move.cooldownRemainingTicks() > 0L && move.cooldownDurationTicks() > 0L) {
             double elapsedFraction = 1.0D - Math.clamp((double) move.cooldownRemainingTicks() / move.cooldownDurationTicks(), 0.0D, 1.0D);
             renderCooldownFill(graphics, rect, elapsedFraction);
         }
-        renderTypeIcon(graphics, x - 9, y + 2, move.type(), disabled ? 0.55F : 1.0F);
+        if (ActionBattleObscurityHudRules.showsAuxiliaryIcon(obscurityStage)) {
+            renderTypeIcon(graphics, x - 9, y + 2, move.type(), disabled ? 0.55F : 1.0F,
+                    obscurityStage);
+        }
+        ActionBattleObscurityHudRenderer.renderMaskedSurface(graphics, rect, obscurityStage, 8 + slot,
+                ActionBattleObscuritySurfaceMask.Shape.MOVE);
     }
 
-    private static void renderTypeIcon(GuiGraphics graphics, int x, int y, String type, float alpha) {
+    private static void renderTypeIcon(GuiGraphics graphics, int x, int y, String type, float alpha,
+                                       int obscurityStage) {
         int index = typeIndex(type);
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, alpha);
+        float channel = ActionBattleObscurityHudRules.grayscale(obscurityStage) ? 0.58F : 1.0F;
+        RenderSystem.setShaderColor(channel, channel, channel, alpha);
         graphics.pose().pushPose();
         graphics.pose().translate(x, y, 0.0F);
         graphics.pose().scale(0.5F, 0.5F, 1.0F);
@@ -253,6 +391,10 @@ public final class ActionBattleHud {
     }
 
     private static void drawScaled(GuiGraphics graphics, Font font, String text, int x, int y, float scale, int color, boolean shadow) {
+        drawScaled(graphics, font, Component.literal(text), x, y, scale, color, shadow);
+    }
+
+    private static void drawScaled(GuiGraphics graphics, Font font, Component text, int x, int y, float scale, int color, boolean shadow) {
         graphics.pose().pushPose();
         graphics.pose().translate(x, y, 0.0F);
         graphics.pose().scale(scale, scale, 1.0F);
@@ -261,6 +403,10 @@ public final class ActionBattleHud {
     }
 
     private static void drawScaledRight(GuiGraphics graphics, Font font, String text, int rightX, int y, float scale, int color) {
+        drawScaledRight(graphics, font, Component.literal(text), rightX, y, scale, color);
+    }
+
+    private static void drawScaledRight(GuiGraphics graphics, Font font, Component text, int rightX, int y, float scale, int color) {
         graphics.pose().pushPose();
         graphics.pose().translate(rightX, y, 0.0F);
         graphics.pose().scale(scale, scale, 1.0F);
@@ -269,6 +415,10 @@ public final class ActionBattleHud {
     }
 
     private static void drawScaledCentered(GuiGraphics graphics, Font font, String text, int centerX, int y, float scale, int color) {
+        drawScaledCentered(graphics, font, Component.literal(text), centerX, y, scale, color);
+    }
+
+    private static void drawScaledCentered(GuiGraphics graphics, Font font, Component text, int centerX, int y, float scale, int color) {
         graphics.pose().pushPose();
         graphics.pose().translate(centerX, y, 0.0F);
         graphics.pose().scale(scale, scale, 1.0F);
@@ -288,5 +438,25 @@ public final class ActionBattleHud {
             else { out.append(upper ? Character.toUpperCase(c) : c); upper = false; }
         }
         return out.toString();
+    }
+
+    private static Component obscuredText(String text, int stage) {
+        Component result = Component.literal(text != null ? text : "");
+        return ActionBattleObscurityHudRules.usesMinecraftAltFont(stage)
+                ? result.copy().withStyle(Style.EMPTY.withFont(ENCHANTMENT_FONT))
+                : result;
+    }
+
+    private static void applyTextureTint(int stage, float alpha) {
+        float channel = ActionBattleObscurityHudRules.grayscale(stage) ? 0.58F : 1.0F;
+        RenderSystem.setShaderColor(channel, channel, channel, alpha);
+    }
+
+    private static void resetTextureTint() {
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    private static void enableScissor(GuiGraphics graphics, ActionBattleHudLayout.Rect rect) {
+        graphics.enableScissor(rect.x(), rect.y(), rect.x() + rect.width(), rect.y() + rect.height());
     }
 }

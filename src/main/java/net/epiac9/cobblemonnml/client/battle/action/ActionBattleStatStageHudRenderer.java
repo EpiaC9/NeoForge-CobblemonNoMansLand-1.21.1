@@ -3,6 +3,9 @@ package net.epiac9.cobblemonnml.client.battle.action;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleHudPayload;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.resources.ResourceLocation;
 
 public final class ActionBattleStatStageHudRenderer {
     private static final int STAT_COUNT = 6;
@@ -16,10 +19,18 @@ public final class ActionBattleStatStageHudRenderer {
     private static final int NEUTRAL = 0xFFE0E0E0;
     private static final int POSITIVE = 0xFF59D66F;
     private static final int NEGATIVE = 0xFFE35A5A;
+    private static final ResourceLocation ENCHANTMENT_FONT =
+            ResourceLocation.fromNamespaceAndPath("minecraft", "alt");
 
     private ActionBattleStatStageHudRenderer() {}
 
     public static void render(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect panel, ActionBattleHudPayload.StatStageState stages, boolean rightAligned) {
+        render(graphics, font, panel, stages, rightAligned, 0);
+    }
+
+    public static void render(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect panel,
+                              ActionBattleHudPayload.StatStageState stages, boolean rightAligned,
+                              int obscurityStage) {
         ActionBattleHudPayload.StatStageState safe = stages != null ? stages : ActionBattleHudPayload.StatStageState.neutral();
         int totalWidth = STAT_COUNT * SLOT_WIDTH + (STAT_COUNT - 1) * SLOT_GAP;
         int hpLeft = rightAligned ? panel.x() + 5 : panel.x() + 38;
@@ -28,7 +39,9 @@ public final class ActionBattleStatStageHudRenderer {
         for (int i = 0; i < STAT_COUNT; i++) {
             int x = startX + i * (SLOT_WIDTH + SLOT_GAP);
             renderOval(graphics, x, y, SLOT_WIDTH, SLOT_HEIGHT);
-            renderStage(graphics, font, x, y, safe.stage(i));
+            if (!ActionBattleObscurityHudRules.hideInformation(obscurityStage)) {
+                renderStage(graphics, font, x, y, safe.stage(i), obscurityStage);
+            }
         }
     }
 
@@ -41,13 +54,18 @@ public final class ActionBattleStatStageHudRenderer {
         graphics.fill(x + 2, y + 3, x + width - 2, y + height - 3, BACKGROUND);
     }
 
-    private static void renderStage(GuiGraphics graphics, Font font, int x, int y, int stage) {
+    private static void renderStage(GuiGraphics graphics, Font font, int x, int y, int stage, int obscurityStage) {
         String text = stage == 0 ? "--" : stage > 0 ? "+" + stage : Integer.toString(stage);
-        int color = stage == 0 ? NEUTRAL : stage > 0 ? POSITIVE : NEGATIVE;
-        drawScaledCentered(graphics, font, text, x + SLOT_WIDTH / 2, y + 2, 0.72F, color);
+        Component shown = Component.literal(text);
+        if (ActionBattleObscurityHudRules.usesMinecraftAltFont(obscurityStage)) {
+            shown = shown.copy().withStyle(Style.EMPTY.withFont(ENCHANTMENT_FONT));
+        }
+        int color = ActionBattleObscurityHudRules.grayscale(obscurityStage)
+                ? 0xFFAAAAAA : stage == 0 ? NEUTRAL : stage > 0 ? POSITIVE : NEGATIVE;
+        drawScaledCentered(graphics, font, shown, x + SLOT_WIDTH / 2, y + 2, 0.72F, color);
     }
 
-    private static void drawScaledCentered(GuiGraphics graphics, Font font, String text, int centerX, int y, float scale, int color) {
+    private static void drawScaledCentered(GuiGraphics graphics, Font font, Component text, int centerX, int y, float scale, int color) {
         graphics.pose().pushPose();
         graphics.pose().translate(centerX, y, 0.0F);
         graphics.pose().scale(scale, scale, 1.0F);

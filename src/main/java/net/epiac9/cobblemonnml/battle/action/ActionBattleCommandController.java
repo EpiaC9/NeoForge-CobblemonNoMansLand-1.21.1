@@ -18,6 +18,13 @@ public final class ActionBattleCommandController {
     public static boolean cancelPendingOrders(ActionBattleSession session, UUID pokemonUUID, InterruptReason reason) {
         Side side = sideOf(session, pokemonUUID);
         if (side == null || reason == null) return false;
+        if (side == Side.PLAYER) {
+            UUID ownerUUID = session.playerOwnerForPokemon(pokemonUUID);
+            if (reason == InterruptReason.CONTROL_EFFECT || reason == InterruptReason.SLEEP) applyControlHooks(pokemonUUID);
+            boolean hadOrders = session.hasPlayerMovementIntent(ownerUUID);
+            session.clearPlayerMoveState(ownerUUID);
+            return hadOrders;
+        }
         return cancelPendingOrders(session, side, reason);
     }
 
@@ -40,7 +47,7 @@ public final class ActionBattleCommandController {
 
     public static Side sideOf(ActionBattleSession session, UUID pokemonUUID) {
         if (session == null || pokemonUUID == null) return null;
-        if (pokemonUUID.equals(session.playerActivePokemonUUID())) return Side.PLAYER;
+        if (session.isPlayerPokemon(pokemonUUID)) return Side.PLAYER;
         if (pokemonUUID.equals(session.trainerActivePokemonUUID())) return Side.TRAINER;
         return null;
     }

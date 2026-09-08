@@ -18,7 +18,14 @@ final class ActionBattlePokemonRuntime {
     static ServerPlayer findServerPlayer(ActionBattleSession session) {
         if (session == null) return null;
         var server = ServerLifecycleHooks.getCurrentServer();
-        return server != null ? server.getPlayerList().getPlayer(session.playerUUID()) : null;
+        if (server == null) return null;
+        ServerPlayer initial = server.getPlayerList().getPlayer(session.playerUUID());
+        if (initial != null) return initial;
+        for (java.util.UUID playerUUID : session.playerUUIDs()) {
+            ServerPlayer participant = server.getPlayerList().getPlayer(playerUUID);
+            if (participant != null) return participant;
+        }
+        return null;
     }
 
     static void seedDamageFeedback(ActionBattleSession session, Pokemon pokemon) {
@@ -27,12 +34,18 @@ final class ActionBattlePokemonRuntime {
 
     static void sendOut(ActionBattleSession session, boolean playerSide, LivingEntity source, LivingEntity opponent,
                         ActionBattlePokemonSelection.Selection selected) {
+        sendOut(session, playerSide, playerSide && source instanceof ServerPlayer player ? player.getUUID() : null,
+                source, opponent, selected);
+    }
+
+    static void sendOut(ActionBattleSession session, boolean playerSide, java.util.UUID playerOwnerUUID,
+                        LivingEntity source, LivingEntity opponent, ActionBattlePokemonSelection.Selection selected) {
         if (session == null || source == null || opponent == null || selected == null || selected.pokemon() == null) return;
         Pokemon pokemon = selected.pokemon();
         ServerLevel level = (ServerLevel) source.level();
         PokemonEntity existing = pokemon.getEntity();
         if (existing != null && !existing.isRemoved() && existing.level() == level) {
-            bindActive(session, playerSide, selected.slot(), pokemon, existing);
+            bindActive(session, playerSide, playerOwnerUUID, selected.slot(), pokemon, existing);
             return;
         }
         if (existing != null) recall(pokemon);
@@ -51,23 +64,29 @@ final class ActionBattlePokemonRuntime {
                 recall(pokemon);
                 return;
             }
-            if (!bindActive(session, playerSide, selected.slot(), pokemon, entity)) recall(pokemon);
+            if (!bindActive(session, playerSide, playerOwnerUUID, selected.slot(), pokemon, entity)) recall(pokemon);
         });
     }
 
     static boolean bindActive(ActionBattleSession session, boolean playerSide, int partyIndex, Pokemon pokemon, PokemonEntity entity) {
+        return bindActive(session, playerSide, playerSide ? session.playerUUID() : null, partyIndex, pokemon, entity);
+    }
+
+    static boolean bindActive(ActionBattleSession session, boolean playerSide, java.util.UUID playerOwnerUUID,
+                              int partyIndex, Pokemon pokemon, PokemonEntity entity) {
         if (session == null || pokemon == null || entity == null) return false;
         boolean bound = playerSide
-                ? session.bindPlayerActivePokemon(partyIndex, pokemon.getUuid(), entity.getUUID())
+                ? session.bindPlayerActivePokemon(playerOwnerUUID, partyIndex, pokemon.getUuid(), entity.getUUID())
                 : session.bindTrainerActivePokemon(partyIndex, pokemon.getUuid(), entity.getUUID());
         if (!bound) return false;
         net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectRuntime.onPokemonAvailable(
                 session.dungeonSessionId(), pokemon.getUuid());
-        if (playerSide) session.setPlayerSendOutPending(false);
+        if (playerSide) session.setPlayerSendOutPending(playerOwnerUUID, false);
         else session.setTrainerSendOutPending(false);
         if (entity.level() instanceof ServerLevel level) {
-            ServerPlayer player = level.getServer().getPlayerList().getPlayer(session.playerUUID());
-            if (player != null && player.level() == level && session.battleZone().contains(player.getX(), player.getZ())) {
+            ServerPlayer player = level.getServer().getPlayerList().getPlayer(
+                    playerOwnerUUID != null ? playerOwnerUUID : session.playerUUID());
+            if (player != null && player.level() == level && session.containsArena(player.getX(), player.getZ())) {
                 ActionBattleMovementController.suppressAutonomousMovementNow(session, entity);
             }
         }

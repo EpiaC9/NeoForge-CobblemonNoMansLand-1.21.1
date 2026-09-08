@@ -43,7 +43,7 @@ public final class ActionBattlePokemonControlGuard {
         ActionBattleSession session = ActionBattleManager.getByPlayer(player.getUUID());
         if (session == null || session.state() != ActionBattleState.ACTIVE) return false;
         Pokemon pokemon = slot >= 0 ? Cobblemon.INSTANCE.getStorage().getParty(player).get(slot) : null;
-        if (pokemon != null && pokemon.getUuid().equals(session.playerActivePokemonUUID())) {
+        if (pokemon != null && pokemon.getUuid().equals(session.playerActivePokemonUUID(player.getUUID()))) {
             boolean swapped = ActionBattleManager.requestPlayerSwap(player);
             if (!swapped) player.displayClientMessage(RECALL_WARNING, true);
             DebugLog.log("[CobblemonNML] Routed native recall through Action Swap Out. Battle="

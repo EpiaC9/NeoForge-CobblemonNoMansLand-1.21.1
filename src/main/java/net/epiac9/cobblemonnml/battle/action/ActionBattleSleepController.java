@@ -41,8 +41,8 @@ public final class ActionBattleSleepController {
         }
         ActionBattleSession session = ActionBattleManager.findSessionForPokemon(pokemonUUID);
         if (session != null && dungeonSessionId.equals(session.dungeonSessionId())) {
-            UUID entityUUID = pokemonUUID.equals(session.playerActivePokemonUUID())
-                    ? session.playerActiveEntityUUID() : session.trainerActiveEntityUUID();
+            UUID entityUUID = session.isPlayerPokemon(pokemonUUID)
+                    ? session.playerEntityForPokemon(pokemonUUID) : session.trainerActiveEntityUUID();
             Entity entity = entityUUID != null ? level.getEntity(entityUUID) : null;
             if (entity instanceof PokemonEntity pokemon && !pokemon.isRemoved()) {
                 pokemon.getNavigation().stop();
@@ -66,8 +66,8 @@ public final class ActionBattleSleepController {
             ActionBattleSession session = ActionBattleManager.findSessionForPokemon(pokemonUUID);
             if (session != null && dungeonSessionId.equals(session.dungeonSessionId())) {
                 ActionBattlePersistentController.global().onSleepEnded(session.battleId(), pokemonUUID);
-                UUID entityUUID = pokemonUUID.equals(session.playerActivePokemonUUID())
-                        ? session.playerActiveEntityUUID() : session.trainerActiveEntityUUID();
+                UUID entityUUID = session.isPlayerPokemon(pokemonUUID)
+                        ? session.playerEntityForPokemon(pokemonUUID) : session.trainerActiveEntityUUID();
                 Entity entity = entityUUID != null ? level.getEntity(entityUUID) : null;
                 if (entity instanceof PokemonEntity pokemon && !pokemon.isRemoved()) {
                     ActionBattleStatusParticleController.emitWakeBurst(level, pokemon);

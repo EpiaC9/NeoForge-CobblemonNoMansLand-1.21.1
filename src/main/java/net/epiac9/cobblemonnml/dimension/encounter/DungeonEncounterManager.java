@@ -144,7 +144,7 @@ public final class DungeonEncounterManager {
                     );
                     spawned = QuestNpcSpawnManager.spawn( level, markerPos, activeTier );
                 } else {
-                    spawned = spawnRandomTrainer( level, markerPos );
+                    spawned = spawnRandomTrainer(level, markerPos, context);
                 }
 
                 if (!spawned) {
@@ -230,7 +230,8 @@ public final class DungeonEncounterManager {
         return false;
     }
     // RANDOM TRAINER
-    private static boolean spawnRandomTrainer( ServerLevel level, BlockPos markerPos ) {
+    private static boolean spawnRandomTrainer(ServerLevel level, BlockPos markerPos,
+                                              DungeonEncounterContext context) {
         DungeonTier activeTier = DungeonSession.getTier();
         if (activeTier == null) {
             DebugLog.log( "Cannot spawn trainer: " + "no active dungeon tier." );
@@ -260,10 +261,11 @@ public final class DungeonEncounterManager {
                         + selectedPreset
         );
         // SPAWN IT
-        return spawnTrainer( level, markerPos, selectedPreset );
+        return spawnTrainer(level, markerPos, selectedPreset, context);
     }
     // SPAWN TRAINER
-    private static boolean spawnTrainer( ServerLevel level, BlockPos markerPos, ResourceLocation preset ) {
+    private static boolean spawnTrainer(ServerLevel level, BlockPos markerPos, ResourceLocation preset,
+                                        DungeonEncounterContext context) {
         // SPAWN POSITION
         BlockPos spawnPos = markerPos.above();
         Vec3 position = new Vec3( spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D );
@@ -303,7 +305,8 @@ public final class DungeonEncounterManager {
             return false;
         }
         // TRACK THIS DUNGEON TRAINER
-        DungeonTrainerTracker.track( npc.getEntityUUID(), runtimeTrainerId, preset );
+        DungeonTrainerTracker.track(npc.getEntityUUID(), runtimeTrainerId, preset,
+                context != null ? context.roomId() : "", context != null ? context.roomBounds() : null);
         // SCHEDULE POST-SPAWN DUPLICATE GUARD
         /*
          * EasyNPC has previously produced an additional NPC with another UUID shortly after the intended entity spawned.

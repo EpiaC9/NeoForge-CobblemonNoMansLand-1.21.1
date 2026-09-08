@@ -56,7 +56,6 @@ public final class ActionBattleHudLayout {
         if (slot < 0 || slot >= moveButtons.length) throw new IllegalArgumentException("Move slot must be 0-3");
         return moveButtons[slot];
     }
-
     public record Rect(int x, int y, int width, int height) {
         public boolean contains(double mouseX, double mouseY) {
             return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;

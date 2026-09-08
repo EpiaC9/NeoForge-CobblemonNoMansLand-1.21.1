@@ -27,6 +27,19 @@ final class ActionBattleRegistry {
         return true;
     }
 
+    static boolean registerParticipant(ActionBattleSession session, UUID playerUUID) {
+        if (session == null || playerUUID == null || BY_PLAYER.containsKey(playerUUID) || !session.joinPlayer(playerUUID)) return false;
+        BY_PLAYER.put(playerUUID, session);
+        return true;
+    }
+
+    static ActionBattleSession arenaContaining(double x, double z) {
+        for (ActionBattleSession session : new java.util.HashSet<>(BY_TRAINER.values())) {
+            if (session != null && session.state() == ActionBattleState.ACTIVE && session.containsArena(x, z)) return session;
+        }
+        return null;
+    }
+
     static ActionBattlePokemonRefs pokemonRefs(UUID battleId) {
         return battleId != null ? POKEMON_BY_BATTLE.get(battleId) : null;
     }
@@ -36,24 +49,27 @@ final class ActionBattleRegistry {
     }
 
     static boolean isCurrent(ActionBattleSession session) {
-        return session != null && BY_PLAYER.get(session.playerUUID()) == session && BY_TRAINER.get(session.trainerUUID()) == session;
+        return session != null && BY_TRAINER.get(session.trainerUUID()) == session;
     }
 
     static ActionBattleSession findByPokemonEntity(UUID entityUUID) {
         if (entityUUID == null) return null;
         for (ActionBattleSession session : BY_PLAYER.values()) {
-            if (entityUUID.equals(session.playerActiveEntityUUID()) || entityUUID.equals(session.trainerActiveEntityUUID())) return session;
+            if (entityUUID.equals(session.trainerActiveEntityUUID())) return session;
+            for (UUID playerUUID : session.playerUUIDs()) {
+                if (entityUUID.equals(session.playerActiveEntityUUID(playerUUID))) return session;
+            }
         }
         return null;
     }
 
     static ActionBattleSession[] sessionsSnapshot() {
-        return BY_PLAYER.values().toArray(ActionBattleSession[]::new);
+        return new java.util.HashSet<>(BY_TRAINER.values()).toArray(ActionBattleSession[]::new);
     }
 
     static void remove(ActionBattleSession session) {
         if (session == null) return;
-        BY_PLAYER.remove(session.playerUUID(), session);
+        for (UUID playerUUID : session.playerUUIDs()) BY_PLAYER.remove(playerUUID, session);
         BY_TRAINER.remove(session.trainerUUID(), session);
         POKEMON_BY_BATTLE.remove(session.battleId());
     }
@@ -65,6 +81,6 @@ final class ActionBattleRegistry {
     }
 
     static int size() {
-        return BY_PLAYER.size();
+        return BY_TRAINER.size();
     }
 }

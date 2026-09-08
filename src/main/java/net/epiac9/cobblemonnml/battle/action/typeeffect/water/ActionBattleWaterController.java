@@ -50,7 +50,7 @@ public final class ActionBattleWaterController {
         if (session == null || !session.battleId().equals(ActionBattleManager.battleIdForPokemonEntity(affected.getUUID()))
                 || !session.dungeonSessionId().equals(DungeonSession.getSessionId())) return false;
         UUID owner = attacker.getPokemon().getUuid();
-        ActionBattleFieldObject.OwnerSide side = owner.equals(session.playerActivePokemonUUID())
+        ActionBattleFieldObject.OwnerSide side = session.isPlayerPokemon(owner)
                 ? ActionBattleFieldObject.OwnerSide.PLAYER : owner.equals(session.trainerActivePokemonUUID())
                 ? ActionBattleFieldObject.OwnerSide.TRAINER : null;
         if (side == null) return false;
@@ -132,7 +132,7 @@ public final class ActionBattleWaterController {
         ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(toucher.getUUID());
         if (session == null || !lifecycle.sessionId().equals(session.dungeonSessionId())) return;
         UUID pokemonUUID = toucher.getPokemon().getUuid();
-        ActionBattleFieldObject.OwnerSide toucherSide = pokemonUUID.equals(session.playerActivePokemonUUID())
+        ActionBattleFieldObject.OwnerSide toucherSide = session.isPlayerPokemon(pokemonUUID)
                 ? ActionBattleFieldObject.OwnerSide.PLAYER : pokemonUUID.equals(session.trainerActivePokemonUUID())
                 ? ActionBattleFieldObject.OwnerSide.TRAINER : null;
         if (toucherSide == null || !lifecycle.consumeFirst()) return;

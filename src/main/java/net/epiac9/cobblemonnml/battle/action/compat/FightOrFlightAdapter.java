@@ -8,6 +8,7 @@ import me.rufia.fightorflight.data.movedata.movedatas.StatusEffectMoveData;
 import me.rufia.fightorflight.data.movedata.movedatas.StatChangeMoveData;
 import me.rufia.fightorflight.entity.PokemonAttackEffect;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleRangeRules;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSleepController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleEvasionController;
@@ -43,6 +44,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRun
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCast;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import me.rufia.fightorflight.utils.PokemonUtils;
 import net.minecraft.world.entity.LivingEntity;
@@ -230,8 +232,8 @@ public final class FightOrFlightAdapter {
     public static boolean canCommitHail(PokemonEntity attacker, LivingEntity target) {
         if (attacker == null || target == null || !target.isAlive()) return false;
         if (!attacker.getSensing().hasLineOfSight(target)) return false;
-        double range = ActionProjectileProfile.rangedCommitDistance();
-        return attacker.distanceToSqr(target) <= range * range;
+        return ActionBattleRangeRules.withinHitboxRange(attacker.getBoundingBox(), target.getBoundingBox(),
+                ActionBattleRangeRules.DEFAULT_RANGED_EXECUTION_RANGE);
     }
 
     public static boolean canCommit(PokemonEntity attacker, LivingEntity target, Move move) {
@@ -248,14 +250,16 @@ public final class FightOrFlightAdapter {
             net.minecraft.world.phys.AABB targetBox = target instanceof PokemonEntity pokemonTarget
                     ? ActionBattleGroundController.effectiveCombatBox(pokemonTarget, attacker.level().getGameTime(), false)
                     : target.getBoundingBox();
-            if (attacker.isWithinMeleeAttackRange(target)
+            double executionRange = ActionBattleRangeRules.DEFAULT_MELEE_EXECUTION_RANGE
+                    + ActionProjectileProfile.dashRangeBonus(move.getName());
+            if (ActionBattleRangeRules.withinHitboxRange(
+                    attacker.getBoundingBox(), targetBox, executionRange)
                     && ActionBattleGroundController.segmentIntersects(
                     targetBox, attacker.getEyePosition(), target.getEyePosition())) return true;
-            return ActionProjectileProfile.isDashRush(move.getName())
-                    && attacker.getBoundingBox().inflate(ActionProjectileProfile.dashRangeBonus(move.getName())).intersects(targetBox);
+            return false;
         }
-        double range = ActionProjectileProfile.rangedCommitDistance();
-        return attacker.distanceToSqr(target) <= range * range;
+        return ActionBattleRangeRules.withinHitboxRange(attacker.getBoundingBox(), target.getBoundingBox(),
+                ActionBattleRangeRules.DEFAULT_RANGED_EXECUTION_RANGE);
     }
 
     public static ProtectionOutcome applyProtectImpact(PokemonEntity attacker, PokemonEntity target, Move move, int beforeHp,
@@ -329,6 +333,7 @@ public final class FightOrFlightAdapter {
         ProtectionOutcome protection = applyProtectImpact(attacker, target, move, beforeHp, attemptedPokemonDamage, success);
         ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, success,
                 protection.protectParticipated() || protection.aquaParticipated());
+        ActionBattleDarkRuntime.onConnectedHit(attacker, target, move, success);
         ActionBattleRockRuntime.HitResult rockHit = ActionBattleRockRuntime.resolveDirectHit(attacker, target,
                 beforeHp, protection.incomingDamage(), success, protection.protectParticipated());
         ActionBattleGroundController.resolveAfterDamage(groundPlan, attacker, target, beforeHp);
@@ -442,6 +447,7 @@ public final class FightOrFlightAdapter {
                 ProtectionOutcome protection = applyProtectImpact(attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
                 ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, success,
                         protection.protectParticipated() || protection.aquaParticipated());
+                ActionBattleDarkRuntime.onConnectedHit(attacker, pokemonTarget, move, success);
                 ActionBattleRockRuntime.HitResult rockHit = ActionBattleRockRuntime.resolveDirectHit(attacker, pokemonTarget,
                         beforeHp, protection.incomingDamage(), success, protection.protectParticipated());
                 ActionBattleGroundController.resolveAfterDamage(groundPlan, attacker, pokemonTarget, beforeHp);

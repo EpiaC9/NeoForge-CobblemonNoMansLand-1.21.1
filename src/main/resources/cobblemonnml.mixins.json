@@ -12,7 +12,9 @@
     "ActionBattleStatChangeMoveDataAccessor",
     "ActionBattlePokemonHealthMixin"
   ],
-  "client": [],
+  "client": [
+    "ActionBattlePartyOverlayMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

@@ -1,6 +1,5 @@
 package net.epiac9.cobblemonnml.client.battle.action;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleHudPayload;
 import net.minecraft.client.gui.GuiGraphics;
 
@@ -8,31 +7,41 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class ActionBattleStatusHudRenderer {
-    private static final int ICON_SIZE = 16;
-    private static final int SLOT_SIZE = 24;
+    private static final int ICON_SIZE = ActionBattleEffectIconRules.standardSize();
     private static final int PANEL_GAP = 2;
-    private static final int RING_SEGMENTS = 32;
-    private static final int RING_RADIUS = 10;
 
     private ActionBattleStatusHudRenderer() {}
 
     public static void renderEnemy(GuiGraphics graphics, ActionBattleHudLayout.Rect panel, List<ActionBattleHudPayload.StatusState> statuses) {
-        render(graphics, panel, statuses, false);
+        render(graphics, panel, statuses, false, false);
     }
 
     public static void renderAlly(GuiGraphics graphics, ActionBattleHudLayout.Rect panel, List<ActionBattleHudPayload.StatusState> statuses) {
-        render(graphics, panel, statuses, true);
+        render(graphics, panel, statuses, true, false);
+    }
+
+    public static void renderEnemy(GuiGraphics graphics, ActionBattleHudLayout.Rect panel,
+                                   List<ActionBattleHudPayload.StatusState> statuses, boolean grayscale) {
+        render(graphics, panel, statuses, false, grayscale);
+    }
+
+    public static void renderAlly(GuiGraphics graphics, ActionBattleHudLayout.Rect panel,
+                                  List<ActionBattleHudPayload.StatusState> statuses, boolean grayscale) {
+        render(graphics, panel, statuses, true, grayscale);
     }
 
     static int statusX(ActionBattleHudLayout.Rect panel, int index, boolean ally) {
-        return ally ? panel.x() + panel.width() - 6 - ICON_SIZE - index * SLOT_SIZE : panel.x() + 6 + index * SLOT_SIZE;
+        return ActionBattleStatusHudRules.statusX(
+                panel.x(), panel.width(), index, ally);
     }
 
     static int statusY(ActionBattleHudLayout.Rect panel) {
         return ActionBattleStatStageHudRenderer.rowBottom(panel) + PANEL_GAP;
     }
 
-    private static void render(GuiGraphics graphics, ActionBattleHudLayout.Rect panel, List<ActionBattleHudPayload.StatusState> statuses, boolean ally) {
+    private static void render(GuiGraphics graphics, ActionBattleHudLayout.Rect panel,
+                               List<ActionBattleHudPayload.StatusState> statuses,
+                               boolean ally, boolean grayscale) {
         if (statuses == null || statuses.isEmpty()) return;
         List<ActionBattleStatusHudEntry> entries = new ArrayList<>();
         for (ActionBattleHudPayload.StatusState state : statuses) {
@@ -46,17 +55,8 @@ public final class ActionBattleStatusHudRenderer {
             ActionBattleStatusHudEntry entry = entries.get(i);
             int x = statusX(panel, i, ally);
             int y = statusY(panel);
-            RenderSystem.enableBlend();
-            RenderSystem.defaultBlendFunc();
-            graphics.blit(entry.visual().icon(), x, y, 0.0F, 0.0F, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
-            if ("TYPE_FIGHTING_OUTRAGE_BUILDUP".equals(entry.state().statusId())) {
-                renderBuildupRing(graphics, x + ICON_SIZE / 2, y + ICON_SIZE / 2,
-                        visibleBuildupSegments(entry.state()), entry.visual().ringArgb());
-            } else if (ActionBattleStatusHudRules.hasCountdown(entry.state().statusId())) {
-                renderTimerRing(graphics, x + ICON_SIZE / 2, y + ICON_SIZE / 2, entry.progress(), entry.visual().ringArgb());
-            }
-            renderPoisonBoundaries(graphics, x + ICON_SIZE / 2, y + ICON_SIZE / 2, entry.state().statusId());
-            RenderSystem.disableBlend();
+            ActionBattleEffectIconRenderer.render(graphics, x, y, ICON_SIZE,
+                    entry.state(), entry.visual(), grayscale);
         }
     }
 
@@ -66,45 +66,9 @@ public final class ActionBattleStatusHudRenderer {
         return statusId.startsWith("TYPE_") ? 200 : 100;
     }
 
-    private static void renderPoisonBoundaries(GuiGraphics graphics, int centerX, int centerY, String statusId) {
-        if (statusId == null || !statusId.startsWith("TYPE_POISON")) return;
-        int[] segments = {Math.round(RING_SEGMENTS * 33.0F / 99.0F), Math.round(RING_SEGMENTS * 66.0F / 99.0F)};
-        for (int segment : segments) {
-            double angle = -Math.PI / 2.0D + (Math.PI * 2.0D * segment / RING_SEGMENTS);
-            int px = centerX + (int) Math.round(Math.cos(angle) * RING_RADIUS);
-            int py = centerY + (int) Math.round(Math.sin(angle) * RING_RADIUS);
-            graphics.fill(px, py, px + 1, py + 1, 0xFFD8D8D8);
-        }
-    }
-
-    private static void renderTimerRing(GuiGraphics graphics, int centerX, int centerY, float progress, int color) {
-        int visible = Math.clamp(Math.round(RING_SEGMENTS * progress), 0, RING_SEGMENTS);
-        for (int segment = 0; segment < visible; segment++) {
-            double angle = -Math.PI / 2.0D + (Math.PI * 2.0D * segment / RING_SEGMENTS);
-            int px = centerX + (int) Math.round(Math.cos(angle) * RING_RADIUS);
-            int py = centerY + (int) Math.round(Math.sin(angle) * RING_RADIUS);
-            graphics.fill(px - 1, py - 1, px + 1, py + 1, color);
-        }
-    }
-
     static int visibleBuildupSegments(ActionBattleHudPayload.StatusState state) {
         if (state == null || !"TYPE_FIGHTING_OUTRAGE_BUILDUP".equals(state.statusId())) return 0;
         return Math.clamp((int) state.remainingTicks(), 0, 2);
     }
 
-    private static void renderBuildupRing(GuiGraphics graphics, int centerX, int centerY,
-                                          int filledSegments, int color) {
-        int arcLength = 8;
-        int gap = 3;
-        for (int group = 0; group < Math.clamp(filledSegments, 0, 3); group++) {
-            int start = group * (arcLength + gap);
-            for (int offset = 0; offset < arcLength; offset++) {
-                double angle = -Math.PI / 2.0D
-                        + (Math.PI * 2.0D * (start + offset) / RING_SEGMENTS);
-                int px = centerX + (int) Math.round(Math.cos(angle) * RING_RADIUS);
-                int py = centerY + (int) Math.round(Math.sin(angle) * RING_RADIUS);
-                graphics.fill(px - 1, py - 1, px + 1, py + 1, color);
-            }
-        }
-    }
 }

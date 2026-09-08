@@ -38,7 +38,7 @@ final class ActionBattleAreaEffectSupport {
     static PokemonEntity activePokemonEntity(ActionBattleSession session, ServerLevel level, UUID pokemonUUID) {
         if (session == null || level == null || pokemonUUID == null) return null;
         UUID entityUUID = null;
-        if (pokemonUUID.equals(session.playerActivePokemonUUID())) entityUUID = session.playerActiveEntityUUID();
+        if (session.isPlayerPokemon(pokemonUUID)) entityUUID = session.playerEntityForPokemon(pokemonUUID);
         else if (pokemonUUID.equals(session.trainerActivePokemonUUID())) entityUUID = session.trainerActiveEntityUUID();
         Entity raw = entityUUID != null ? level.getEntity(entityUUID) : null;
         return raw instanceof PokemonEntity pokemonEntity ? pokemonEntity : null;

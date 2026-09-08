@@ -74,7 +74,7 @@ public final class ActionBattleHailHandler {
             return StartResult.TARGET_UNREACHABLE;
         }
         if (!FightOrFlightAdapter.hasPp(move)) return StartResult.NO_PP;
-        boolean playerSide = casterPokemonUUID.equals(session.playerActivePokemonUUID());
+        boolean playerSide = session.isPlayerPokemon(casterPokemonUUID);
         boolean confusedChannel = confusionBonusTicks > 0L;
         ActionBattlePosition initialTargetPosition = ActionBattleAreaEffectSupport.targetPosition(caster, target, confusionBonusTicks);
         int totalChannelTicks = ActionBattleAreaEffectSupport.totalChannelTicks(confusionBonusTicks);
@@ -209,9 +209,11 @@ public final class ActionBattleHailHandler {
     private static void pulse(HailCastContext context, ActionBattlePersistentAreaState area) {
         if (context == null || area == null) return;
         ActionBattleHailVisuals.emitPulse(context.level(), area);
-        applyIcePulse(context, area, context.session().playerActivePokemonUUID());
+        for (UUID playerUUID : context.session().playerUUIDs()) {
+            applyIcePulse(context, area, context.session().playerActivePokemonUUID(playerUUID));
+        }
         UUID trainerPokemonUUID = context.session().trainerActivePokemonUUID();
-        if (!java.util.Objects.equals(trainerPokemonUUID, context.session().playerActivePokemonUUID())) {
+        if (trainerPokemonUUID != null) {
             applyIcePulse(context, area, trainerPokemonUUID);
         }
     }

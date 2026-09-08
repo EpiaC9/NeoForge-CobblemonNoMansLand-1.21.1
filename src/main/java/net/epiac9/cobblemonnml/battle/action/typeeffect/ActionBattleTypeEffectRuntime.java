@@ -27,6 +27,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockCon
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.server.MinecraftServer;
@@ -82,6 +83,7 @@ public final class ActionBattleTypeEffectRuntime {
                 ActionBattleTypeEffectController.global().clearPokemon(sessionId, pokemon.getUuid());
                 ActionBattleFightingController.global().clearPokemon(sessionId, pokemon.getUuid());
                 ActionBattleDragonRuntime.clearPokemon(sessionId, pokemon.getUuid());
+                ActionBattleDarkRuntime.clearPokemon(sessionId, pokemon.getUuid());
                 if (entity != null) ActionBattleGroundVisualSync.update(entity, sessionId, 0);
                 ActionBattleSession battle = ActionBattleManager.findSessionForPokemon(pokemon.getUuid());
                 if (battle != null) {
@@ -107,6 +109,7 @@ public final class ActionBattleTypeEffectRuntime {
         ActionBattleTypeEffectController.global().clearSession(sessionId);
         ActionBattleFightingController.global().clearSession(sessionId);
         ActionBattleDragonRuntime.clearSession(sessionId);
+        ActionBattleDarkRuntime.clearSession(sessionId);
     }
 
     public static void clearSession(ServerLevel level, UUID sessionId) {
@@ -148,12 +151,13 @@ public final class ActionBattleTypeEffectRuntime {
         ActionBattleGroundVisualSync.clearAll();
         ActionBattleFightingController.global().clearAll();
         ActionBattleDragonRuntime.clearAll();
+        ActionBattleDarkRuntime.clearAll();
     }
 
     private static PokemonEntity activePokemonEntity(ServerLevel level, UUID pokemonId) {
         ActionBattleSession battle = ActionBattleManager.findSessionForPokemon(pokemonId);
         if (battle == null) return null;
-        UUID entityId = pokemonId.equals(battle.playerActivePokemonUUID()) ? battle.playerActiveEntityUUID()
+        UUID entityId = battle.isPlayerPokemon(pokemonId) ? battle.playerEntityForPokemon(pokemonId)
                 : pokemonId.equals(battle.trainerActivePokemonUUID()) ? battle.trainerActiveEntityUUID() : null;
         Entity raw = entityId != null ? level.getEntity(entityId) : null;
         return raw instanceof PokemonEntity pokemon && !pokemon.isRemoved() ? pokemon : null;

@@ -42,8 +42,11 @@ public final class ActionBattleFlinchController {
     private static PokemonEntity findTargetEntity(ActionBattleSession session, UUID targetPokemonUUID) {
         ActionBattlePokemonRefs refs = ActionBattleRegistry.pokemonRefs(session.battleId());
         if (refs == null) return null;
-        Pokemon pokemon = refs.playerPokemon();
-        if (pokemon == null || !targetPokemonUUID.equals(pokemon.getUuid())) pokemon = refs.trainerPokemon();
+        Pokemon pokemon = null;
+        for (Pokemon candidate : refs.allPlayerPokemon()) {
+            if (candidate != null && targetPokemonUUID.equals(candidate.getUuid())) { pokemon = candidate; break; }
+        }
+        if (pokemon == null) pokemon = refs.trainerPokemon();
         if (pokemon == null || !targetPokemonUUID.equals(pokemon.getUuid())) return null;
         PokemonEntity entity = pokemon.getEntity();
         return entity != null && !entity.isRemoved() ? entity : null;

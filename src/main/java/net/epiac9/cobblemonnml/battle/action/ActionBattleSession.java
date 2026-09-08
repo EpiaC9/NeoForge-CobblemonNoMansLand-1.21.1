@@ -1,6 +1,8 @@
 package net.epiac9.cobblemonnml.battle.action;
 
 import java.util.UUID;
+import java.util.HashMap;
+import java.util.Map;
 
 public final class ActionBattleSession {
     private final UUID battleId;
@@ -10,6 +12,7 @@ public final class ActionBattleSession {
     private final String runtimeTrainerId;
     private final String trainerPreset;
     private final ActionBattleZone battleZone;
+    private final ActionBattleArena arena;
     private ActionBattleState state = ActionBattleState.ACTIVE;
     private ActionBattleResult result = null;
     private int playerActivePartyIndex = -1;
@@ -39,6 +42,194 @@ public final class ActionBattleSession {
     private boolean playerSendOutPending = false;
     private boolean trainerSendOutPending = false;
     private long hazeExpiresAtTick = 0L;
+    private final Map<UUID, AdditionalPlayerState> additionalPlayers = new HashMap<>();
+    private long lastBackgroundTick = Long.MIN_VALUE;
+    private long lastPhysicalTick = Long.MIN_VALUE;
+
+    private static final class AdditionalPlayerState {
+        int activePartyIndex = -1;
+        UUID activePokemonUUID;
+        UUID activeEntityUUID;
+        boolean moveTargetPending;
+        double moveTargetX;
+        double moveTargetY;
+        double moveTargetZ;
+        long commandRevision;
+        boolean moveCommandPending;
+        int moveSlot = -1;
+        UUID moveTargetEntityUUID;
+        boolean sendOutPending;
+    }
+
+    public boolean joinPlayer(UUID joiningPlayerUUID) {
+        return joiningPlayerUUID != null && (joiningPlayerUUID.equals(playerUUID)
+                || additionalPlayers.putIfAbsent(joiningPlayerUUID, new AdditionalPlayerState()) == null);
+    }
+
+    public boolean hasPlayer(UUID candidate) {
+        return candidate != null && (candidate.equals(playerUUID) || additionalPlayers.containsKey(candidate));
+    }
+
+    public java.util.Set<UUID> playerUUIDs() {
+        java.util.HashSet<UUID> players = new java.util.HashSet<>(additionalPlayers.keySet());
+        players.add(playerUUID);
+        return java.util.Set.copyOf(players);
+    }
+
+    public boolean bindPlayerActivePokemon(UUID ownerUUID, int partyIndex, UUID pokemonUUID, UUID entityUUID) {
+        if (ownerUUID == null || ownerUUID.equals(playerUUID)) return bindPlayerActivePokemon(partyIndex, pokemonUUID, entityUUID);
+        AdditionalPlayerState player = additionalPlayers.get(ownerUUID);
+        if (state != ActionBattleState.ACTIVE || player == null || partyIndex < 0 || pokemonUUID == null || entityUUID == null) return false;
+        player.activePartyIndex = partyIndex;
+        player.activePokemonUUID = pokemonUUID;
+        player.activeEntityUUID = entityUUID;
+        return true;
+    }
+
+    public void clearPlayerActivePokemon(UUID ownerUUID) {
+        if (ownerUUID == null || ownerUUID.equals(playerUUID)) { clearPlayerActivePokemon(); return; }
+        AdditionalPlayerState player = additionalPlayers.get(ownerUUID);
+        if (player == null) return;
+        player.activePartyIndex = -1;
+        player.activePokemonUUID = null;
+        player.activeEntityUUID = null;
+    }
+
+    public long replacePlayerMoveTarget(UUID ownerUUID, double x, double y, double z) {
+        if (ownerUUID == null || ownerUUID.equals(playerUUID)) return replacePlayerMoveTarget(x, y, z);
+        AdditionalPlayerState player = additionalPlayers.get(ownerUUID);
+        if (state != ActionBattleState.ACTIVE || player == null || !Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) return 0L;
+        player.moveTargetX = x;
+        player.moveTargetY = y;
+        player.moveTargetZ = z;
+        player.moveTargetPending = true;
+        player.moveCommandPending = false;
+        player.moveSlot = -1;
+        player.moveTargetEntityUUID = null;
+        return ++player.commandRevision;
+    }
+
+    public long replacePlayerMoveCommand(UUID ownerUUID, int moveSlot, UUID targetEntityUUID) {
+        if (ownerUUID == null || ownerUUID.equals(playerUUID)) return replacePlayerMoveCommand(moveSlot, targetEntityUUID);
+        AdditionalPlayerState player = additionalPlayers.get(ownerUUID);
+        if (state != ActionBattleState.ACTIVE || player == null || moveSlot < 0 || moveSlot > 3 || targetEntityUUID == null) return 0L;
+        player.moveTargetPending = false;
+        player.moveCommandPending = true;
+        player.moveSlot = moveSlot;
+        player.moveTargetEntityUUID = targetEntityUUID;
+        return ++player.commandRevision;
+    }
+
+    public void clearPlayerMoveTarget(UUID ownerUUID) {
+        if (ownerUUID == null || ownerUUID.equals(playerUUID)) { clearPlayerMoveTarget(); return; }
+        AdditionalPlayerState player = additionalPlayers.get(ownerUUID);
+        if (player != null) player.moveTargetPending = false;
+    }
+
+    public void clearPlayerMoveCommand(UUID ownerUUID) {
+        if (ownerUUID == null || ownerUUID.equals(playerUUID)) { clearPlayerMoveCommand(); return; }
+        AdditionalPlayerState player = additionalPlayers.get(ownerUUID);
+        if (player == null) return;
+        player.moveCommandPending = false;
+        player.moveSlot = -1;
+        player.moveTargetEntityUUID = null;
+    }
+
+    public void clearPlayerMoveState(UUID ownerUUID) {
+        clearPlayerMoveTarget(ownerUUID);
+        clearPlayerMoveCommand(ownerUUID);
+    }
+
+    public boolean hasPlayerMoveCommand(UUID ownerUUID) {
+        AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
+        return player != null ? player.moveCommandPending : ownerUUID != null && ownerUUID.equals(playerUUID) && playerMoveCommandPending;
+    }
+
+    public int playerMoveSlot(UUID ownerUUID) {
+        AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
+        return player != null ? player.moveSlot : ownerUUID != null && ownerUUID.equals(playerUUID) ? playerMoveSlot : -1;
+    }
+
+    public UUID playerMoveTargetEntityUUID(UUID ownerUUID) {
+        AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
+        return player != null ? player.moveTargetEntityUUID : ownerUUID != null && ownerUUID.equals(playerUUID) ? playerMoveTargetEntityUUID : null;
+    }
+
+    public boolean hasPlayerMoveTarget(UUID ownerUUID) {
+        AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
+        return player != null ? player.moveTargetPending : ownerUUID != null && ownerUUID.equals(playerUUID) && playerMoveTargetPending;
+    }
+
+    public boolean hasPlayerMovementIntent(UUID ownerUUID) {
+        return hasPlayerMoveTarget(ownerUUID) || hasPlayerMoveCommand(ownerUUID);
+    }
+
+    public UUID playerOwnerForPokemon(UUID pokemonUUID) {
+        if (pokemonUUID == null) return null;
+        if (pokemonUUID.equals(playerActivePokemonUUID)) return playerUUID;
+        for (Map.Entry<UUID, AdditionalPlayerState> entry : additionalPlayers.entrySet()) {
+            if (pokemonUUID.equals(entry.getValue().activePokemonUUID)) return entry.getKey();
+        }
+        return null;
+    }
+
+    public UUID playerEntityForPokemon(UUID pokemonUUID) {
+        UUID owner = playerOwnerForPokemon(pokemonUUID);
+        return owner != null ? playerActiveEntityUUID(owner) : null;
+    }
+
+    public boolean isPlayerPokemon(UUID pokemonUUID) { return playerOwnerForPokemon(pokemonUUID) != null; }
+
+    public double playerMoveTargetX(UUID ownerUUID) {
+        AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
+        return player != null ? player.moveTargetX : playerMoveTargetX;
+    }
+    public double playerMoveTargetY(UUID ownerUUID) {
+        AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
+        return player != null ? player.moveTargetY : playerMoveTargetY;
+    }
+    public double playerMoveTargetZ(UUID ownerUUID) {
+        AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
+        return player != null ? player.moveTargetZ : playerMoveTargetZ;
+    }
+
+    public int playerActivePartyIndex(UUID ownerUUID) {
+        AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
+        return player != null ? player.activePartyIndex : ownerUUID != null && ownerUUID.equals(playerUUID) ? playerActivePartyIndex : -1;
+    }
+
+    public UUID playerActivePokemonUUID(UUID ownerUUID) {
+        AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
+        return player != null ? player.activePokemonUUID : ownerUUID != null && ownerUUID.equals(playerUUID) ? playerActivePokemonUUID : null;
+    }
+
+    public UUID playerActiveEntityUUID(UUID ownerUUID) {
+        AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
+        return player != null ? player.activeEntityUUID : ownerUUID != null && ownerUUID.equals(playerUUID) ? playerActiveEntityUUID : null;
+    }
+
+    public boolean isPlayerSendOutPending(UUID ownerUUID) {
+        AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
+        return player != null ? player.sendOutPending : ownerUUID != null && ownerUUID.equals(playerUUID) && playerSendOutPending;
+    }
+
+    public void setPlayerSendOutPending(UUID ownerUUID, boolean pending) {
+        AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
+        if (player != null) player.sendOutPending = pending;
+        else if (ownerUUID != null && ownerUUID.equals(playerUUID)) playerSendOutPending = pending;
+    }
+
+    public boolean claimBackgroundTick(long currentTick) {
+        if (currentTick < 0L || currentTick == lastBackgroundTick) return false;
+        lastBackgroundTick = currentTick;
+        return true;
+    }
+
+    public boolean claimPhysicalTick(long currentTick) {
+        if (currentTick < 0L || currentTick == lastPhysicalTick) return false;
+        lastPhysicalTick = currentTick;
+        return true;
+    }
 
     public ActionBattleSession(UUID battleId, UUID dungeonSessionId, UUID playerUUID, UUID trainerUUID, String runtimeTrainerId, String trainerPreset) {
         this(battleId, dungeonSessionId, playerUUID, trainerUUID, runtimeTrainerId, trainerPreset, new ActionBattleZone(0.0D, 0.0D, 20.0D));
@@ -58,6 +249,27 @@ public final class ActionBattleSession {
         this.runtimeTrainerId = runtimeTrainerId;
         this.trainerPreset = trainerPreset;
         this.battleZone = battleZone;
+        this.arena = null;
+    }
+
+    public ActionBattleSession(UUID battleId, UUID dungeonSessionId, UUID playerUUID, UUID trainerUUID,
+                               String runtimeTrainerId, String trainerPreset, String roomId,
+                               ActionBattleRoomBounds roomBounds, boolean playerInitiallyInside) {
+        if (battleId == null || dungeonSessionId == null || playerUUID == null || trainerUUID == null || roomBounds == null) {
+            throw new IllegalArgumentException("Action battle identity and room bounds cannot be null.");
+        }
+        if (runtimeTrainerId == null || runtimeTrainerId.isBlank()) {
+            throw new IllegalArgumentException("Action battle runtime trainer ID cannot be blank.");
+        }
+        this.battleId = battleId;
+        this.dungeonSessionId = dungeonSessionId;
+        this.playerUUID = playerUUID;
+        this.trainerUUID = trainerUUID;
+        this.runtimeTrainerId = runtimeTrainerId;
+        this.trainerPreset = trainerPreset;
+        this.battleZone = null;
+        this.arena = new ActionBattleArena(battleId, dungeonSessionId, roomId, roomBounds,
+                playerUUID, playerInitiallyInside);
     }
 
     public boolean bindPlayerActivePokemon(int partyIndex, UUID pokemonUUID, UUID entityUUID) {
@@ -299,7 +511,7 @@ public final class ActionBattleSession {
 
     private ActionBattleCommandCooldownState.Side cooldownSide(UUID pokemonUUID) {
         if (pokemonUUID == null) return null;
-        if (pokemonUUID.equals(playerActivePokemonUUID)) return ActionBattleCommandCooldownState.Side.PLAYER;
+        if (isPlayerPokemon(pokemonUUID)) return ActionBattleCommandCooldownState.Side.PLAYER;
         if (pokemonUUID.equals(trainerActivePokemonUUID)) return ActionBattleCommandCooldownState.Side.TRAINER;
         return null;
     }
@@ -340,6 +552,10 @@ public final class ActionBattleSession {
     public String runtimeTrainerId() { return runtimeTrainerId; }
     public String trainerPreset() { return trainerPreset; }
     public ActionBattleZone battleZone() { return battleZone; }
+    public ActionBattleArena arena() { return arena; }
+    public boolean containsArena(double x, double z) {
+        return arena != null ? arena.contains(x, z) : battleZone != null && battleZone.contains(x, z);
+    }
     public ActionBattleState state() { return state; }
     public ActionBattleResult result() { return result; }
     public int playerActivePartyIndex() { return playerActivePartyIndex; }
