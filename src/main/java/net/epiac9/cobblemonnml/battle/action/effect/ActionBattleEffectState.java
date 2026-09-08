@@ -47,6 +47,9 @@ public final class ActionBattleEffectState {
     }
 
     void clearTemporaryStatChanges() { statContributions.clear(); }
+    void clearStatContributionsFromSource(ActionBattleStatSource source) {
+        if (source != null) statContributions.entrySet().removeIf(entry -> entry.getValue().source() == source);
+    }
     void setHazeProtected(boolean protectedByHaze) { hazeProtected = protectedByHaze; }
     boolean hasHaze(long currentTick) { return currentTick >= 0L && hazeProtected; }
 

@@ -17,6 +17,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyC
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCast;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
@@ -193,6 +194,8 @@ public final class ActionBattleConfusionController {
         if (success && pokemonTarget != null) {
             FightOrFlightAdapter.ProtectionOutcome protection = FightOrFlightAdapter.applyProtectImpact(
                     attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, true);
+            ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, true,
+                    protection.protectParticipated() || protection.aquaParticipated());
             ActionBattleRockRuntime.HitResult rockHit = ActionBattleRockRuntime.resolveDirectHit(
                     attacker, pokemonTarget, beforeHp, protection.incomingDamage(), true,
                     protection.protectParticipated());

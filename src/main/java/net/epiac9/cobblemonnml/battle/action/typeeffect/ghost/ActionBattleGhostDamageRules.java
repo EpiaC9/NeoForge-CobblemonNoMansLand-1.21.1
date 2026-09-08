@@ -28,11 +28,18 @@ public final class ActionBattleGhostDamageRules {
 
     public CooldownPlan abilityCooldownPlan(UUID battleId, UUID casterPokemonUUID,
                                             int moveSlot, long currentTick) {
+        return abilityCooldownPlan(battleId, casterPokemonUUID, moveSlot, currentTick,
+                ActionBattleTiming.ABILITY_SHARED_COOLDOWN_TICKS);
+    }
+
+    public CooldownPlan abilityCooldownPlan(UUID battleId, UUID casterPokemonUUID,
+                                            int moveSlot, long currentTick, long baseSharedTicks) {
         boolean burden = curses.consume(
                 battleId, casterPokemonUUID, ActionBattleGhostCurseType.BURDEN, currentTick);
         boolean torment = curses.consume(
                 battleId, casterPokemonUUID, ActionBattleGhostCurseType.TORMENT, currentTick);
-        return new CooldownPlan(torment ? 120L : ActionBattleTiming.ABILITY_SHARED_COOLDOWN_TICKS,
+        long sharedTicks = Math.max(0L, baseSharedTicks);
+        return new CooldownPlan(torment ? 120L : sharedTicks,
                 burden ? 60L : ActionBattleTiming.PERSONAL_MOVE_BASE_COOLDOWN_TICKS, moveSlot);
     }
 

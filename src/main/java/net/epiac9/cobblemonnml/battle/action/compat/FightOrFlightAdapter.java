@@ -42,6 +42,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsyc
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCast;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import me.rufia.fightorflight.utils.PokemonUtils;
 import net.minecraft.world.entity.LivingEntity;
@@ -111,8 +112,10 @@ public final class FightOrFlightAdapter {
         float wakeModified = typeModifiedDamage * net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleSleepWakeRules
                 .damageMultiplier(sleeping, ranged, fairyTypedAttacker);
         boolean grassMove = move.getType() != null && "grass".equalsIgnoreCase(move.getType().getName());
-        return grassMove ? (float) ActionBattleGrassRules.applyCommittedEmpower(
+        float grassModified = grassMove ? (float) ActionBattleGrassRules.applyCommittedEmpower(
                 wakeModified, committedGrassMultiplier) : wakeModified;
+        return (float) (grassModified * ActionBattleFightingRuntime.outgoingDamageMultiplier(
+                attacker, move, tick));
     }
 
     private static void applyPostHitActionStatScaling(PokemonEntity attacker, PokemonEntity target, Move move, int beforeHp,
@@ -220,6 +223,7 @@ public final class FightOrFlightAdapter {
     public static boolean consumeOnePp(PokemonEntity caster, Move move) {
         if (!consumeOnePp(move)) return false;
         ActionBattleGhostRuntime.global().onPpConsumed(caster, 1);
+        ActionBattleFightingRuntime.onMoveCommitted(caster, move);
         return true;
     }
 
@@ -323,6 +327,8 @@ public final class FightOrFlightAdapter {
         applyPostEffectsWithoutActionStatuses(attacker, target, move, success);
         boolean qualifyingWaterInteraction = success;
         ProtectionOutcome protection = applyProtectImpact(attacker, target, move, beforeHp, attemptedPokemonDamage, success);
+        ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, success,
+                protection.protectParticipated() || protection.aquaParticipated());
         ActionBattleRockRuntime.HitResult rockHit = ActionBattleRockRuntime.resolveDirectHit(attacker, target,
                 beforeHp, protection.incomingDamage(), success, protection.protectParticipated());
         ActionBattleGroundController.resolveAfterDamage(groundPlan, attacker, target, beforeHp);
@@ -434,6 +440,8 @@ public final class FightOrFlightAdapter {
                         committedGrassMultiplier, groundPlan.damageMultiplier(), ghostDamageMultiplier);
                 boolean qualifyingWaterHit = success;
                 ProtectionOutcome protection = applyProtectImpact(attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
+                ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, success,
+                        protection.protectParticipated() || protection.aquaParticipated());
                 ActionBattleRockRuntime.HitResult rockHit = ActionBattleRockRuntime.resolveDirectHit(attacker, pokemonTarget,
                         beforeHp, protection.incomingDamage(), success, protection.protectParticipated());
                 ActionBattleGroundController.resolveAfterDamage(groundPlan, attacker, pokemonTarget, beforeHp);

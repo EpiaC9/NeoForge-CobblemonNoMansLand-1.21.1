@@ -32,6 +32,13 @@ final class ActionBattleCommandCooldownState {
         return onCooldown(moveEndTicks, pokemonUUID, currentTick);
     }
 
+    boolean clearSharedAbility(UUID pokemonUUID) {
+        if (pokemonUUID == null) return false;
+        boolean removed = moveEndTicks.remove(pokemonUUID) != null;
+        moveDurationTicks.remove(pokemonUUID);
+        return removed;
+    }
+
     boolean startPersonalMove(UUID pokemonUUID, int moveSlot, long currentTick, long durationTicks) {
         if (pokemonUUID == null || moveSlot < 0 || currentTick < 0L || durationTicks <= 0L) return false;
         MoveSlotKey key = new MoveSlotKey(pokemonUUID, moveSlot);
@@ -43,6 +50,28 @@ final class ActionBattleCommandCooldownState {
     boolean personalMoveOnCooldown(UUID pokemonUUID, int moveSlot, long currentTick) {
         return pokemonUUID != null && moveSlot >= 0 && currentTick >= 0L
                 && currentTick < personalMoveEndTicks.getOrDefault(new MoveSlotKey(pokemonUUID, moveSlot), 0L);
+    }
+
+    boolean clearPersonalMove(UUID pokemonUUID, int moveSlot) {
+        if (pokemonUUID == null || moveSlot < 0) return false;
+        MoveSlotKey key = new MoveSlotKey(pokemonUUID, moveSlot);
+        boolean removed = personalMoveEndTicks.remove(key) != null;
+        personalMoveDurationTicks.remove(key);
+        return removed;
+    }
+
+    boolean clearAllPersonalMoves(UUID pokemonUUID) {
+        if (pokemonUUID == null) return false;
+        boolean removed = personalMoveEndTicks.keySet().removeIf(key -> key.pokemonUUID().equals(pokemonUUID));
+        personalMoveDurationTicks.keySet().removeIf(key -> key.pokemonUUID().equals(pokemonUUID));
+        return removed;
+    }
+
+    boolean clearMovement(UUID pokemonUUID) {
+        if (pokemonUUID == null) return false;
+        boolean removed = movementEndTicks.remove(pokemonUUID) != null;
+        movementDurationTicks.remove(pokemonUUID);
+        return removed;
     }
 
     EffectiveCooldown effectiveMoveCooldown(UUID pokemonUUID, int moveSlot, long currentTick) {
@@ -100,6 +129,11 @@ final class ActionBattleCommandCooldownState {
     long swapEndTick(Side side) { return side != null ? swap(side).endTick : 0L; }
     long swapDurationTicks(Side side) { return side != null ? swap(side).durationTicks : 0L; }
 
+    boolean clearSwap(Side side) {
+        if (side == null) return false;
+        return swap(side).clear();
+    }
+
     private Cooldown swap(Side side) { return side == Side.PLAYER ? playerSwap : trainerSwap; }
 
     private static boolean start(Map<UUID, Long> ends, Map<UUID, Long> durations, UUID pokemonUUID, long currentTick, long durationTicks) {
@@ -146,6 +180,13 @@ final class ActionBattleCommandCooldownState {
         }
 
         private boolean onCooldown(long currentTick) { return currentTick >= 0L && currentTick < endTick; }
+
+        private boolean clear() {
+            boolean active = endTick > 0L || durationTicks > 0L;
+            endTick = 0L;
+            durationTicks = 0L;
+            return active;
+        }
 
         private void extend(long currentTick, long penaltyTicks) {
             if (endTick > currentTick) {

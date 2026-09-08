@@ -48,6 +48,14 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual TYPE_GHOST_HUNGER = typeEffectVisual("hunger", 0xFFA45B72);
     private static final StatusVisual TYPE_GHOST_MISFORTUNE = typeEffectVisual("misfortune", 0xFF75539D);
     private static final StatusVisual TYPE_GHOST_HAUNTING = typeEffectVisual("haunting", 0xFFC09ADB);
+    private static final StatusVisual TYPE_FIGHTING_OUTRAGE = typeEffectVisual("outrage", 0xFFE05A3F);
+    private static final StatusVisual TYPE_FIGHTING_EXHAUSTED = typeEffectVisual("exhausted", 0xFF9B8C7B);
+    private static final StatusVisual TYPE_DRAGON_UPROAR_BUILDUP = typeEffectVisual(
+            net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonHudRules.ICON_NAME,
+            net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonHudRules.BUILDUP_RING_ARGB);
+    private static final StatusVisual TYPE_DRAGON_UPROAR = typeEffectVisual(
+            net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonHudRules.ICON_NAME,
+            net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonHudRules.ACTIVE_RING_ARGB);
     private static final StatusVisual[] DETERIORATING_SHIELD = {
             visual("deteriorating_shield_1", 0xFFD8E7EC), visual("deteriorating_shield_2", 0xFFD0DFE5), visual("deteriorating_shield_3", 0xFFC5D5DC),
             visual("deteriorating_shield_4", 0xFFBACAD2), visual("deteriorating_shield_5", 0xFFADBFC8), visual("deteriorating_shield_6", 0xFFA0B4BE),
@@ -112,6 +120,10 @@ public final class ActionBattleStatusVisualRegistry {
             case "TYPE_GHOST_HUNGER" -> TYPE_GHOST_HUNGER;
             case "TYPE_GHOST_MISFORTUNE" -> TYPE_GHOST_MISFORTUNE;
             case "TYPE_GHOST_HAUNTING" -> TYPE_GHOST_HAUNTING;
+            case "TYPE_FIGHTING_OUTRAGE_BUILDUP", "TYPE_FIGHTING_OUTRAGE" -> TYPE_FIGHTING_OUTRAGE;
+            case "TYPE_FIGHTING_EXHAUSTED" -> TYPE_FIGHTING_EXHAUSTED;
+            case "TYPE_DRAGON_UPROAR_BUILDUP" -> TYPE_DRAGON_UPROAR_BUILDUP;
+            case "TYPE_DRAGON_UPROAR" -> TYPE_DRAGON_UPROAR;
             default -> null;
         };
     }

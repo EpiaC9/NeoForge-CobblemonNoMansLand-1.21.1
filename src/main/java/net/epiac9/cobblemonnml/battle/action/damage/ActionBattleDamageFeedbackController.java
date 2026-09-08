@@ -16,7 +16,7 @@ public final class ActionBattleDamageFeedbackController {
         int damage = Math.max(0, Math.max(0, beforeHp) - safeAfter);
         state.hpByPokemon.put(pokemonUUID, safeAfter);
         if (damage <= 0) return;
-        queue(state, pokemonUUID, damage, category);
+        queue(battleId, state, pokemonUUID, damage, category);
     }
     public void observePokemon(UUID battleId, UUID pokemonUUID, int currentHp) {
         if (battleId == null || pokemonUUID == null) return;
@@ -24,7 +24,7 @@ public final class ActionBattleDamageFeedbackController {
         int safeCurrent = Math.max(0, currentHp);
         Integer previous = state.hpByPokemon.put(pokemonUUID, safeCurrent);
         if (previous == null || safeCurrent >= previous) return;
-        queue(state, pokemonUUID, previous - safeCurrent, ActionBattleDamageFeedbackCategory.NORMAL);
+        queue(battleId, state, pokemonUUID, previous - safeCurrent, ActionBattleDamageFeedbackCategory.NORMAL);
     }
     public List<ActionBattleDamageFeedbackEvent> drain(UUID battleId, UUID pokemonUUID) {
         BattleState state = battles.get(battleId);
@@ -34,10 +34,12 @@ public final class ActionBattleDamageFeedbackController {
     }
     public void clearBattle(UUID battleId) { if (battleId != null) battles.remove(battleId); }
     private BattleState state(UUID battleId) { return battles.computeIfAbsent(battleId, ignored -> new BattleState()); }
-    private void queue(BattleState state, UUID pokemonUUID, int damage, ActionBattleDamageFeedbackCategory category) {
+    private void queue(UUID battleId, BattleState state, UUID pokemonUUID, int damage, ActionBattleDamageFeedbackCategory category) {
         if (damage <= 0) return;
         state.queuedByPokemon.computeIfAbsent(pokemonUUID, ignored -> new ArrayList<>())
                 .add(new ActionBattleDamageFeedbackEvent(nextEventId++, pokemonUUID, damage, category));
+        net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime
+                .onDamageTaken(battleId, pokemonUUID);
     }
     private static final class BattleState {
         private final Map<UUID, Integer> hpByPokemon = new HashMap<>();

@@ -68,6 +68,14 @@ public final class ActionBattleEffectController {
         removeIfEmpty(state, currentTick);
     }
 
+    public void clearStatContributionsFromSource(UUID battleId, UUID pokemonUUID,
+                                                  ActionBattleStatSource source, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        if (state == null || source == null || currentTick < 0L) return;
+        state.clearStatContributionsFromSource(source);
+        removeIfEmpty(state, currentTick);
+    }
+
     public void setHazeProtected(UUID battleId, UUID pokemonUUID, boolean protectedByHaze, long currentTick) {
         if (!validIds(battleId, pokemonUUID) || currentTick < 0L) return;
         ActionBattleEffectState state = protectedByHaze ? state(battleId, pokemonUUID) : existingState(battleId, pokemonUUID);

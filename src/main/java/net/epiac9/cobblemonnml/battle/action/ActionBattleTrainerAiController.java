@@ -16,6 +16,7 @@ import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectControll
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.BlockPos;
@@ -48,6 +49,12 @@ final class ActionBattleTrainerAiController {
         }
 
         long currentTick = level.getGameTime();
+        if (net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime
+                .isRoarStunned(trainerPokemon.getUuid())) {
+            stopTrainerMovement(session, trainerPokemonEntity,
+                    ActionBattleCommandController.InterruptReason.CONTROL_EFFECT);
+            return;
+        }
         if (session.trainerRepositionAttempt() >= ActionBattleTrainerTactics.maxRepositionAttempts()) {
             handleExhaustedReposition(session, level, refs, trainerPokemon, trainerPokemonEntity, currentTick);
             return;
@@ -77,7 +84,8 @@ final class ActionBattleTrainerAiController {
             return;
         }
         Move move = trainerPokemon.getMoveSet().get(session.trainerMoveSlot());
-        if (move == null || !FightOrFlightAdapter.supports(move) || !FightOrFlightAdapter.hasPp(move) || !ActionBattleControlController.global().canUseMove(session.battleId(), trainerPokemon.getUuid(), move, currentTick)) {
+        if (move == null || !FightOrFlightAdapter.supports(move) || !FightOrFlightAdapter.hasPp(move) || !ActionBattleControlController.global().canUseMove(session.battleId(), trainerPokemon.getUuid(), move, currentTick)
+                || !ActionBattleFightingRuntime.canUseAbility(session, trainerPokemon, move, currentTick)) {
             stopTrainerMovement(session, trainerPokemonEntity, ActionBattleCommandController.InterruptReason.TARGET_INVALID);
             return;
         }
@@ -349,7 +357,9 @@ final class ActionBattleTrainerAiController {
         List<Integer> usableSlots = new ArrayList<>(4);
         for (int slot = 0; slot < 4; slot++) {
             Move move = trainerPokemon.getMoveSet().get(slot);
-            if (move != null && FightOrFlightAdapter.supports(move) && FightOrFlightAdapter.hasPp(move) && ActionBattleControlController.global().canUseMove(session.battleId(), trainerPokemon.getUuid(), move, currentTick)) usableSlots.add(slot);
+            if (move != null && FightOrFlightAdapter.supports(move) && FightOrFlightAdapter.hasPp(move)
+                    && ActionBattleControlController.global().canUseMove(session.battleId(), trainerPokemon.getUuid(), move, currentTick)
+                    && ActionBattleFightingRuntime.canUseAbility(session, trainerPokemon, move, currentTick)) usableSlots.add(slot);
         }
         if (usableSlots.isEmpty()) return -1;
         int tier = aiTier();

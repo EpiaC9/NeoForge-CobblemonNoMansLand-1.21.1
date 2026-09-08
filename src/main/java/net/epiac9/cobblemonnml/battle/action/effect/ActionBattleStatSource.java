@@ -6,6 +6,7 @@ public enum ActionBattleStatSource {
     PSYC_UP_DERIVED,
     ROCK_STOCKPILE,
     GHOST_CURSE,
+    DRAGON_UPROAR,
     ABILITY,
     OTHER_ACTION
 }

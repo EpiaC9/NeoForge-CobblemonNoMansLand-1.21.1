@@ -56,6 +56,8 @@ public final class ActionBattleControlController {
 
     public void recordSuccessfulMove(UUID battleId, UUID pokemonUUID, Move move) {
         recordSuccessfulMove(battleId, pokemonUUID, move != null ? move.getName() : null);
+        net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime
+                .onMoveCommitted(battleId, pokemonUUID, move);
     }
 
     public void recordSuccessfulMove(UUID battleId, UUID pokemonUUID, String moveId) {

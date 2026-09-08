@@ -25,6 +25,8 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsycUpController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.server.MinecraftServer;
@@ -45,6 +47,7 @@ public final class ActionBattleTypeEffectRuntime {
         ActionBattleTypeEffectController controller = ActionBattleTypeEffectController.global();
         controller.guardSession(sessionId);
         ActionBattleSleepController.tickSession(level, sessionId, level.getGameTime());
+        ActionBattleFightingController.global().tickSession(sessionId, level.getGameTime());
         var groundEvents = controller.tickSession(sessionId, level.getGameTime());
         for (var event : groundEvents) {
             PokemonEntity pokemon = activePokemonEntity(level, event.pokemonId());
@@ -77,6 +80,8 @@ public final class ActionBattleTypeEffectRuntime {
             if (pokemon != null) {
                 PokemonEntity entity = dungeonLevel != null ? activePokemonEntity(dungeonLevel, pokemon.getUuid()) : null;
                 ActionBattleTypeEffectController.global().clearPokemon(sessionId, pokemon.getUuid());
+                ActionBattleFightingController.global().clearPokemon(sessionId, pokemon.getUuid());
+                ActionBattleDragonRuntime.clearPokemon(sessionId, pokemon.getUuid());
                 if (entity != null) ActionBattleGroundVisualSync.update(entity, sessionId, 0);
                 ActionBattleSession battle = ActionBattleManager.findSessionForPokemon(pokemon.getUuid());
                 if (battle != null) {
@@ -90,9 +95,18 @@ public final class ActionBattleTypeEffectRuntime {
         }
     }
 
+    public static void onBattleEnded(UUID sessionId, long currentTick) {
+        if (sessionId == null || currentTick < 0L) return;
+        ActionBattleTypeEffectController.global().tickSession(sessionId, currentTick);
+        ActionBattleFightingController.global().onBattleEnded(sessionId, currentTick);
+        ActionBattleDragonRuntime.onBattleEnded(sessionId, currentTick);
+    }
+
     public static void clearSession(UUID sessionId) {
         ActionBattleManager.clearEffectStateForDungeonSession(sessionId);
         ActionBattleTypeEffectController.global().clearSession(sessionId);
+        ActionBattleFightingController.global().clearSession(sessionId);
+        ActionBattleDragonRuntime.clearSession(sessionId);
     }
 
     public static void clearSession(ServerLevel level, UUID sessionId) {
@@ -132,6 +146,8 @@ public final class ActionBattleTypeEffectRuntime {
         ActionBattleGrassController.clearAll();
         ActionBattleWaveServerRuntime.clearAll();
         ActionBattleGroundVisualSync.clearAll();
+        ActionBattleFightingController.global().clearAll();
+        ActionBattleDragonRuntime.clearAll();
     }
 
     private static PokemonEntity activePokemonEntity(ServerLevel level, UUID pokemonId) {

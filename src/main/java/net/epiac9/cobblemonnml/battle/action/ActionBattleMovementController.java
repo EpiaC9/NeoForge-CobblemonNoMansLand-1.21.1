@@ -9,6 +9,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectCo
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricContributionSource;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisState;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -45,6 +47,7 @@ final class ActionBattleMovementController {
 
     static boolean shouldSuppressAutonomousMovement(PokemonEntity pokemonEntity) {
         if (pokemonEntity == null || pokemonEntity.isRemoved() || !(pokemonEntity.level() instanceof ServerLevel level)) return false;
+        if (ActionBattleDragonRuntime.isRoarStunned(pokemonEntity.getPokemon().getUuid())) return true;
         ActionBattleSession session = ActionBattleRegistry.findByPokemonEntity(pokemonEntity.getUUID());
         if (session == null || session.state() != ActionBattleState.ACTIVE) return false;
         ServerPlayer player = level.getServer().getPlayerList().getPlayer(session.playerUUID());
@@ -56,6 +59,10 @@ final class ActionBattleMovementController {
         if (session == null || pokemonEntity == null || pokemonEntity.isRemoved()) return;
         pokemonEntity.getBrain().eraseMemory(MemoryModuleType.WALK_TARGET);
         pokemonEntity.getBrain().eraseMemory(MemoryModuleType.LOOK_TARGET);
+        if (ActionBattleDragonRuntime.isRoarStunned(pokemonEntity.getPokemon().getUuid())) {
+            pokemonEntity.getNavigation().stop();
+            return;
+        }
         if (hasExplicitMovementIntent(session, pokemonEntity.getUUID())) return;
         pokemonEntity.getNavigation().stop();
     }
@@ -102,8 +109,11 @@ final class ActionBattleMovementController {
                 session.dungeonSessionId(), pokemonUUID, currentTick);
         double groundMultiplier = ActionBattleTypeEffectController.global().groundMovementMultiplier(
                 session.dungeonSessionId(), pokemonUUID, currentTick);
+        double exhaustedMultiplier = ActionBattleFightingRuntime.normalLocomotionMultiplier(
+                session, pokemonUUID, currentTick);
         return ActionBattleMovementActionRules.composeMovementSpeed(ACTION_MOVEMENT_SPEED,
-                ActionBattleStatRules.standardMultiplier(stage), grassMultiplier, groundMultiplier);
+                ActionBattleStatRules.standardMultiplier(stage), grassMultiplier,
+                groundMultiplier * exhaustedMultiplier);
     }
 
     static ActionBattleParalysisState.FlinchContributionResult observeElectricParalysisMovement(

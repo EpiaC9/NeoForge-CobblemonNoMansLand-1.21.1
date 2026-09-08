@@ -49,7 +49,10 @@ public final class ActionBattleStatusHudRenderer {
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
             graphics.blit(entry.visual().icon(), x, y, 0.0F, 0.0F, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
-            if (ActionBattleStatusHudRules.hasCountdown(entry.state().statusId())) {
+            if ("TYPE_FIGHTING_OUTRAGE_BUILDUP".equals(entry.state().statusId())) {
+                renderBuildupRing(graphics, x + ICON_SIZE / 2, y + ICON_SIZE / 2,
+                        visibleBuildupSegments(entry.state()), entry.visual().ringArgb());
+            } else if (ActionBattleStatusHudRules.hasCountdown(entry.state().statusId())) {
                 renderTimerRing(graphics, x + ICON_SIZE / 2, y + ICON_SIZE / 2, entry.progress(), entry.visual().ringArgb());
             }
             renderPoisonBoundaries(graphics, x + ICON_SIZE / 2, y + ICON_SIZE / 2, entry.state().statusId());
@@ -81,6 +84,27 @@ public final class ActionBattleStatusHudRenderer {
             int px = centerX + (int) Math.round(Math.cos(angle) * RING_RADIUS);
             int py = centerY + (int) Math.round(Math.sin(angle) * RING_RADIUS);
             graphics.fill(px - 1, py - 1, px + 1, py + 1, color);
+        }
+    }
+
+    static int visibleBuildupSegments(ActionBattleHudPayload.StatusState state) {
+        if (state == null || !"TYPE_FIGHTING_OUTRAGE_BUILDUP".equals(state.statusId())) return 0;
+        return Math.clamp((int) state.remainingTicks(), 0, 2);
+    }
+
+    private static void renderBuildupRing(GuiGraphics graphics, int centerX, int centerY,
+                                          int filledSegments, int color) {
+        int arcLength = 8;
+        int gap = 3;
+        for (int group = 0; group < Math.clamp(filledSegments, 0, 3); group++) {
+            int start = group * (arcLength + gap);
+            for (int offset = 0; offset < arcLength; offset++) {
+                double angle = -Math.PI / 2.0D
+                        + (Math.PI * 2.0D * (start + offset) / RING_SEGMENTS);
+                int px = centerX + (int) Math.round(Math.cos(angle) * RING_RADIUS);
+                int py = centerY + (int) Math.round(Math.sin(angle) * RING_RADIUS);
+                graphics.fill(px - 1, py - 1, px + 1, py + 1, color);
+            }
         }
     }
 }

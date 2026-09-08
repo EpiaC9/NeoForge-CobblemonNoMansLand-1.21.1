@@ -43,6 +43,13 @@ public final class ActionBattlePokemonControlGuard {
         ActionBattleSession session = ActionBattleManager.getByPlayer(player.getUUID());
         if (session == null || session.state() != ActionBattleState.ACTIVE) return false;
         Pokemon pokemon = slot >= 0 ? Cobblemon.INSTANCE.getStorage().getParty(player).get(slot) : null;
+        if (pokemon != null && pokemon.getUuid().equals(session.playerActivePokemonUUID())) {
+            boolean swapped = ActionBattleManager.requestPlayerSwap(player);
+            if (!swapped) player.displayClientMessage(RECALL_WARNING, true);
+            DebugLog.log("[CobblemonNML] Routed native recall through Action Swap Out. Battle="
+                    + session.battleId() + ", pokemon=" + pokemon.getUuid() + ", accepted=" + swapped);
+            return true;
+        }
         player.displayClientMessage(RECALL_WARNING, true);
         DebugLog.log("[CobblemonNML] Blocked native Cobblemon party control during action battle. Battle=" + session.battleId()
                 + ", slot=" + slot + ", pokemon=" + (pokemon != null ? pokemon.getUuid() : "unknown"));

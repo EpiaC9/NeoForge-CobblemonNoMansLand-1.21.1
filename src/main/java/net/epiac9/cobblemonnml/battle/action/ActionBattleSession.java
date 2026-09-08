@@ -204,6 +204,10 @@ public final class ActionBattleSession {
         return commandCooldowns.sharedAbilityOnCooldown(pokemonUUID, currentTick);
     }
 
+    public boolean clearPokemonSharedAbilityCooldown(UUID pokemonUUID) {
+        return commandCooldowns.clearSharedAbility(pokemonUUID);
+    }
+
     public boolean startPokemonPersonalMoveCooldown(UUID pokemonUUID, int moveSlot,
                                                      long currentTick, long durationTicks) {
         return state == ActionBattleState.ACTIVE
@@ -212,6 +216,30 @@ public final class ActionBattleSession {
 
     public boolean isPokemonPersonalMoveOnCooldown(UUID pokemonUUID, int moveSlot, long currentTick) {
         return commandCooldowns.personalMoveOnCooldown(pokemonUUID, moveSlot, currentTick);
+    }
+
+    public boolean clearPokemonPersonalMoveCooldown(UUID pokemonUUID, int moveSlot) {
+        return commandCooldowns.clearPersonalMove(pokemonUUID, moveSlot);
+    }
+
+    public boolean clearPokemonPersonalMoveCooldowns(UUID pokemonUUID) {
+        return commandCooldowns.clearAllPersonalMoves(pokemonUUID);
+    }
+
+    public boolean clearPokemonMovementCommandCooldown(UUID pokemonUUID) {
+        return commandCooldowns.clearMovement(pokemonUUID);
+    }
+
+    public boolean clearPokemonSwapCooldown(UUID pokemonUUID) {
+        ActionBattleCommandCooldownState.Side side = cooldownSide(pokemonUUID);
+        return side != null && commandCooldowns.clearSwap(side);
+    }
+
+    public void clearPokemonAllCommandCooldowns(UUID pokemonUUID) {
+        clearPokemonSharedAbilityCooldown(pokemonUUID);
+        clearPokemonPersonalMoveCooldowns(pokemonUUID);
+        clearPokemonMovementCommandCooldown(pokemonUUID);
+        clearPokemonSwapCooldown(pokemonUUID);
     }
 
     public boolean isPokemonAbilitySlotOnCooldown(UUID pokemonUUID, int moveSlot, long currentTick) {

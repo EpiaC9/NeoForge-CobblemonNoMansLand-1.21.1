@@ -29,6 +29,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroun
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCast;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.registry.ModEntities;
 import net.minecraft.core.BlockPos;
@@ -266,6 +267,8 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             boolean qualifyingWaterInteraction = success;
             FightOrFlightAdapter.ProtectionOutcome protection = FightOrFlightAdapter.applyProtectImpact(
                     attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
+            ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, success,
+                    protection.protectParticipated() || protection.aquaParticipated());
             ActionBattleRockRuntime.HitResult rockHit = nativeDamageMove
                     ? ActionBattleRockRuntime.resolveDirectHit(attacker, pokemonTarget, beforeHp,
                     protection.incomingDamage(), success, protection.protectParticipated())
