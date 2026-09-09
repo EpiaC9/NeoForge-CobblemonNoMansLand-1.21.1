@@ -5,6 +5,10 @@ import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
+import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatSource;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 
 import java.util.Optional;
@@ -40,6 +44,7 @@ public final class ActionBattleFightingRuntime {
             }
             session.clearPokemonSharedAbilityCooldown(attacker.getPokemon().getUuid());
             session.clearPokemonPersonalMoveCooldown(attacker.getPokemon().getUuid(), slot);
+            applyOutrageStat(session, attacker, move, attacker.level().getGameTime());
         }
         if (result == ActionBattleFightingState.HitResult.BUILT
                 || result == ActionBattleFightingState.HitResult.ACTIVATED) {
@@ -89,8 +94,11 @@ public final class ActionBattleFightingRuntime {
     }
 
     public static void onPokemonUnavailable(ActionBattleSession session, UUID pokemonId, long currentTick) {
-        if (session != null) ActionBattleFightingController.global().onPokemonUnavailable(
-                session.dungeonSessionId(), pokemonId, currentTick);
+        if (session != null) {
+            clearOutrageStat(session, pokemonId, currentTick);
+            ActionBattleFightingController.global().onPokemonUnavailable(
+                    session.dungeonSessionId(), pokemonId, currentTick);
+        }
     }
 
     public static Optional<ActionBattleFightingState.View> view(
@@ -100,8 +108,30 @@ public final class ActionBattleFightingRuntime {
 
     public static void tickPokemon(ActionBattleSession session, PokemonEntity pokemon, long currentTick) {
         if (session == null || pokemon == null) return;
-        view(session.dungeonSessionId(), pokemon.getPokemon().getUuid(), currentTick)
-                .ifPresent(view -> ActionBattleFightingVisuals.tick(pokemon, view, currentTick));
+        Optional<ActionBattleFightingState.View> view = view(
+                session.dungeonSessionId(), pokemon.getPokemon().getUuid(), currentTick);
+        if (view.isEmpty() || !view.orElseThrow().outrageActive()) {
+            clearOutrageStat(session, pokemon.getPokemon().getUuid(), currentTick);
+        }
+        view.ifPresent(value -> ActionBattleFightingVisuals.tick(pokemon, value, currentTick));
+    }
+
+    private static void applyOutrageStat(ActionBattleSession session, PokemonEntity attacker,
+                                         Move move, long currentTick) {
+        ActionBattleFightingRules.OutrageStatPlan plan = ActionBattleFightingRules.outrageStatPlan(
+                FightOrFlightAdapter.movePower(move) > 0, FightOrFlightAdapter.isSpecialDamageCategory(move),
+                isFightingHolder(attacker.getPokemon()));
+        if (plan.stat() == ActionBattleFightingRules.OutrageStat.NONE) return;
+        ActionBattleStat stat = plan.stat() == ActionBattleFightingRules.OutrageStat.SPECIAL_ATTACK
+                ? ActionBattleStat.SPECIAL_ATTACK : ActionBattleStat.ATTACK;
+        ActionBattleEffectController.global().applyBoundedStatContribution(
+                session.battleId(), attacker.getPokemon().getUuid(), stat, plan.stages(), currentTick,
+                ActionBattleFightingRules.OUTRAGE_DURATION_TICKS, ActionBattleStatSource.FIGHTING_OUTRAGE);
+    }
+
+    private static void clearOutrageStat(ActionBattleSession session, UUID pokemonId, long currentTick) {
+        ActionBattleEffectController.global().clearStatContributionsFromSource(
+                session.battleId(), pokemonId, ActionBattleStatSource.FIGHTING_OUTRAGE, currentTick);
     }
 
     public static boolean isFightingMove(Move move) {

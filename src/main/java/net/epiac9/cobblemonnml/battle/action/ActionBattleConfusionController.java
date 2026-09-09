@@ -8,6 +8,7 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleConfusionRules;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatusApplication;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundController;
@@ -18,6 +19,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRun
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCast;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugCast;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugRuntime;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
@@ -40,7 +43,8 @@ public final class ActionBattleConfusionController {
     private ActionBattleConfusionController() {}
 
     public static ActionBattleStatusApplication apply(ActionBattleSession session, PokemonEntity target, long currentTick) {
-        if (session == null || target == null || target.isRemoved() || currentTick < 0L) return null;
+        if (session == null || target == null || target.isRemoved() || currentTick < 0L
+                || !ActionBattleEffectApplicationGuard.allowsNewApplication(session, target, currentTick)) return null;
         UUID pokemonUUID = target.getPokemon().getUuid();
         var interception = ActionBattleProtectController.global().interceptTimedEffect(session.battleId(), pokemonUUID, currentTick, "confusion", (int) ActionBattleConfusionRules.DURATION_TICKS);
         if (!interception.allowed()) return null;
@@ -97,9 +101,10 @@ public final class ActionBattleConfusionController {
         attacker.setDeltaMovement(direction.scale(CONFUSED_DASH_SPEED));
         double ghostDamageMultiplier = ActionBattleGhostRuntime.global().prepareDamagingAbility(attacker, move);
         ActionBattleGhostCast ghostCast = ActionBattleGhostRuntime.global().completeMove(attacker, move).orElse(null);
+        ActionBattleBugCast bugCast = null;
         DASHES.put(pokemonUUID, new DashState(session.battleId(), pokemonUUID, move,
                 currentTick + CONFUSED_DASH_TICKS, Math.max(1.0D, committedGrassMultiplier),
-                ghostDamageMultiplier, ghostCast));
+                ghostDamageMultiplier, ghostCast, bugCast));
         return true;
     }
 
@@ -139,7 +144,7 @@ public final class ActionBattleConfusionController {
             if (hit instanceof PokemonEntity pokemonHit && !hitBox.intersects(
                     ActionBattleGroundController.effectiveCombatBox(pokemonHit, level.getGameTime(), false))) continue;
             damageCollision(attacker, hit, state.move(), state.committedGrassMultiplier(),
-                    state.ghostDamageMultiplier(), state.ghostCast());
+                    state.ghostDamageMultiplier(), state.ghostCast(), state.bugCast());
             clearDashVelocity(attacker);
             return true;
         }
@@ -173,20 +178,21 @@ public final class ActionBattleConfusionController {
 
     private static void damageCollision(PokemonEntity attacker, LivingEntity target, Move move,
                                         double committedGrassMultiplier, double ghostDamageMultiplier,
-                                        ActionBattleGhostCast ghostCast) {
+                                        ActionBattleGhostCast ghostCast, ActionBattleBugCast bugCast) {
         PokemonEntity pokemonTarget = target instanceof PokemonEntity pokemon ? pokemon : null;
         ActionBattleSession sleepSession = pokemonTarget != null
                 ? ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID()) : null;
         long currentTick = attacker.level().getGameTime();
+        ActionBattleBugCast resolvedBugCast = bugCast;
+        if (resolvedBugCast == null && pokemonTarget != null) {
+            resolvedBugCast = ActionBattleBugRuntime.arm(attacker, pokemonTarget, move).orElse(null);
+        }
         ActionBattleSleepController.WakePlan wakePlan = pokemonTarget != null
                 ? ActionBattleSleepController.planDamagingWake(sleepSession, pokemonTarget, currentTick, false,
                 ActionBattleFairyController.hasType(attacker.getPokemon(), "fairy"))
                 : ActionBattleSleepController.WakePlan.NONE;
         float targetDamage = Math.max(1.0F, FightOrFlightAdapter.scaleActionDamage(attacker, target, move,
-                PokemonAttackEffect.calculatePokemonDamage(attacker, target, move), committedGrassMultiplier)
-                * (float) ghostDamageMultiplier);
-        if (pokemonTarget != null) targetDamage = (float) ActionBattleGhostRuntime.global()
-                .modifyIncomingDirectDamage(pokemonTarget, targetDamage);
+                PokemonAttackEffect.calculatePokemonDamage(attacker, target, move), committedGrassMultiplier));
         int beforeHp = pokemonTarget != null ? pokemonTarget.getPokemon().getCurrentHealth() : 0;
         int attemptedPokemonDamage = pokemonTarget != null ? ActionBattleWaterHealth.toPokemonDamage(
                 pokemonTarget.getPokemon().getMaxHealth(), pokemonTarget.getMaxHealth(), targetDamage) : 0;
@@ -194,6 +200,8 @@ public final class ActionBattleConfusionController {
         if (success && pokemonTarget != null) {
             FightOrFlightAdapter.ProtectionOutcome protection = FightOrFlightAdapter.applyProtectImpact(
                     attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, true);
+            int actualBugTriggerDamage = ActionBattleBugRuntime.resolveIncomingDamage(pokemonTarget, beforeHp);
+            ActionBattleBugRuntime.resolveHit(resolvedBugCast, pokemonTarget, actualBugTriggerDamage, move);
             ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, true,
                     protection.protectParticipated() || protection.aquaParticipated());
             net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime
@@ -224,9 +232,7 @@ public final class ActionBattleConfusionController {
         ActionBattleSleepController.WakePlan wakePlan = ActionBattleSleepController.planDamagingWake(
                 sleepSession, attacker, currentTick, false, ActionBattleFairyController.hasType(attacker.getPokemon(), "fairy"));
         float selfDamage = Math.max(1.0F, FightOrFlightAdapter.scaleActionDamage(attacker, attacker, move,
-                PokemonAttackEffect.calculatePokemonDamage(attacker, attacker, move), committedGrassMultiplier)
-                * (float) ghostDamageMultiplier);
-        selfDamage = (float) ActionBattleGhostRuntime.global().modifyIncomingDirectDamage(attacker, selfDamage);
+                PokemonAttackEffect.calculatePokemonDamage(attacker, attacker, move), committedGrassMultiplier));
         boolean success = attacker.hurt(attacker.damageSources().magic(), selfDamage);
         if (success) {
             ActionBattleGrassController.onPokemonDamageResolved(attacker, attacker,
@@ -252,5 +258,5 @@ public final class ActionBattleConfusionController {
     }
     private record DashState(UUID battleId, UUID pokemonUUID, Move move, long expiresAtTick,
                              double committedGrassMultiplier, double ghostDamageMultiplier,
-                             ActionBattleGhostCast ghostCast) {}
+                             ActionBattleGhostCast ghostCast, ActionBattleBugCast bugCast) {}
 }

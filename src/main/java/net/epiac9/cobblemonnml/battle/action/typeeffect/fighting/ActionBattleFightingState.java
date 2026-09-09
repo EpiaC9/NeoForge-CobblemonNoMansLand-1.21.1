@@ -94,11 +94,7 @@ public final class ActionBattleFightingState {
         if (currentTick < 0L) return 1.0D;
         advance(currentTick);
         if (exhaustedActive(currentTick)) return ActionBattleFightingRules.EXHAUSTED_MULTIPLIER;
-        if (!outrageActive(currentTick)
-                || !lockedMoveId.equals(ActionBattleFightingRules.normalizeMoveId(moveId))) return 1.0D;
-        return fightingHolder
-                ? ActionBattleFightingRules.FIGHTING_OUTRAGE_DAMAGE_MULTIPLIER
-                : ActionBattleFightingRules.NORMAL_OUTRAGE_DAMAGE_MULTIPLIER;
+        return 1.0D;
     }
 
     public double normalLocomotionMultiplier(long currentTick) {

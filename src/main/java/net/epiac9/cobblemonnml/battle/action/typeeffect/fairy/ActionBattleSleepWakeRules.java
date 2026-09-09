@@ -14,8 +14,6 @@ public final class ActionBattleSleepWakeRules {
     }
 
     public static float damageMultiplier(boolean sleeping, boolean ranged, boolean fairyTypedAttacker) {
-        if (!sleeping) return 1.0F;
-        if (fairyTypedAttacker) return ranged ? FAIRY_RANGED_DAMAGE_MULTIPLIER : FAIRY_MELEE_DAMAGE_MULTIPLIER;
-        return ranged ? NORMAL_RANGED_DAMAGE_MULTIPLIER : NORMAL_MELEE_DAMAGE_MULTIPLIER;
+        return 1.0F;
     }
 }

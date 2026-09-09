@@ -27,6 +27,6 @@ public final class ActionBattleGrassRules {
     }
 
     public static double applyCommittedEmpower(double damage, double multiplier) {
-        return Math.max(0.0D, damage) * Math.max(1.0D, multiplier);
+        return Math.max(0.0D, damage);
     }
 }

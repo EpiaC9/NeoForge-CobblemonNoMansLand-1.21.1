@@ -2,6 +2,7 @@ package net.epiac9.cobblemonnml.battle.action;
 
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatusApplication;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
@@ -21,7 +22,8 @@ public final class ActionBattleEvasionController {
     private ActionBattleEvasionController() {}
 
     public static ActionBattleStatusApplication apply(ActionBattleSession session, PokemonEntity target, long currentTick) {
-        if (session == null || target == null || currentTick < 0L) return null;
+        if (session == null || target == null || currentTick < 0L
+                || !ActionBattleEffectApplicationGuard.allowsNewApplication(session, target, currentTick)) return null;
         ActionBattleStatusApplication result = ActionBattleEffectController.global().applyEvasion(session.battleId(), target.getPokemon().getUuid(), currentTick);
         if (result == ActionBattleStatusApplication.EVASION_APPLIED && target.level() instanceof net.minecraft.server.level.ServerLevel level) ActionBattleStatusParticleController.emitEvasionBurst(level, target);
         return result;

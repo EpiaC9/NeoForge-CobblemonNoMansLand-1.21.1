@@ -56,6 +56,12 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual TYPE_DRAGON_UPROAR = typeEffectVisual(
             net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonHudRules.ICON_NAME,
             net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonHudRules.ACTIVE_RING_ARGB);
+    private static final StatusVisual TYPE_BUG_SHEDDING = typeEffectVisual("bug_shedding", 0xFF9BCB55);
+    private static final StatusVisual TYPE_BUG_OFFENSE = typeEffectVisual("bug_offense", 0xFFD36A66);
+    private static final StatusVisual TYPE_BUG_CARAPACE = typeEffectVisual("bug_carapace", 0xFF9A927B);
+    private static final StatusVisual TYPE_BUG_EFFECT_GUARD = typeEffectVisual("bug_effect_guard", 0xFF68BFA9);
+    private static final StatusVisual TYPE_BUG_COMBINED_CARAPACE = typeEffectVisual("bug_combined_carapace", 0xFFB0A967);
+    private static final StatusVisual TYPE_BUG_SPEED = typeEffectVisual("bug_speed", 0xFFB5DE65);
     private static final StatusVisual[] DETERIORATING_SHIELD = {
             visual("deteriorating_shield_1", 0xFFD8E7EC), visual("deteriorating_shield_2", 0xFFD0DFE5), visual("deteriorating_shield_3", 0xFFC5D5DC),
             visual("deteriorating_shield_4", 0xFFBACAD2), visual("deteriorating_shield_5", 0xFFADBFC8), visual("deteriorating_shield_6", 0xFFA0B4BE),
@@ -124,6 +130,12 @@ public final class ActionBattleStatusVisualRegistry {
             case "TYPE_FIGHTING_EXHAUSTED" -> TYPE_FIGHTING_EXHAUSTED;
             case "TYPE_DRAGON_UPROAR_BUILDUP" -> TYPE_DRAGON_UPROAR_BUILDUP;
             case "TYPE_DRAGON_UPROAR" -> TYPE_DRAGON_UPROAR;
+            case "TYPE_BUG_SHEDDING" -> TYPE_BUG_SHEDDING;
+            case "TYPE_BUG_ATTACK", "TYPE_BUG_SPECIAL_ATTACK" -> TYPE_BUG_OFFENSE;
+            case "TYPE_BUG_CARAPACE" -> TYPE_BUG_CARAPACE;
+            case "TYPE_BUG_EFFECT_GUARD" -> TYPE_BUG_EFFECT_GUARD;
+            case "TYPE_BUG_COMBINED_CARAPACE" -> TYPE_BUG_COMBINED_CARAPACE;
+            case "TYPE_BUG_SPEED" -> TYPE_BUG_SPEED;
             default -> null;
         };
     }

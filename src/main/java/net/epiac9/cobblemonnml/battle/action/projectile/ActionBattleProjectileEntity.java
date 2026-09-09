@@ -30,6 +30,11 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRun
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCast;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugCast;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugTrainingStat;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugCarapaceBlockEntity;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugCarapaceState;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.registry.ModEntities;
 import net.minecraft.core.BlockPos;
@@ -59,9 +64,44 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
     private double committedGrassMultiplier = 1.0D;
     private double ghostDamageMultiplier = 1.0D;
     private ActionBattleGhostCast ghostCast;
+    private ActionBattleBugCast bugCast;
+    private boolean bugFollowup;
+    private int bugFollowupDamage;
+    private boolean bugFollowupArea;
 
     public ActionBattleProjectileEntity(EntityType<? extends AbstractPokemonProjectile> entityType, Level level) {
         super(entityType, level);
+    }
+
+    public static ActionBattleProjectileEntity bugFollowup(Level level, PokemonEntity shooter,
+                                                            PokemonEntity target, Move move,
+                                                            ActionBattleBugCast cast, int damage,
+                                                            boolean area) {
+        ActionBattleProjectileEntity projectile = new ActionBattleProjectileEntity(
+                ModEntities.ACTION_BATTLE_PROJECTILE.get(), level);
+        projectile.initPosition(shooter);
+        projectile.setOwner(shooter);
+        projectile.setNoGravity(!ActionProjectileProfile.isLobbed(move.getName()));
+        projectile.intendedTargetUUID = target.getUUID();
+        projectile.committedMoveName = move.getName();
+        projectile.entityData.set(DATA_MOVE_NAME, move.getName());
+        projectile.committedMove = move;
+        projectile.bugCast = cast;
+        projectile.bugFollowup = true;
+        projectile.bugFollowupDamage = Math.max(0, damage);
+        projectile.bugFollowupArea = area;
+        projectile.setElementalType(move.getType().getName());
+        projectile.setDamage(0.0F);
+        projectile.maxLifetimeTicks = ActionProjectileProfile.maxLifetimeTicks(move.getName());
+        Vec3 trackedTarget = ActionBattleEvasionController.trackedPosition(target, level.getGameTime())
+                .add(0.0D, target.getBbHeight() * 0.5D, 0.0D);
+        Vec3 delta = trackedTarget.subtract(projectile.position());
+        if (ActionProjectileProfile.isLobbed(move.getName())) {
+            delta = delta.add(0.0D, Math.sqrt(delta.x * delta.x + delta.z * delta.z) * 0.30D, 0.0D);
+        }
+        projectile.shoot(delta.x, delta.y, delta.z,
+                (float) ActionProjectileProfile.speedBlocksPerTick(move.getName()), 0.0F);
+        return projectile;
     }
 
     public ActionBattleProjectileEntity(Level level, PokemonEntity shooter, LivingEntity target, Move move) {
@@ -92,10 +132,12 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         this.committedGrassMultiplier = Math.max(1.0D, committedGrassMultiplier);
         this.ghostCast = ghostCast;
         this.ghostDamageMultiplier = Math.max(0.0D, ghostDamageMultiplier);
+        this.bugCast = ActionBattleBugRuntime.arm(shooter,
+                target instanceof PokemonEntity pokemon ? pokemon : null, move).orElse(null);
         setElementalType(move.getType().getName());
         setDamage(FightOrFlightAdapter.isNativeDamageMove(move) ? FightOrFlightAdapter.scaleActionDamage(
                 shooter, target, move, PokemonAttackEffect.calculatePokemonDamage(shooter, target, move),
-                this.committedGrassMultiplier) * (float) this.ghostDamageMultiplier : 0.0F);
+                this.committedGrassMultiplier) : 0.0F);
         accuracySpeedMultiplier = FightOrFlightAdapter.actionAccuracyProjectileMultiplier(shooter);
         maxLifetimeTicks = ActionProjectileProfile.maxLifetimeTicks(move.getName());
         Vec3 trackedTarget = target instanceof PokemonEntity pokemonTarget
@@ -138,6 +180,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         this.committedGrassMultiplier = Math.max(1.0D, committedGrassMultiplier);
         this.ghostCast = ghostCast;
         this.ghostDamageMultiplier = Math.max(0.0D, ghostDamageMultiplier);
+        this.bugCast = null;
         setElementalType(move.getType().getName());
         setDamage(0.0F);
         accuracySpeedMultiplier = FightOrFlightAdapter.actionAccuracyProjectileMultiplier(shooter);
@@ -160,6 +203,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
     @Override
     public void tick() {
         if (!level().isClientSide) updateDeliveryMotion();
+        if (!level().isClientSide && interceptBugCarapace()) return;
         super.tick();
         if (!level().isClientSide && (isRemoved() || tickCount >= maxLifetimeTicks)) {
             ActionBattleGhostRuntime.global().discard(ghostCast);
@@ -210,6 +254,30 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
                 effectiveBox, position(), position().add(getDeltaMovement()));
     }
 
+    private boolean interceptBugCarapace() {
+        if (!(level() instanceof ServerLevel server) || !(getOwner() instanceof PokemonEntity attacker)) return false;
+        var swept = getBoundingBox().expandTowards(getDeltaMovement()).inflate(0.15D);
+        BlockPos min = BlockPos.containing(swept.minX, swept.minY, swept.minZ);
+        BlockPos max = BlockPos.containing(swept.maxX, swept.maxY, swept.maxZ);
+        for (int x = min.getX(); x <= max.getX(); x++) {
+            for (int y = min.getY(); y <= max.getY(); y++) {
+                for (int z = min.getZ(); z <= max.getZ(); z++) {
+                    if (!(server.getBlockEntity(new BlockPos(x, y, z))
+                            instanceof ActionBattleBugCarapaceBlockEntity carapace)
+                            || !carapace.collisionBox().intersects(swept)) continue;
+                    ActionBattleBugCarapaceState.ProjectileOutcome outcome = carapace.collideProjectile(
+                            attacker.getPokemon().getUuid(), server.getGameTime());
+                    if (outcome == ActionBattleBugCarapaceState.ProjectileOutcome.DESTROY_BOTH) {
+                        ActionBattleGhostRuntime.global().discard(ghostCast);
+                        discard();
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     @Override
     protected void onHitEntity(EntityHitResult result) {
         Entity owner = getOwner();
@@ -225,16 +293,26 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             discard();
             return;
         }
+        if (bugFollowup) {
+            if (target instanceof PokemonEntity pokemonTarget) {
+                PokemonAttackEffect.applyOnHitVisualEffect(attacker, pokemonTarget, move);
+                PokemonAttackEffect.applySFX(attacker.level(), move, attacker.blockPosition());
+                ActionBattleBugRuntime.resolveFollowupImpact(
+                        bugCast, pokemonTarget, bugFollowupDamage, bugFollowupArea);
+            }
+            discard();
+            return;
+        }
         boolean nativeDamageMove = FightOrFlightAdapter.isNativeDamageMove(move);
         PokemonEntity pokemonTarget = target instanceof PokemonEntity value ? value : null;
+        if (confusedShot && bugCast == null && pokemonTarget != null) {
+            bugCast = ActionBattleBugRuntime.arm(attacker, pokemonTarget, move).orElse(null);
+        }
         ActionBattleGroundController.HitPlan groundPlan = nativeDamageMove && pokemonTarget != null
                 ? ActionBattleGroundController.planHit(attacker, pokemonTarget, move)
                 : ActionBattleGroundController.HitPlan.NOT_QUALIFYING;
         if (nativeDamageMove) setDamage((float) (FightOrFlightAdapter.scaleActionDamage(attacker, target, move,
-                PokemonAttackEffect.calculatePokemonDamage(attacker, target, move), committedGrassMultiplier)
-                * groundPlan.damageMultiplier() * ghostDamageMultiplier));
-        if (nativeDamageMove && pokemonTarget != null) setDamage((float) ActionBattleGhostRuntime.global()
-                .modifyIncomingDirectDamage(pokemonTarget, getDamage()));
+                PokemonAttackEffect.calculatePokemonDamage(attacker, target, move), committedGrassMultiplier)));
         int beforeHp = pokemonTarget != null ? pokemonTarget.getPokemon().getCurrentHealth() : 0;
         int attemptedPokemonDamage = pokemonTarget != null ? ActionBattleWaterHealth.toPokemonDamage(
                 pokemonTarget.getPokemon().getMaxHealth(), pokemonTarget.getMaxHealth(), getDamage()) : 0;
@@ -267,6 +345,9 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             boolean qualifyingWaterInteraction = success;
             FightOrFlightAdapter.ProtectionOutcome protection = FightOrFlightAdapter.applyProtectImpact(
                     attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
+            int actualBugTriggerDamage = nativeDamageMove && success
+                    ? ActionBattleBugRuntime.resolveIncomingDamage(pokemonTarget, beforeHp) : 0;
+            ActionBattleBugRuntime.resolveHit(bugCast, pokemonTarget, actualBugTriggerDamage, move);
             ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, success,
                     protection.protectParticipated() || protection.aquaParticipated());
             net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime
@@ -342,6 +423,21 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             tag.putUUID("ActionGhostCaster", ghostCast.casterPokemonUUID());
             tag.putBoolean("ActionGhostTyped", ghostCast.ghostCaster());
         }
+        if (bugCast != null) {
+            tag.putUUID("ActionBugCast", bugCast.castId());
+            tag.putUUID("ActionBugBattle", bugCast.battleId());
+            tag.putUUID("ActionBugUser", bugCast.userPokemonId());
+            tag.putUUID("ActionBugTarget", bugCast.intendedTargetPokemonId());
+            tag.putBoolean("ActionBugTyped", bugCast.bugTyped());
+            tag.putString("ActionBugMove", bugCast.moveName());
+            tag.putBoolean("ActionBugRanged", bugCast.ranged());
+            int mask = 0;
+            for (ActionBattleBugTrainingStat stat : bugCast.activated()) mask |= 1 << stat.ordinal();
+            tag.putInt("ActionBugBranches", mask);
+        }
+        tag.putBoolean("ActionBugFollowup", bugFollowup);
+        tag.putInt("ActionBugFollowupDamage", bugFollowupDamage);
+        tag.putBoolean("ActionBugFollowupArea", bugFollowupArea);
     }
 
     @Override
@@ -356,12 +452,28 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         committedGrassMultiplier = tag.contains("ActionGrassMultiplier") ? Math.max(1.0D, tag.getDouble("ActionGrassMultiplier")) : 1.0D;
         ghostDamageMultiplier = tag.contains("ActionGhostDamageMultiplier")
                 ? Math.max(0.0D, tag.getDouble("ActionGhostDamageMultiplier")) : 1.0D;
+        bugFollowup = tag.getBoolean("ActionBugFollowup");
+        bugFollowupDamage = Math.max(0, tag.getInt("ActionBugFollowupDamage"));
+        bugFollowupArea = tag.getBoolean("ActionBugFollowupArea");
         if (tag.hasUUID("ActionGhostCast") && tag.hasUUID("ActionGhostBattle")
                 && tag.hasUUID("ActionGhostCaster")) {
             ghostCast = new ActionBattleGhostCast(tag.getUUID("ActionGhostCast"),
                     tag.getUUID("ActionGhostBattle"), tag.getUUID("ActionGhostCaster"),
                     tag.getBoolean("ActionGhostTyped"), true);
             ActionBattleGhostRuntime.global().restore(ghostCast);
+        }
+        if (tag.hasUUID("ActionBugCast") && tag.hasUUID("ActionBugBattle")
+                && tag.hasUUID("ActionBugUser") && tag.hasUUID("ActionBugTarget")) {
+            java.util.EnumSet<ActionBattleBugTrainingStat> activated =
+                    java.util.EnumSet.noneOf(ActionBattleBugTrainingStat.class);
+            int mask = tag.getInt("ActionBugBranches");
+            for (ActionBattleBugTrainingStat stat : ActionBattleBugTrainingStat.values()) {
+                if ((mask & 1 << stat.ordinal()) != 0) activated.add(stat);
+            }
+            bugCast = new ActionBattleBugCast(tag.getUUID("ActionBugCast"),
+                    tag.getUUID("ActionBugBattle"), tag.getUUID("ActionBugUser"),
+                    tag.getUUID("ActionBugTarget"), tag.getBoolean("ActionBugTyped"), activated,
+                    tag.getString("ActionBugMove"), tag.getBoolean("ActionBugRanged"));
         }
     }
     private double projectileSpeed(String moveName) {

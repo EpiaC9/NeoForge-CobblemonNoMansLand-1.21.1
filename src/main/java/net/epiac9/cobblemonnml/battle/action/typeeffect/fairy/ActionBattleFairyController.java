@@ -11,6 +11,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceContr
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSleepController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
 
@@ -38,7 +39,9 @@ public final class ActionBattleFairyController {
 
     public static boolean applyDrowsy(PokemonEntity target, UUID battleId, long currentTick, double penetrationRoll) {
         UUID sessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
-        if (sessionId == null || target == null || currentTick < 0L) return false;
+        if (sessionId == null || target == null || currentTick < 0L
+                || !ActionBattleEffectApplicationGuard.allowsNewApplication(
+                ActionBattleManager.findSessionForBattlePokemonEntity(target.getUUID()), target, currentTick)) return false;
         Pokemon pokemon = target.getPokemon();
         if (!canReceiveDrowsy(hasType(pokemon, "steel"))) {
             DebugLog.log("[CobblemonNML] Fairy Drowsy rejected. Pokemon=" + pokemon.getUuid() + ", reason=steel_immune");

@@ -6,6 +6,7 @@ import com.cobblemon.mod.common.pokemon.Pokemon;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
@@ -28,6 +29,8 @@ public final class ActionBattleFireController {
         UUID battleId = ActionBattleManager.battleIdForPokemonEntity(target.getUUID());
         if (battleId == null || !battleId.equals(ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))) return;
         long currentTick = target.level().getGameTime();
+        if (!ActionBattleEffectApplicationGuard.allowsNewApplication(
+                ActionBattleManager.findSessionForBattlePokemonEntity(target.getUUID()), target, currentTick)) return;
         double appliedPressure = penetratedPressure(ActionBattleProtectController.global(), battleId,
                 targetPokemon.getUuid(), currentTick, pressureAmount);
         if (!(appliedPressure > 0.0D)) return;

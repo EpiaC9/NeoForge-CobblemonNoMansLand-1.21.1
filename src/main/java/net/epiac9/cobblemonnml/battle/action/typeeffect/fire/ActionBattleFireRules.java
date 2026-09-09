@@ -10,7 +10,6 @@ public final class ActionBattleFireRules {
     public static final long PRESSURE_DECAY_STEP_TICKS = 20L;
     public static final double PRESSURE_DECAY_AMOUNT = 5.0D;
     public static final long BURN_DURATION_TICKS = 180L;
-    public static final double BURN_FIRE_DAMAGE_MULTIPLIER = 1.20D;
     public static final int CINDERS_FIRE_ATTACK_STAGE = 1;
     public static final int BURN_FIRE_ATTACK_STAGE = 2;
 
@@ -27,8 +26,7 @@ public final class ActionBattleFireRules {
     }
 
     public static double modifyIncomingDamage(double damage, boolean fireMove, boolean burnedTarget) {
-        if (!(damage > 0.0D) || !fireMove || !burnedTarget) return damage;
-        return damage * BURN_FIRE_DAMAGE_MULTIPLIER;
+        return damage;
     }
 
     public enum TargetInteraction { FIRE_POSITIVE, IMMUNE, HARMFUL }

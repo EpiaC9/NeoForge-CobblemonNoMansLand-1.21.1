@@ -31,4 +31,14 @@ public record ActionBattleDamageSource(String id, boolean directMove, boolean do
         return new ActionBattleDamageSource("ghost_curse_ko", false, false,
                 false, true, true, true);
     }
+
+    public static ActionBattleDamageSource bugSecondary() {
+        return new ActionBattleDamageSource("bug_adaptation_secondary", false, false,
+                false, false, true, false);
+    }
+
+    public static ActionBattleDamageSource bugSheddingDot() {
+        return new ActionBattleDamageSource("bug_adaptation_shedding", false, true,
+                true, false, true, false);
+    }
 }

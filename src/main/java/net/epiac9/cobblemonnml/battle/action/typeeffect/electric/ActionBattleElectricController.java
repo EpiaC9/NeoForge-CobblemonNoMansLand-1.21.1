@@ -7,6 +7,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
@@ -61,6 +62,9 @@ public final class ActionBattleElectricController {
                 || !session.dungeonSessionId().equals(DungeonSession.getSessionId())) return InteractionResult.IGNORED;
         Pokemon pokemon = target.getPokemon();
         long currentTick = target.level().getGameTime();
+        if (!ActionBattleEffectApplicationGuard.allowsNewApplication(session, target, currentTick)) {
+            return InteractionResult.IGNORED;
+        }
         boolean groundTyped = hasType(pokemon, "ground");
         boolean rockTyped = hasType(pokemon, "rock");
         boolean electricTyped = hasType(pokemon, "electric");

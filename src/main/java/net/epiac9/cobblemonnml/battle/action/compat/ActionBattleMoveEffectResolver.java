@@ -18,6 +18,7 @@ import net.epiac9.cobblemonnml.util.DebugLog;
 import net.epiac9.cobblemonnml.mixin.ActionBattleStatChangeMoveDataAccessor;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatApplicationService;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatSource;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.minecraft.world.entity.LivingEntity;
 
 import java.util.List;
@@ -70,6 +71,8 @@ public final class ActionBattleMoveEffectResolver {
             ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(receiver.getUUID());
             if (session == null || !session.battleId().equals(
                     ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))) continue;
+            if (!ActionBattleEffectApplicationGuard.allowsNewApplication(
+                    session, receiver, attacker.level().getGameTime())) continue;
             int stages = ((ActionBattleStatChangeMoveDataAccessor) statData).cobblemonNml$getStage();
             ActionBattleStatApplicationService.global().applyBatch(session.battleId(),
                     receiver.getPokemon().getUuid(), ActionBattleStatMoveMetadata.translate(statData.getName(), stages),
@@ -92,6 +95,8 @@ public final class ActionBattleMoveEffectResolver {
         if (session == null || !session.battleId().equals(ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))
                 || !DungeonSession.isActive() || !session.dungeonSessionId().equals(DungeonSession.getSessionId())
                 || !rollEffect(attacker, move, StatusFamily.PARALYSIS)) return;
+        if (!ActionBattleEffectApplicationGuard.allowsNewApplication(
+                session, target, attacker.level().getGameTime())) return;
         ActionBattleElectricController.applyExternalParalysis(ActionBattleTypeEffectController.global(),
                 session.dungeonSessionId(), target.getPokemon().getUuid(), attacker.level().getGameTime(),
                 hasType(target, "electric"), ActionBattleEffectController.global().hasHaze(
@@ -120,6 +125,8 @@ public final class ActionBattleMoveEffectResolver {
         if (!hitSucceeded || attacker == null || target == null || move == null || attacker.level().isClientSide) return;
         ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(target.getUUID());
         if (session == null || !session.battleId().equals(ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))) return;
+        if (!ActionBattleEffectApplicationGuard.allowsNewApplication(
+                session, target, attacker.level().getGameTime())) return;
         if (!rollEffect(attacker, move, family)) return;
         long currentTick = attacker.level().getGameTime();
         if (family == StatusFamily.FLINCH) {

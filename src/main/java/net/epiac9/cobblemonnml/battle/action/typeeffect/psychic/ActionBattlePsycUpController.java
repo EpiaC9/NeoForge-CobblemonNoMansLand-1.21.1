@@ -7,6 +7,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -31,6 +32,8 @@ public final class ActionBattlePsycUpController {
         String moveType = move.getType() != null ? move.getType().getName() : null;
         if (!ActionBattlePsycUpMoveRules.qualifies(moveType, FightOrFlightAdapter.moveTargetCategory(move),
                 FightOrFlightAdapter.movePower(move), success && sameBattle)) return ApplyResult.INVALID;
+        if (!ActionBattleEffectApplicationGuard.allowsNewApplication(
+                session, target, attacker.level().getGameTime())) return ApplyResult.IMMUNE;
         return GLOBAL.applyMark(session.battleId(), attacker.getPokemon().getUuid(), target.getPokemon().getUuid(),
                 hasPsychicType(attacker), ActionBattleFairyController.hasType(target.getPokemon(), "dark"),
                 attacker.level().getGameTime());

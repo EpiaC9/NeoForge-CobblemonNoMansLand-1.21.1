@@ -2,6 +2,7 @@ package net.epiac9.cobblemonnml.client.battle.action;
 
 import net.epiac9.cobblemonnml.CobblemonNML;
 import net.epiac9.cobblemonnml.registry.ModEntities;
+import net.epiac9.cobblemonnml.registry.ModBlockEntities;
 import net.minecraft.client.renderer.entity.NoopRenderer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -16,5 +17,7 @@ public final class ActionBattleProjectileClientEvents {
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.ACTION_BATTLE_PROJECTILE.get(), NoopRenderer::new);
         event.registerEntityRenderer(ModEntities.ACTION_BATTLE_LOB_PROJECTILE.get(), NoopRenderer::new);
+        event.registerBlockEntityRenderer(ModBlockEntities.ACTION_BATTLE_BUG_CARAPACE.get(),
+                ActionBattleBugCarapaceRenderer::new);
     }
 }

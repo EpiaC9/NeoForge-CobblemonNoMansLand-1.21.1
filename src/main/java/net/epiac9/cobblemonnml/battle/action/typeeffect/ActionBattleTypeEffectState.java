@@ -217,9 +217,7 @@ public final class ActionBattleTypeEffectState {
 
     double modifyOutgoingElectricDamage(boolean electricMove, boolean damaging, double damage, long currentTick) {
         if (electric != null) electric.tick(currentTick);
-        if (!electricMove || !damaging || electric == null) return damage;
-        boolean activeElectric = electric.activeParalysis().map(state -> state.active(currentTick) && state.electricTyped()).orElse(false);
-        return activeElectric ? damage * ActionBattleElectricRules.ELECTRIC_PARALYSIS_DAMAGE_MULTIPLIER : damage;
+        return damage;
     }
 
     Optional<ActionBattleDrowsyTracker.CompletionState> fairyCompletionView(long currentTick) {

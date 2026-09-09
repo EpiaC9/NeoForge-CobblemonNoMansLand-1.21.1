@@ -8,6 +8,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldObject;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldObjectTracker;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.field.AquaBubbleBlockEntity;
@@ -144,7 +145,14 @@ public final class ActionBattleWaterController {
         effects.guardSession(lifecycle.sessionId());
         POKEMON_REFS.put(pokemonUUID, toucher.getPokemon());
         BATTLE_REFS.put(pokemonUUID, session.battleId());
-        switch (ActionBattleWaterContactRules.resolveContact(allied, waterTyped)) {
+        ActionBattleWaterContactRules.ActivationResult contact = ActionBattleWaterContactRules.resolveContact(allied, waterTyped);
+        boolean appliesEffect = contact == ActionBattleWaterContactRules.ActivationResult.ALLY_SHIELD
+                || contact == ActionBattleWaterContactRules.ActivationResult.ENEMY_IMMOBILIZED;
+        if (appliesEffect && !ActionBattleEffectApplicationGuard.allowsNewApplication(session, toucher, tick)) {
+            removeBubble(bubble);
+            return;
+        }
+        switch (contact) {
             case ALLY_SHIELD -> {
                 boolean protectActive = ActionBattleProtectController.global().activeStance(
                         session.battleId(), pokemonUUID, tick) != null;

@@ -2,6 +2,10 @@ package net.epiac9.cobblemonnml.battle.action;
 
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatApplicationService;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatSource;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleSleepState;
@@ -13,14 +17,20 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 
 import java.util.UUID;
+import java.util.Map;
 
 public final class ActionBattleSleepController {
     private ActionBattleSleepController() {}
+
+    public static Map<ActionBattleStat, Integer> defensiveStatStages() {
+        return Map.of(ActionBattleStat.DEFENSE, -1, ActionBattleStat.SPECIAL_DEFENSE, -1);
+    }
 
     public static void tickPokemon(ActionBattleSession session, PokemonEntity target, long currentTick) {
         if (session == null || target == null || target.isRemoved() || currentTick < 0L) return;
         UUID pokemonUUID = target.getPokemon().getUuid();
         if (ActionBattleEffectController.global().tickSleepState(session.dungeonSessionId(), pokemonUUID, currentTick) == ActionBattleSleepState.NaturalWakeResult.WOKE_NATURALLY) {
+            clearSleepStats(session, pokemonUUID, currentTick);
             ActionBattlePersistentController.global().onSleepEnded(session.battleId(), pokemonUUID);
             if (target.level() instanceof net.minecraft.server.level.ServerLevel level) ActionBattleStatusParticleController.emitWakeBurst(level, target);
             DebugLog.log("[CobblemonNML] Action battle Pokemon woke naturally. Battle=" + session.battleId() + ", pokemon=" + pokemonUUID);
@@ -44,6 +54,14 @@ public final class ActionBattleSleepController {
             UUID entityUUID = session.isPlayerPokemon(pokemonUUID)
                     ? session.playerEntityForPokemon(pokemonUUID) : session.trainerActiveEntityUUID();
             Entity entity = entityUUID != null ? level.getEntity(entityUUID) : null;
+            if (entity instanceof PokemonEntity guarded
+                    && !ActionBattleEffectApplicationGuard.allowsNewApplication(session, guarded, currentTick)) {
+                ActionBattleEffectController.global().wakeSleep(dungeonSessionId, pokemonUUID, currentTick);
+                return false;
+            }
+            ActionBattleStatApplicationService.global().applyBatch(session.battleId(), pokemonUUID,
+                    defensiveStatStages(),
+                    currentTick, ActionBattleStatSource.SLEEP, true);
             if (entity instanceof PokemonEntity pokemon && !pokemon.isRemoved()) {
                 pokemon.getNavigation().stop();
                 pokemon.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
@@ -65,6 +83,7 @@ public final class ActionBattleSleepController {
         for (UUID pokemonUUID : ActionBattleEffectController.global().tickSleepStates(dungeonSessionId, currentTick)) {
             ActionBattleSession session = ActionBattleManager.findSessionForPokemon(pokemonUUID);
             if (session != null && dungeonSessionId.equals(session.dungeonSessionId())) {
+                clearSleepStats(session, pokemonUUID, currentTick);
                 ActionBattlePersistentController.global().onSleepEnded(session.battleId(), pokemonUUID);
                 UUID entityUUID = session.isPlayerPokemon(pokemonUUID)
                         ? session.playerEntityForPokemon(pokemonUUID) : session.trainerActiveEntityUUID();
@@ -114,6 +133,7 @@ public final class ActionBattleSleepController {
                 target.getPokemon().getCurrentHealth())) return false;
         boolean woke = ActionBattleEffectController.global().wakeSleep(session.dungeonSessionId(), target.getPokemon().getUuid(), currentTick);
         if (woke) {
+            clearSleepStats(session, target.getPokemon().getUuid(), currentTick);
             ActionBattlePersistentController.global().onSleepEnded(session.battleId(), target.getPokemon().getUuid());
             if (target.level() instanceof net.minecraft.server.level.ServerLevel level) ActionBattleStatusParticleController.emitWakeBurst(level, target);
             DebugLog.log("[CobblemonNML] Action battle Pokemon woke from ability damage. Battle=" + session.battleId() + ", pokemon=" + target.getPokemon().getUuid()
@@ -121,6 +141,11 @@ public final class ActionBattleSleepController {
                     + ", multiplier=" + plan.damageMultiplier());
         }
         return woke;
+    }
+
+    private static void clearSleepStats(ActionBattleSession session, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectController.global().clearStatContributionsFromSource(
+                session.battleId(), pokemonUUID, ActionBattleStatSource.SLEEP, currentTick);
     }
 
     public static boolean shouldWakeAfterDamage(WakePlan plan, int beforeHp, int afterHp) {

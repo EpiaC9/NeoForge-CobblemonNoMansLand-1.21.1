@@ -4,6 +4,7 @@ import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentType;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 
 public final class ActionBattlePersistentEffects {
     private ActionBattlePersistentEffects() {}
@@ -30,6 +31,7 @@ public final class ActionBattlePersistentEffects {
     }
 
     private static boolean valid(ActionBattleSession session, PokemonEntity source, PokemonEntity target, long currentTick) {
-        return session != null && source != null && target != null && !source.isRemoved() && !target.isRemoved() && currentTick >= 0L;
+        return session != null && source != null && target != null && !source.isRemoved() && !target.isRemoved()
+                && currentTick >= 0L && ActionBattleEffectApplicationGuard.allowsNewApplication(session, target, currentTick);
     }
 }

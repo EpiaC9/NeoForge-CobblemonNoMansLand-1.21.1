@@ -9,11 +9,15 @@ public final class ActionBattleFightingRules {
     public static final long EXHAUSTED_DURATION_TICKS = 180L;
     public static final long NORMAL_OUTRAGE_SHARED_COOLDOWN_TICKS = 60L;
     public static final long FIGHTING_OUTRAGE_SHARED_COOLDOWN_TICKS = 30L;
-    public static final double NORMAL_OUTRAGE_DAMAGE_MULTIPLIER = 1.10D;
-    public static final double FIGHTING_OUTRAGE_DAMAGE_MULTIPLIER = 1.20D;
     public static final double EXHAUSTED_MULTIPLIER = 0.80D;
 
     private ActionBattleFightingRules() {}
+
+    public static OutrageStatPlan outrageStatPlan(boolean damaging, boolean special, boolean fightingTyped) {
+        if (!damaging) return OutrageStatPlan.NONE;
+        return new OutrageStatPlan(special ? OutrageStat.SPECIAL_ATTACK : OutrageStat.ATTACK,
+                fightingTyped ? 2 : 1);
+    }
 
     public static String normalizeMoveId(String moveId) {
         if (moveId == null) return "";
@@ -26,5 +30,10 @@ public final class ActionBattleFightingRules {
     public static long safeAdd(long currentTick, long durationTicks) {
         if (currentTick < 0L || durationTicks <= 0L) return 0L;
         return currentTick > Long.MAX_VALUE - durationTicks ? Long.MAX_VALUE : currentTick + durationTicks;
+    }
+
+    public enum OutrageStat { NONE, ATTACK, SPECIAL_ATTACK }
+    public record OutrageStatPlan(OutrageStat stat, int stages) {
+        public static final OutrageStatPlan NONE = new OutrageStatPlan(OutrageStat.NONE, 0);
     }
 }

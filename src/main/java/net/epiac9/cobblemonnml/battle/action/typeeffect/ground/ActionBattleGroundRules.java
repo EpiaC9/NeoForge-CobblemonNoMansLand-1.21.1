@@ -8,8 +8,6 @@ public final class ActionBattleGroundRules {
     public static final long NON_GROUND_STAGE_TICKS = 120L;
     public static final long GROUND_STAGE_TICKS = 180L;
     public static final long OVERALL_TICKS = 360L;
-    public static final double NON_GROUND_EXPEL_MULTIPLIER = 1.10D;
-    public static final double GROUND_EXPEL_MULTIPLIER = 1.20D;
     public static final double RADIAL_DAMAGE_FRACTION = 0.05D;
 
     private ActionBattleGroundRules() {}
@@ -51,7 +49,7 @@ public final class ActionBattleGroundRules {
     }
 
     public static double expelDamageMultiplier(boolean attackerGroundTyped) {
-        return attackerGroundTyped ? GROUND_EXPEL_MULTIPLIER : NON_GROUND_EXPEL_MULTIPLIER;
+        return 1.0D;
     }
 
     public static int radialDamage(int maximumHealth) {

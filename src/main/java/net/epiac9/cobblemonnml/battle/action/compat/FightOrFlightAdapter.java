@@ -44,6 +44,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRun
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCast;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugCast;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import me.rufia.fightorflight.utils.PokemonUtils;
@@ -95,29 +97,7 @@ public final class FightOrFlightAdapter {
         int offenseStage = ActionBattleStatResolver.effectiveStage(battleId, attacker.getPokemon().getUuid(), offense, tick);
         int defenseStage = ActionBattleStatResolver.effectiveStage(battleId, pokemonTarget.getPokemon().getUuid(), defense, tick);
         double multiplier = ActionBattleStatRules.damageMultiplier(offenseStage, defenseStage);
-        float stageScaledDamage = Math.max(0.0F, (float) (baseDamage * multiplier));
-        UUID sessionId = net.epiac9.cobblemonnml.dimension.DungeonSession.isActive()
-            ? net.epiac9.cobblemonnml.dimension.DungeonSession.getSessionId() : null;
-        boolean electricMove = move.getType() != null && "electric".equalsIgnoreCase(move.getType().getName());
-        if (sessionId != null) {
-            stageScaledDamage = (float) net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController.global()
-                .modifyOutgoingElectricDamage(sessionId, attacker.getPokemon().getUuid(), electricMove, true,
-                    stageScaledDamage, tick);
-        }
-        float fireModifiedDamage = ActionBattleFireController.modifyDamage(attacker, target, move, stageScaledDamage);
-        float iceModifiedDamage = ActionBattleIceController.modifyDamage(attacker, target, move, fireModifiedDamage);
-        float typeModifiedDamage = ActionBattlePoisonController.modifyDamage(attacker, target, move, iceModifiedDamage);
-        ActionBattleSession sleepSession = ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID());
-        boolean sleeping = ActionBattleSleepController.isSleeping(sleepSession, pokemonTarget.getPokemon().getUuid(), tick);
-        boolean ranged = PokemonUtils.isRangeAttackMove(move);
-        boolean fairyTypedAttacker = ActionBattleFairyController.hasType(attacker.getPokemon(), "fairy");
-        float wakeModified = typeModifiedDamage * net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleSleepWakeRules
-                .damageMultiplier(sleeping, ranged, fairyTypedAttacker);
-        boolean grassMove = move.getType() != null && "grass".equalsIgnoreCase(move.getType().getName());
-        float grassModified = grassMove ? (float) ActionBattleGrassRules.applyCommittedEmpower(
-                wakeModified, committedGrassMultiplier) : wakeModified;
-        return (float) (grassModified * ActionBattleFightingRuntime.outgoingDamageMultiplier(
-                attacker, move, tick));
+        return Math.max(0.0F, (float) (baseDamage * multiplier));
     }
 
     private static void applyPostHitActionStatScaling(PokemonEntity attacker, PokemonEntity target, Move move, int beforeHp,
@@ -128,14 +108,11 @@ public final class FightOrFlightAdapter {
         int baseDamage = Math.max(0, beforeHp - afterHp);
         if (baseDamage <= 0) return;
         int scaledDamage = Math.max(1, Math.round(scaleActionDamage(
-                attacker, target, move, baseDamage, committedGrassMultiplier)
-                * (float) groundMultiplier * (float) ghostDamageMultiplier));
-        scaledDamage = Math.max(1, (int) Math.ceil(ActionBattleGhostRuntime.global()
-                .modifyIncomingDirectDamage(target, scaledDamage)));
+                attacker, target, move, baseDamage, committedGrassMultiplier)));
         target.getPokemon().setCurrentHealth(Math.max(0, beforeHp - scaledDamage));
     }
 
-    private static boolean isSpecialDamageCategory(Move move) {
+    public static boolean isSpecialDamageCategory(Move move) {
         if (move == null) return false;
         Object category = invokeGetter(move, "getDamageCategory");
         if (category == null) category = invokeGetter(move, "getCategory");
@@ -225,6 +202,9 @@ public final class FightOrFlightAdapter {
     public static boolean consumeOnePp(PokemonEntity caster, Move move) {
         if (!consumeOnePp(move)) return false;
         ActionBattleGhostRuntime.global().onPpConsumed(caster, 1);
+        UUID battleId = caster != null ? ActionBattleManager.battleIdForPokemonEntity(caster.getUUID()) : null;
+        if (battleId != null) ActionBattleGhostRuntime.global().onAffectedMoveCommitted(
+                battleId, caster.getPokemon().getUuid(), caster.level().getGameTime());
         ActionBattleFightingRuntime.onMoveCommitted(caster, move);
         return true;
     }
@@ -312,8 +292,7 @@ public final class FightOrFlightAdapter {
         ActionBattleGroundController.HitPlan groundPlan = ActionBattleGroundController.planHit(
                 attacker, target, move);
         float scaledDamage = scaleActionDamage(attacker, target, move,
-                PokemonAttackEffect.calculatePokemonDamage(attacker, target, move), committedGrassMultiplier)
-                * (float) groundPlan.damageMultiplier();
+                PokemonAttackEffect.calculatePokemonDamage(attacker, target, move), committedGrassMultiplier);
         int beforeHp = target.getPokemon().getCurrentHealth();
         int attemptedPokemonDamage = ActionBattleWaterHealth.toPokemonDamage(
                 target.getPokemon().getMaxHealth(), target.getMaxHealth(), scaledDamage);
@@ -405,6 +384,8 @@ public final class FightOrFlightAdapter {
         ((PokemonInterface) attacker).setCurrentMove(move);
         attacker.setTarget(target);
         if (PokemonUtils.isMeleeAttackMove(move)) {
+            ActionBattleBugCast bugCast = ActionBattleBugRuntime.arm(attacker,
+                    target instanceof PokemonEntity value ? value : null, move).orElse(null);
             PokemonUtils.sendAnimationPacket(attacker, "physical");
             PokemonEntity pokemonTarget = target instanceof PokemonEntity value ? value : null;
             ActionBattleGroundController.HitPlan groundPlan = pokemonTarget != null
@@ -426,8 +407,7 @@ public final class FightOrFlightAdapter {
             int attemptedPokemonDamage = pokemonTarget != null ? ActionBattleWaterHealth.toPokemonDamage(
                     pokemonTarget.getPokemon().getMaxHealth(), pokemonTarget.getMaxHealth(),
                     scaleActionDamage(attacker, pokemonTarget, move,
-                            PokemonAttackEffect.calculatePokemonDamage(attacker, pokemonTarget, move), committedGrassMultiplier)
-                            * (float) groundPlan.damageMultiplier() * (float) ghostDamageMultiplier) : 0;
+                            PokemonAttackEffect.calculatePokemonDamage(attacker, pokemonTarget, move), committedGrassMultiplier)) : 0;
             ActionBattleSession sleepSession = pokemonTarget != null ? ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID()) : null;
             long currentTick = attacker.level().getGameTime();
             ActionBattleSleepController.WakePlan wakePlan = pokemonTarget != null
@@ -445,6 +425,9 @@ public final class FightOrFlightAdapter {
                         committedGrassMultiplier, groundPlan.damageMultiplier(), ghostDamageMultiplier);
                 boolean qualifyingWaterHit = success;
                 ProtectionOutcome protection = applyProtectImpact(attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, success);
+                int actualBugTriggerDamage = success
+                        ? ActionBattleBugRuntime.resolveIncomingDamage(pokemonTarget, beforeHp) : 0;
+                ActionBattleBugRuntime.resolveHit(bugCast, pokemonTarget, actualBugTriggerDamage, move);
                 ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, success,
                         protection.protectParticipated() || protection.aquaParticipated());
                 ActionBattleDarkRuntime.onConnectedHit(attacker, pokemonTarget, move, success);

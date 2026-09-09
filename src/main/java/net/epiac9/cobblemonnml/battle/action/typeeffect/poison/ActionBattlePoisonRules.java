@@ -10,7 +10,6 @@ public final class ActionBattlePoisonRules {
     public static final int PASSIVE_INTERVAL_TICKS = 20;
     public static final int CLEAN_RESET_TICKS = 360;
     public static final int BASE_MOVE_GAIN = 9;
-    public static final double TOXIC_POISON_DAMAGE_MULTIPLIER = 1.20D;
 
     private ActionBattlePoisonRules() {}
 
@@ -52,7 +51,7 @@ public final class ActionBattlePoisonRules {
     }
 
     public static double modifyIncomingDamage(double damage, boolean poisonMove, boolean toxic) {
-        return poisonMove && toxic ? damage * TOXIC_POISON_DAMAGE_MULTIPLIER : damage;
+        return damage;
     }
 
     public static boolean isQualifyingDamagingHit(boolean hitSucceeded, int beforeHp, int afterHp) {

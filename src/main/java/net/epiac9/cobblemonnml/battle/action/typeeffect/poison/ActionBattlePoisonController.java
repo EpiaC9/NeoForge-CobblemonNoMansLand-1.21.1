@@ -5,6 +5,7 @@ import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
@@ -27,7 +28,9 @@ public final class ActionBattlePoisonController {
 
     public static boolean applyPoisonFromMove(PokemonEntity target, UUID battleId, long currentTick, double penetrationRoll) {
         UUID sessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
-        if (sessionId == null || target == null || battleId == null || currentTick < 0L) return false;
+        if (sessionId == null || target == null || battleId == null || currentTick < 0L
+                || !ActionBattleEffectApplicationGuard.allowsNewApplication(
+                ActionBattleManager.findSessionForBattlePokemonEntity(target.getUUID()), target, currentTick)) return false;
         Pokemon pokemon = target.getPokemon();
         if (!canReceivePoison(hasType(pokemon, "steel"))) return false;
         ActionBattleTypeEffectController controller = ActionBattleTypeEffectController.global();

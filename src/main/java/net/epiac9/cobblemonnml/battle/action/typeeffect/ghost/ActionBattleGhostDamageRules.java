@@ -15,15 +15,13 @@ public final class ActionBattleGhostDamageRules {
     public double modifyIncomingDirectDamage(UUID battleId, UUID targetPokemonUUID, long currentTick,
                                              double damage, boolean qualifyingDirectHit) {
         if (!(damage > 0.0D) || !qualifyingDirectHit) return damage;
-        return curses.consume(battleId, targetPokemonUUID, ActionBattleGhostCurseType.FRAILTY, currentTick)
-                ? damage * 1.20D : damage;
+        return damage;
     }
 
     public double prepareDamagingAbility(UUID battleId, UUID casterPokemonUUID, long currentTick,
                                          boolean damagingAbility) {
         if (!damagingAbility) return 1.0D;
-        return curses.consume(battleId, casterPokemonUUID, ActionBattleGhostCurseType.WEAKNESS, currentTick)
-                ? 0.80D : 1.0D;
+        return 1.0D;
     }
 
     public CooldownPlan abilityCooldownPlan(UUID battleId, UUID casterPokemonUUID,

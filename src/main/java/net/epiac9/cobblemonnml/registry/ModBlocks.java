@@ -13,6 +13,7 @@ import net.epiac9.cobblemonnml.portal.DungeonPortalCoreBlock;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.field.AquaBubbleBlock;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.field.GrassSeedBlock;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.field.GrassFlowerBlock;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugCarapaceBlock;
 
 import net.minecraft.world.item.BlockItem;
 
@@ -38,6 +39,9 @@ public final class ModBlocks {
     public static final DeferredBlock<GrassFlowerBlock> GRASS_FLOWER = BLOCKS.register("grass_flower",
             () -> new GrassFlowerBlock(BlockBehaviour.Properties.of().noCollission().noOcclusion()
                     .strength(-1.0F).noLootTable().lightLevel(state -> 4)));
+    public static final DeferredBlock<ActionBattleBugCarapaceBlock> ACTION_BATTLE_BUG_CARAPACE = BLOCKS.register(
+            "action_battle_bug_carapace", () -> new ActionBattleBugCarapaceBlock(
+                    BlockBehaviour.Properties.of().noCollission().noOcclusion().strength(-1.0F).noLootTable()));
     // DUNGEON PORTAL CORE
     public static final DeferredBlock<DungeonPortalCoreBlock>
             DUNGEON_PORTAL_CORE = BLOCKS.register( "dungeon_portal_core", DungeonPortalCoreBlock::new );

@@ -25,6 +25,11 @@ public final class ActionBattleGhostController {
         return consumed;
     }
 
+    public void clearStatCurses(UUID battleUUID, UUID targetPokemonUUID, long currentTick) {
+        consume(battleUUID, targetPokemonUUID, ActionBattleGhostCurseType.FRAILTY, currentTick);
+        consume(battleUUID, targetPokemonUUID, ActionBattleGhostCurseType.WEAKNESS, currentTick);
+    }
+
     public Optional<ActionBattleGhostCurseState.View> view(UUID battleUUID, UUID targetPokemonUUID,
                                                             ActionBattleGhostCurseType type, long currentTick) {
         ActionBattleGhostCurseState state = states.get(new Key(battleUUID, targetPokemonUUID));

@@ -8,6 +8,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleTargetingRules;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +26,8 @@ public final class ActionBattleDarkRuntime {
                 ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))) {
             return ActionBattleDarkState.HitResult.IGNORED;
         }
+        if (!ActionBattleEffectApplicationGuard.allowsNewApplication(
+                session, target, attacker.level().getGameTime())) return ActionBattleDarkState.HitResult.IGNORED;
         boolean darkMove = move.getType() != null && "dark".equalsIgnoreCase(move.getType().getName());
         boolean attackerDark = ActionBattleFairyController.hasType(attacker.getPokemon(), "dark");
         boolean targetDark = ActionBattleFairyController.hasType(target.getPokemon(), "dark");

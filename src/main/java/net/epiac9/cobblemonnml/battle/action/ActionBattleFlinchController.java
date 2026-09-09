@@ -5,6 +5,7 @@ import com.cobblemon.mod.common.pokemon.Pokemon;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleFlinchVisualType;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleFlinchVisuals;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 
 import java.util.UUID;
 
@@ -30,11 +31,13 @@ public final class ActionBattleFlinchController {
     private static boolean applyInternal(ActionBattleSession session, UUID targetPokemonUUID, long currentTick,
                                          boolean contact, ActionBattleFlinchVisualType visualType, boolean emitVisuals) {
         if (session == null || targetPokemonUUID == null || currentTick < 0L) return false;
+        PokemonEntity targetEntity = findTargetEntity(session, targetPokemonUUID);
+        if (targetEntity != null && !ActionBattleEffectApplicationGuard.allowsNewApplication(
+                session, targetEntity, currentTick)) return false;
         if (!ActionBattleCommandController.cancelPendingOrders(
                 session, targetPokemonUUID, ActionBattleCommandController.InterruptReason.CONTROL_EFFECT)) return false;
         if (!ActionBattleCommandController.addCooldownPenalty(session, targetPokemonUUID, currentTick, COOLDOWN_PENALTY_TICKS)) return false;
         ActionBattleProtectController.global().breakForControl(session.battleId(), targetPokemonUUID, currentTick, contact);
-        PokemonEntity targetEntity = findTargetEntity(session, targetPokemonUUID);
         if (emitVisuals && targetEntity != null) ActionBattleFlinchVisuals.emit(targetEntity, visualType);
         return true;
     }

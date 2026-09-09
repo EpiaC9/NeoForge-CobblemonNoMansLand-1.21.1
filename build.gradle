@@ -136,6 +136,7 @@ dependencies {
     implementation files('libs/easy_npc_config_ui-neoforge-1.21.1-7.8.0.jar')
     implementation files('libs/CobblemonTrialsEdition-neoforge-2.1.0.jar')
     implementation files('libs/yagm-1.21.1-0.1.2-NEOFORGE.jar')
+    implementation files('libs/cobblemonstonestatues-neoforge-1.1.jar')
 
     // YAGM -> OctoLib
     implementation files('libs/OctoLib-NEOFORGE-0.6.2+1.21.jar')

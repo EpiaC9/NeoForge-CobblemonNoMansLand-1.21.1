@@ -9,6 +9,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattlePokemonHealth;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldObject;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldObjectTracker;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldPlacement;
@@ -126,7 +127,13 @@ public final class ActionBattleGrassController {
         ActionBattleTypeEffectController effects = ActionBattleTypeEffectController.global();
         effects.guardSession(life.sessionId());
         boolean seeded = effects.leechSeedView(life.sessionId(), toucherId, tick).isPresent();
-        switch (ActionBattleGrassContactRules.resolve(allied, grassTyped, seeded)) {
+        ActionBattleGrassContactRules.Outcome contact = ActionBattleGrassContactRules.resolve(allied, grassTyped, seeded);
+        boolean newApplication = contact != ActionBattleGrassContactRules.Outcome.ENEMY_LEECH_REACTIVATION;
+        if (newApplication && !ActionBattleEffectApplicationGuard.allowsNewApplication(session, toucher, tick)) {
+            removeFlower(flower);
+            return;
+        }
+        switch (contact) {
             case ALLY_EMPOWER_110 -> effects.applyGrassEmpower(life.sessionId(), toucherId, ActionBattleGrassRules.ALLY_EMPOWER);
             case ALLY_EMPOWER_120 -> effects.applyGrassEmpower(life.sessionId(), toucherId, ActionBattleGrassRules.GRASS_ALLY_EMPOWER);
             case ENEMY_MOVEMENT -> effects.applyGrassMovement(life.sessionId(), toucherId, tick);

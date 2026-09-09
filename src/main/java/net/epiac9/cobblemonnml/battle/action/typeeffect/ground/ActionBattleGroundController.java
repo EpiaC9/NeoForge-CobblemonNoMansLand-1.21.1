@@ -13,6 +13,7 @@ import net.epiac9.cobblemonnml.battle.action.projectile.wave.ActionBattleWaveSer
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattlePokemonHealth;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.mixin.ActionBattleLivingEntityAccessor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
@@ -112,6 +113,7 @@ public final class ActionBattleGroundController {
         long currentTick = attacker.level().getGameTime();
         int actualDamage = Math.max(0, beforeHp - target.getPokemon().getCurrentHealth());
         return resolveAfterDamage(plan, actualDamage, () -> {
+            if (!ActionBattleEffectApplicationGuard.allowsNewApplication(session, target, currentTick)) return;
             ActionBattleTypeEffectController effects = ActionBattleTypeEffectController.global();
             effects.applyGround(session.dungeonSessionId(), target.getPokemon().getUuid(),
                     currentTick, plan.targetBranch() == ActionBattleGroundState.Branch.DIG);

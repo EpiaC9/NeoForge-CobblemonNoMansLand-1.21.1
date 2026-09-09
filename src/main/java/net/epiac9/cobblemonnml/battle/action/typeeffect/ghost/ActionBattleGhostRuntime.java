@@ -10,6 +10,7 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatApplicationService;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatSource;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattlePokemonHealth;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime;
@@ -149,6 +150,19 @@ public final class ActionBattleGhostRuntime {
         if (multiplier < 1.0D) ActionBattleGhostVisuals.emitEvent(
                 caster, ActionBattleGhostCurseType.WEAKNESS);
         return multiplier;
+    }
+
+    public void onAffectedMoveCommitted(UUID battleId, UUID pokemonId, long currentTick) {
+        if (battleId == null || pokemonId == null || currentTick < 0L) return;
+        ActionBattleEffectController effects = ActionBattleEffectController.global();
+        effects.clearStatContributionsFromSource(battleId, pokemonId, ActionBattleStatSource.GHOST_FRAILTY, currentTick);
+        effects.clearStatContributionsFromSource(battleId, pokemonId, ActionBattleStatSource.GHOST_WEAKNESS, currentTick);
+        curses.clearStatCurses(battleId, pokemonId, currentTick);
+    }
+
+    public void clearStatCursesForHaze(UUID battleId, UUID pokemonId, long currentTick) {
+        if (battleId == null || pokemonId == null || currentTick < 0L) return;
+        curses.clearStatCurses(battleId, pokemonId, currentTick);
     }
 
     public ActionBattleGhostDamageRules.CooldownPlan abilityCooldownPlan(
@@ -319,6 +333,12 @@ public final class ActionBattleGhostRuntime {
 
     public ApplicationResult connect(ActionBattleGhostCast cast, PokemonEntity target) {
         if (cast == null || target == null) return ApplicationResult.NOT_ARMED;
+        ActionBattleSession guardedSession = ActionBattleManager.findSessionForBattlePokemonEntity(target.getUUID());
+        if (!ActionBattleEffectApplicationGuard.allowsNewApplication(
+                guardedSession, target, target.level().getGameTime())) {
+            discard(cast);
+            return ApplicationResult.NOT_ARMED;
+        }
         Pokemon pokemon = target.getPokemon();
         long tick = target.level().getGameTime();
         Map<ActionBattleStat, Integer> stages = new java.util.EnumMap<>(ActionBattleStat.class);
@@ -338,9 +358,29 @@ public final class ActionBattleGhostRuntime {
             synchronizeHealth(target, 0);
             ActionBattleGhostVisuals.emitStatApplication(target);
         } else if (result.kind() == ApplicationKind.SPECIAL_CURSE) {
-            ActionBattleGhostVisuals.emitApplication(target, result.curseType());
+            if (applySpecialStatCurse(cast.battleId(), pokemon.getUuid(), result.curseType(), tick)) {
+                ActionBattleGhostVisuals.emitApplication(target, result.curseType());
+            }
         }
         return result;
+    }
+
+    public boolean applySpecialStatCurse(UUID battleId, UUID pokemonId,
+                                         ActionBattleGhostCurseType type, long currentTick) {
+        if (type != ActionBattleGhostCurseType.FRAILTY && type != ActionBattleGhostCurseType.WEAKNESS) return true;
+        Map<ActionBattleStat, Integer> stages = type == ActionBattleGhostCurseType.FRAILTY
+                ? Map.of(ActionBattleStat.DEFENSE, -2, ActionBattleStat.SPECIAL_DEFENSE, -2)
+                : Map.of(ActionBattleStat.ATTACK, -2, ActionBattleStat.SPECIAL_ATTACK, -2);
+        ActionBattleStatSource source = type == ActionBattleGhostCurseType.FRAILTY
+                ? ActionBattleStatSource.GHOST_FRAILTY : ActionBattleStatSource.GHOST_WEAKNESS;
+        ActionBattleEffectController effects = ActionBattleEffectController.global();
+        boolean accepted = false;
+        for (var entry : stages.entrySet()) {
+            accepted |= effects.applyBoundedStatContribution(battleId, pokemonId, entry.getKey(),
+                    entry.getValue(), currentTick, Long.MAX_VALUE, source) != 0;
+        }
+        if (!accepted) curses.consume(battleId, pokemonId, type, currentTick);
+        return accepted;
     }
 
     public void onPokemonUnavailable(UUID battleId, UUID pokemonUUID) {

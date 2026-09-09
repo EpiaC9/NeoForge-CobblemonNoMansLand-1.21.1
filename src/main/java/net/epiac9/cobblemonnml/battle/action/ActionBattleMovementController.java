@@ -14,6 +14,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattlePar
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugRuntime;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -133,9 +134,10 @@ final class ActionBattleMovementController {
                 session.dungeonSessionId(), pokemonUUID, currentTick);
         double exhaustedMultiplier = ActionBattleFightingRuntime.normalLocomotionMultiplier(
                 session, pokemonUUID, currentTick);
+        double bugMultiplier = ActionBattleBugRuntime.locomotionMultiplier(session, pokemonUUID, currentTick);
         return ActionBattleMovementActionRules.composeMovementSpeed(ACTION_MOVEMENT_SPEED,
                 ActionBattleStatRules.standardMultiplier(stage), grassMultiplier,
-                groundMultiplier * exhaustedMultiplier);
+                groundMultiplier * exhaustedMultiplier * bugMultiplier);
     }
 
     static ActionBattleParalysisState.FlinchContributionResult observeElectricParalysisMovement(

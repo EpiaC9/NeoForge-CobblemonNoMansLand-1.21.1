@@ -32,6 +32,10 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostR
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugTrainingStat;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugVisuals;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -221,7 +225,40 @@ public final class ActionBattleHudSync {
                         net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRules.ACTIVE_DURATION_TICKS));
             }
         });
+        ActionBattleBugController.global().state(battleId, pokemonUUID).ifPresent(bug -> {
+            addBugLock(states, bug, ActionBattleBugTrainingStat.HP,
+                    ActionBattleBugVisuals.SHEDDING_STATUS_ID, currentTick);
+            addBugLock(states, bug, ActionBattleBugTrainingStat.ATTACK,
+                    ActionBattleBugVisuals.ATTACK_STATUS_ID, currentTick);
+            addBugLock(states, bug, ActionBattleBugTrainingStat.SPECIAL_ATTACK,
+                    ActionBattleBugVisuals.SPECIAL_ATTACK_STATUS_ID, currentTick);
+            boolean physical = bug.physicalCarapaceActive(currentTick);
+            boolean effectGuard = bug.effectZoneActive(currentTick);
+            if (physical && effectGuard) {
+                states.add(new ActionBattleHudPayload.StatusState(ActionBattleBugVisuals.COMBINED_CARAPACE_STATUS_ID,
+                        Math.max(bug.physicalCarapaceRemaining(currentTick), bug.effectZoneRemaining(currentTick)),
+                        ActionBattleBugRules.CARAPACE_TICKS));
+            } else if (physical) {
+                states.add(new ActionBattleHudPayload.StatusState(ActionBattleBugVisuals.CARAPACE_STATUS_ID,
+                        bug.physicalCarapaceRemaining(currentTick), ActionBattleBugRules.CARAPACE_TICKS));
+            } else if (effectGuard) {
+                states.add(new ActionBattleHudPayload.StatusState(ActionBattleBugVisuals.EFFECT_GUARD_STATUS_ID,
+                        bug.effectZoneRemaining(currentTick), ActionBattleBugRules.LOCKOUT_TICKS));
+            }
+            if (bug.slowdownRemaining(currentTick) > 0L) {
+                states.add(new ActionBattleHudPayload.StatusState(ActionBattleBugVisuals.SPEED_STATUS_ID,
+                        bug.slowdownRemaining(currentTick), ActionBattleBugRules.LOCKOUT_TICKS));
+            }
+        });
         return List.copyOf(states);
+    }
+
+    private static void addBugLock(List<ActionBattleHudPayload.StatusState> states,
+                                   net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugState bug,
+                                   ActionBattleBugTrainingStat branch, String statusId, long currentTick) {
+        long remaining = bug.lockRemaining(branch, currentTick);
+        if (remaining > 0L) states.add(new ActionBattleHudPayload.StatusState(
+                statusId, remaining, ActionBattleBugRules.LOCKOUT_TICKS));
     }
 
         private static java.util.Optional<ActionBattleHudPayload.StatusState> electricStatusState(UUID pokemonUUID, long currentTick) {

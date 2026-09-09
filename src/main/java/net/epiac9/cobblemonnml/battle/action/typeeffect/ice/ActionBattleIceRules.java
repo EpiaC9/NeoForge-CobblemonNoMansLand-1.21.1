@@ -15,7 +15,6 @@ public final class ActionBattleIceRules {
     public static final int FREEZE_ICE_DEFENSE_STAGES = 1;
     public static final int FROSTBITE_NORMAL_DEFENSE_STAGES = -2;
     public static final int FROSTBITE_ICE_DEFENSE_STAGES = 2;
-    public static final double FROSTBITE_ICE_DAMAGE_MULTIPLIER = 1.20D;
 
     private ActionBattleIceRules() {}
 
@@ -30,8 +29,7 @@ public final class ActionBattleIceRules {
     }
 
     public static double modifyIncomingDamage(double damage, boolean iceMove, boolean frostbittenTarget) {
-        if (!(damage > 0.0D) || !iceMove || !frostbittenTarget) return damage;
-        return damage * FROSTBITE_ICE_DAMAGE_MULTIPLIER;
+        return damage;
     }
 
     public static boolean isValidAreaApplication(ActionBattlePersistentAreaState area, UUID battleId, UUID pokemonUUID,

@@ -19,9 +19,9 @@ public final class ActionBattleGrassState {
 
     public GrassMoveCommit commitMove(boolean grassMove) {
         if (!grassMove || empower == null || !empower.active()) return new GrassMoveCommit(1.0D, false);
-        double multiplier = empower.consume();
+        empower.consume();
         empower = null;
-        return new GrassMoveCommit(multiplier, true);
+        return new GrassMoveCommit(1.0D, true);
     }
 
     public void applyMovementBurst(long currentTick) {

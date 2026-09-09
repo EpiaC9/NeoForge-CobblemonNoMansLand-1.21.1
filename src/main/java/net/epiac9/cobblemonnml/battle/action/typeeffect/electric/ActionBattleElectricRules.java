@@ -9,7 +9,6 @@ public final class ActionBattleElectricRules {
     public static final int ELECTRIC_PARALYSIS_SPEED_STAGE = 1;
     public static final int NORMAL_FLINCH_THRESHOLD = 100;
     public static final int ELECTRIC_FLINCH_THRESHOLD = 200;
-    public static final double ELECTRIC_PARALYSIS_DAMAGE_MULTIPLIER = 1.20D;
 
     private ActionBattleElectricRules() {}
 

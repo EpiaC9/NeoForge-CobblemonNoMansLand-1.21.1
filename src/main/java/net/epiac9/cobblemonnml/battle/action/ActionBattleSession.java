@@ -3,6 +3,8 @@ package net.epiac9.cobblemonnml.battle.action;
 import java.util.UUID;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import net.minecraft.world.phys.Vec3;
 
 public final class ActionBattleSession {
     private final UUID battleId;
@@ -43,6 +45,7 @@ public final class ActionBattleSession {
     private boolean trainerSendOutPending = false;
     private long hazeExpiresAtTick = 0L;
     private final Map<UUID, AdditionalPlayerState> additionalPlayers = new HashMap<>();
+    private final Map<UUID, Vec3> lastAcceptedMoveHereDirectives = new HashMap<>();
     private long lastBackgroundTick = Long.MIN_VALUE;
     private long lastPhysicalTick = Long.MIN_VALUE;
 
@@ -106,6 +109,8 @@ public final class ActionBattleSession {
         player.moveCommandPending = false;
         player.moveSlot = -1;
         player.moveTargetEntityUUID = null;
+        if (player.activePokemonUUID != null) lastAcceptedMoveHereDirectives.put(
+                player.activePokemonUUID, new Vec3(x, y, z));
         return ++player.commandRevision;
     }
 
@@ -191,6 +196,14 @@ public final class ActionBattleSession {
     public double playerMoveTargetZ(UUID ownerUUID) {
         AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
         return player != null ? player.moveTargetZ : playerMoveTargetZ;
+    }
+
+    public Optional<Vec3> lastAcceptedMoveHereDirective(UUID pokemonId) {
+        return Optional.ofNullable(pokemonId != null ? lastAcceptedMoveHereDirectives.get(pokemonId) : null);
+    }
+
+    public void clearLastAcceptedMoveHereDirective(UUID pokemonId) {
+        if (pokemonId != null) lastAcceptedMoveHereDirectives.remove(pokemonId);
     }
 
     public int playerActivePartyIndex(UUID ownerUUID) {
@@ -306,6 +319,8 @@ public final class ActionBattleSession {
         playerMoveTargetY = y;
         playerMoveTargetZ = z;
         playerMoveTargetPending = true;
+        if (playerActivePokemonUUID != null) lastAcceptedMoveHereDirectives.put(
+                playerActivePokemonUUID, new Vec3(x, y, z));
         clearPlayerMoveCommandInternal();
         return ++playerCommandRevision;
     }
