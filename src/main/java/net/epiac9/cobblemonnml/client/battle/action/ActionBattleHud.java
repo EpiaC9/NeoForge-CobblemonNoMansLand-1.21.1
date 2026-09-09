@@ -6,7 +6,9 @@ import com.cobblemon.mod.common.client.render.models.blockbench.FloatingState;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleHudPayload;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleBoostedMoveRules;
 import net.epiac9.cobblemonnml.dimension.DungeonDimension;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -335,11 +337,46 @@ public final class ActionBattleHud {
             renderCooldownFill(graphics, rect, elapsedFraction);
         }
         if (ActionBattleObscurityHudRules.showsAuxiliaryIcon(obscurityStage)) {
+            if (ActionBattleBoostedMoveRules.shouldRender(move.mechanicallyBoosted(), obscurityStage)) {
+                renderBoostedMoveAura(graphics, x - 9, y + 2, move.type(), obscurityStage,
+                        Util.getMillis());
+            }
             renderTypeIcon(graphics, x - 9, y + 2, move.type(), disabled ? 0.55F : 1.0F,
                     obscurityStage);
         }
         ActionBattleObscurityHudRenderer.renderMaskedSurface(graphics, rect, obscurityStage, 8 + slot,
                 ActionBattleObscuritySurfaceMask.Shape.MOVE);
+    }
+
+    private static void renderBoostedMoveAura(GuiGraphics graphics, int x, int y, String type,
+                                               int obscurityStage, long animationMillis) {
+        ActionBattleBoostedAuraVisualRules.AnimationFrame frame =
+                ActionBattleBoostedAuraVisualRules.animationFrame(animationMillis);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        renderBoostedAuraLayer(graphics, x, y, type, obscurityStage,
+                ActionBattleBoostedAuraVisualRules.outerSpans(), frame.outerAlpha(), frame.outerScale());
+        renderBoostedAuraLayer(graphics, x, y, type, obscurityStage,
+                ActionBattleBoostedAuraVisualRules.innerSpans(), frame.innerAlpha(), 1.0F);
+        RenderSystem.disableBlend();
+    }
+
+    private static void renderBoostedAuraLayer(GuiGraphics graphics, int x, int y, String type,
+                                                int obscurityStage,
+                                                java.util.List<ActionBattleBoostedAuraVisualRules.Span> spans,
+                                                int layerAlpha, float scale) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(x + ActionBattleBoostedAuraVisualRules.ICON_CENTER,
+                y + ActionBattleBoostedAuraVisualRules.ICON_CENTER, 0.0F);
+        graphics.pose().scale(scale, scale, 1.0F);
+        graphics.pose().translate(-x - ActionBattleBoostedAuraVisualRules.ICON_CENTER,
+                -y - ActionBattleBoostedAuraVisualRules.ICON_CENTER, 0.0F);
+        for (ActionBattleBoostedAuraVisualRules.Span span : spans) {
+            int alpha = ActionBattleBoostedAuraVisualRules.scaledAlpha(span.alpha(), layerAlpha);
+            graphics.fill(x + span.startX(), y + span.y(), x + span.endX(), y + span.y() + 1,
+                    ActionBattleBoostedAuraVisualRules.color(type, alpha, obscurityStage));
+        }
+        graphics.pose().popPose();
     }
 
     private static void renderMomentumReticle(GuiGraphics graphics, int x, int y) {
@@ -388,13 +425,7 @@ public final class ActionBattleHud {
     }
 
     private static float[] typeTint(String type) {
-        int rgb = switch (normalize(type)) {
-            case "fire" -> 0xE66A39; case "water" -> 0x4F86E8; case "grass" -> 0x55A94F; case "electric" -> 0xE4C13A;
-            case "ice" -> 0x58BFC8; case "fighting" -> 0xB4473D; case "poison" -> 0xA257A9; case "ground" -> 0xC99C55;
-            case "flying" -> 0x8098DF; case "psychic" -> 0xE45C93; case "bug" -> 0x9CAD3A; case "rock" -> 0xB09A58;
-            case "ghost" -> 0x6E5A9D; case "dragon" -> 0x6652C9; case "dark" -> 0x62554F; case "steel" -> 0x8795A5;
-            case "fairy" -> 0xD889C3; default -> 0x8D8D8D;
-        };
+        int rgb = ActionBattleBoostedAuraVisualRules.rgb(type);
         return new float[]{((rgb >> 16) & 255) / 255.0F, ((rgb >> 8) & 255) / 255.0F, (rgb & 255) / 255.0F};
     }
 

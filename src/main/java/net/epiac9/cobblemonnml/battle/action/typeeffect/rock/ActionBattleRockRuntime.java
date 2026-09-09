@@ -8,8 +8,8 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleStatResolver;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import java.util.UUID;
 
 public final class ActionBattleRockRuntime {
@@ -27,7 +27,7 @@ public final class ActionBattleRockRuntime {
                 pokemon.getSpecialAttack(), stage(battleId, pokemon, ActionBattleStat.SPECIAL_ATTACK, tick),
                 caster.getRandom().nextBoolean(), caster.getRandom().nextBoolean());
         return ActionBattleRockController.global().applyStockpile(battleId, pokemon.getUuid(), selection,
-                ActionBattleFairyController.hasType(pokemon, "rock"), tick) == ActionBattleRockState.ApplyResult.APPLIED;
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(caster, "rock"), tick) == ActionBattleRockState.ApplyResult.APPLIED;
     }
     public static HitResult resolveDirectHit(PokemonEntity attacker, PokemonEntity target, int beforeHp,
                                              int incomingDamage, boolean hitSucceeded, boolean protectParticipated) {

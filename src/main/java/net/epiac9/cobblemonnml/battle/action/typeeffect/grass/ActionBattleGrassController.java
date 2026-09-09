@@ -9,6 +9,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattlePokemonHealth;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldObject;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldObjectTracker;
@@ -122,7 +123,7 @@ public final class ActionBattleGrassController {
         ActionBattleFieldObject.OwnerSide toucherSide = side(session, toucherId);
         if (toucherSide == null) return;
         boolean allied = toucherSide == life.ownerSide();
-        boolean grassTyped = hasType(toucher.getPokemon(), "grass");
+        boolean grassTyped = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(toucher, "grass");
         long tick = flower.getLevel().getGameTime();
         ActionBattleTypeEffectController effects = ActionBattleTypeEffectController.global();
         effects.guardSession(life.sessionId());
@@ -157,7 +158,8 @@ public final class ActionBattleGrassController {
         if (session == null || ActionBattleTypeEffectController.global().leechSeedView(session.dungeonSessionId(),
                 seededTarget.getPokemon().getUuid(), seededTarget.level().getGameTime()).isEmpty()) return 0;
         return ActionBattlePokemonHealth.heal(healthAccess(dealer.getPokemon()),
-                ActionBattleGrassRules.leechHealAmount(actualDamage, hasType(dealer.getPokemon(), "grass")));
+                ActionBattleGrassRules.leechHealAmount(actualDamage,
+                        ActionBattleTypeMechanicIdentity.hasMechanicBenefit(dealer, "grass")));
     }
 
     public static int healPokemon(Pokemon pokemon, int requested) {

@@ -8,6 +8,8 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -29,13 +31,14 @@ public final class ActionBattlePsycUpController {
         ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(target.getUUID());
         boolean sameBattle = session != null && session.battleId().equals(
                 ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()));
-        String moveType = move.getType() != null ? move.getType().getName() : null;
+        String moveType = ActionBattleEffectiveMoveTypeResolver.resolve(attacker, move);
         if (!ActionBattlePsycUpMoveRules.qualifies(moveType, FightOrFlightAdapter.moveTargetCategory(move),
                 FightOrFlightAdapter.movePower(move), success && sameBattle)) return ApplyResult.INVALID;
         if (!ActionBattleEffectApplicationGuard.allowsNewApplication(
                 session, target, attacker.level().getGameTime())) return ApplyResult.IMMUNE;
         return GLOBAL.applyMark(session.battleId(), attacker.getPokemon().getUuid(), target.getPokemon().getUuid(),
-                hasPsychicType(attacker), ActionBattleFairyController.hasType(target.getPokemon(), "dark"),
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "psychic"),
+                ActionBattleTypeMechanicIdentity.hasActualType(target.getPokemon(), "dark"),
                 attacker.level().getGameTime());
     }
 

@@ -8,6 +8,7 @@ import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSleepController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
@@ -60,7 +61,7 @@ public final class ActionBattleFairyController {
             return false;
         }
         ActionBattleDrowsyTracker.CompletionRoute route = completionRoute(
-                hasType(pokemon, "dragon"), hasType(pokemon, "fairy"));
+                hasType(pokemon, "dragon"), ActionBattleTypeMechanicIdentity.hasMechanicBenefit(target, "fairy"));
         boolean applied = controller.applyDrowsy(sessionId, pokemon.getUuid(), currentTick, route);
         DebugLog.log("[CobblemonNML] Fairy Drowsy " + (applied ? "created" : "rejected") + ". Pokemon="
                 + pokemon.getUuid() + ", durationTicks=" + controller.nextDrowsyDurationTicks(sessionId, pokemon.getUuid())

@@ -13,6 +13,7 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatusApplicatio
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.epiac9.cobblemonnml.mixin.ActionBattleStatChangeMoveDataAccessor;
@@ -111,7 +112,7 @@ public final class ActionBattleMoveEffectResolver {
                 session, target, attacker.level().getGameTime())) return;
         ActionBattleElectricController.applyExternalParalysis(ActionBattleTypeEffectController.global(),
                 session.dungeonSessionId(), target.getPokemon().getUuid(), attacker.level().getGameTime(),
-                hasType(target, "electric"), ActionBattleEffectController.global().hasHaze(
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(target, "electric"), ActionBattleEffectController.global().hasHaze(
                         session.battleId(), target.getPokemon().getUuid(), attacker.level().getGameTime()));
     }
 

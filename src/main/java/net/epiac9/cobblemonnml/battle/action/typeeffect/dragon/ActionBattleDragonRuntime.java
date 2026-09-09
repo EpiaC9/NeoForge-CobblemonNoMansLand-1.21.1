@@ -10,7 +10,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleSleepController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatSource;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -37,7 +37,7 @@ public final class ActionBattleDragonRuntime {
         long currentTick = pokemon.getEntity() != null ? pokemon.getEntity().level().getGameTime() : -1L;
         if (currentTick < 0L) return;
         boolean dragonMove = move.getType() != null && "dragon".equalsIgnoreCase(move.getType().getName());
-        boolean dragonHolder = ActionBattleFairyController.hasType(pokemon, "dragon");
+        boolean dragonHolder = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(pokemon, "dragon");
         ActionBattleDragonController.global().onAbilityCommitted(
                 session.dungeonSessionId(), pokemonId, dragonMove, dragonHolder, currentTick);
     }
@@ -114,7 +114,7 @@ public final class ActionBattleDragonRuntime {
         if (session == null || caster == null || !active(session, caster.getPokemon().getUuid(), currentTick)) {
             return CooldownPlan.NORMAL;
         }
-        boolean dragonHolder = ActionBattleFairyController.hasType(caster.getPokemon(), "dragon");
+        boolean dragonHolder = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(caster, "dragon");
         return new CooldownPlan(true, 0L,
                 ActionBattleDragonRules.personalCooldownTicks(dragonHolder), moveSlot);
     }

@@ -8,6 +8,8 @@ import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectResolv
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatApplicationService;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatSource;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.registries.BuiltInRegistries;
 
@@ -40,7 +42,7 @@ public final class ActionBattleSteelRuntime {
     public static ActionBattleSteelState.ApplyResult onSuccessfulSelfBuffCommit(PokemonEntity caster, Move move) {
         ActionBattleSession session = caster != null ? ActionBattleManager.findSessionForBattlePokemonEntity(caster.getUUID()) : null;
         if (session == null || move == null || caster.level().isClientSide) return ActionBattleSteelState.ApplyResult.INVALID;
-        String type = move.getType() != null ? move.getType().getName() : "";
+        String type = ActionBattleEffectiveMoveTypeResolver.resolve(caster, move);
         String held = caster.getPokemon().heldItem().isEmpty() ? ""
                 : BuiltInRegistries.ITEM.getKey(caster.getPokemon().heldItem().getItem()).toString();
         ActivationPlan plan = plan(new ActivationInput(type, FightOrFlightAdapter.moveTargetCategory(move),
@@ -50,7 +52,7 @@ public final class ActionBattleSteelRuntime {
         long tick = caster.level().getGameTime();
         Key key = new Key(session.battleId(), caster.getPokemon().getUuid());
         ActionBattleSteelState state = STATES.computeIfAbsent(key, ignored -> new ActionBattleSteelState());
-        boolean steelTyped = hasType(caster, "steel");
+        boolean steelTyped = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(caster, "steel");
         ActionBattleSteelState.ApplyResult result = state.apply(plan.selection(), steelTyped, tick);
         if (result == ActionBattleSteelState.ApplyResult.APPLIED) {
             ActionBattleStatApplicationService.global().applyBatch(session.battleId(), caster.getPokemon().getUuid(),
@@ -81,14 +83,14 @@ public final class ActionBattleSteelRuntime {
     }
 
     public static double projectileSpeed(PokemonEntity attacker, Move move, double baseSpeed, long tick) {
-        boolean steelMove = move != null && move.getType() != null && "steel".equalsIgnoreCase(move.getType().getName());
+        boolean steelMove = "steel".equalsIgnoreCase(ActionBattleEffectiveMoveTypeResolver.resolve(attacker, move));
         return ActionBattleSteelRules.projectileSpeed(baseSpeed,
                 isActive(attacker, ActionBattleSteelRules.Branch.MAGNET_RISE, tick), steelMove,
                 FightOrFlightAdapter.isRangedMove(move));
     }
 
     public static boolean qualifiesWeightedMelee(PokemonEntity attacker, Move move, long tick) {
-        return move != null && move.getType() != null && "steel".equalsIgnoreCase(move.getType().getName())
+        return move != null && "steel".equalsIgnoreCase(ActionBattleEffectiveMoveTypeResolver.resolve(attacker, move))
                 && FightOrFlightAdapter.isMeleeMove(move)
                 && isActive(attacker, ActionBattleSteelRules.Branch.WEIGHTED, tick);
     }
@@ -106,12 +108,6 @@ public final class ActionBattleSteelRuntime {
     public static void clearPokemon(UUID battleId, UUID pokemonId) { if (battleId != null && pokemonId != null) STATES.remove(new Key(battleId, pokemonId)); }
     public static void clearBattle(UUID battleId) { if (battleId != null) STATES.keySet().removeIf(key -> key.battleId().equals(battleId)); }
     public static void clearAll() { STATES.clear(); }
-
-    private static boolean hasType(PokemonEntity entity, String type) {
-        var pokemon = entity.getPokemon();
-        return pokemon.getPrimaryType() != null && type.equalsIgnoreCase(pokemon.getPrimaryType().getName())
-                || pokemon.getSecondaryType() != null && type.equalsIgnoreCase(pokemon.getSecondaryType().getName());
-    }
 
     public record ActivationInput(String moveType, String targetCategory, boolean selfBuffing,
                                   boolean successfullyResolved, double staticWeight, String heldItemId) {}

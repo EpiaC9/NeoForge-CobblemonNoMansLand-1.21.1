@@ -7,6 +7,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleTargetTracker;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleTargetingRules;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleVisualTrackingRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -36,7 +37,7 @@ public final class ActionBattleFlyingRuntime {
         }
         ActionBattleFlyingController controller = ActionBattleFlyingController.global();
         if (controller.tick(session.battleId(), pokemon.getPokemon().getUuid(),
-                ActionBattleFlyingRules.isFlyingPokemon(pokemon.getPokemon()), visible, currentTick)) {
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(pokemon, "flying"), visible, currentTick)) {
             DebugLog.log("[CobblemonNML] Flying Momentum changed. Battle=" + session.battleId()
                     + ", pokemon=" + pokemon.getPokemon().getUuid()
                     + ", level=" + controller.momentum(session.battleId(), pokemon.getPokemon().getUuid())

@@ -15,7 +15,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassC
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterHealth;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCast;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
@@ -199,7 +199,7 @@ public final class ActionBattleConfusionController {
         }
         ActionBattleSleepController.WakePlan wakePlan = pokemonTarget != null
                 ? ActionBattleSleepController.planDamagingWake(sleepSession, pokemonTarget, currentTick, false,
-                ActionBattleFairyController.hasType(attacker.getPokemon(), "fairy"))
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "fairy"))
                 : ActionBattleSleepController.WakePlan.NONE;
         float targetDamage = Math.max(1.0F, ActionBattleCriticalRules.apply(
                 FightOrFlightAdapter.scaleActionDamage(attacker, target, move,
@@ -242,7 +242,8 @@ public final class ActionBattleConfusionController {
         long currentTick = attacker.level().getGameTime();
         ActionBattleSession sleepSession = ActionBattleManager.findSessionForBattlePokemonEntity(attacker.getUUID());
         ActionBattleSleepController.WakePlan wakePlan = ActionBattleSleepController.planDamagingWake(
-                sleepSession, attacker, currentTick, false, ActionBattleFairyController.hasType(attacker.getPokemon(), "fairy"));
+                sleepSession, attacker, currentTick, false,
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "fairy"));
         float selfDamage = Math.max(1.0F, ActionBattleCriticalRules.apply(
                 FightOrFlightAdapter.scaleActionDamage(attacker, attacker, move,
                         PokemonAttackEffect.calculatePokemonDamage(attacker, attacker, move), committedGrassMultiplier),

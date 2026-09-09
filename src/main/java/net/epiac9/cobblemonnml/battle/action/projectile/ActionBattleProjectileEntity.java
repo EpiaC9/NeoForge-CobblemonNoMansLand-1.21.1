@@ -21,6 +21,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleEle
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonRules;
@@ -353,7 +354,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         long currentTick = attacker.level().getGameTime();
         ActionBattleSleepController.WakePlan wakePlan = nativeDamageMove && pokemonTarget != null
                 ? ActionBattleSleepController.planDamagingWake(sleepSession, pokemonTarget, currentTick, true,
-                ActionBattleFairyController.hasType(attacker.getPokemon(), "fairy"))
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "fairy"))
                 : ActionBattleSleepController.WakePlan.NONE;
         if (nativeDamageMove) {
             FightOrFlightAdapter.applyOnUseEffectsWithoutActionStatuses(attacker, target, move);

@@ -14,6 +14,8 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicatio
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattlePokemonHealth;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.battle.action.health.ActionBattleHealthResolver;
 import net.epiac9.cobblemonnml.battle.action.health.ActionBattleDotExecutor;
 import net.epiac9.cobblemonnml.battle.action.health.ActionBattleDamageSource;
@@ -322,13 +324,14 @@ public final class ActionBattleGhostRuntime {
     }
 
     public Optional<ActionBattleGhostCast> completeMove(PokemonEntity caster, Move move) {
-        if (caster == null || move == null || move.getType() == null
-                || !"ghost".equalsIgnoreCase(move.getType().getName())) return Optional.empty();
+        if (caster == null || move == null
+                || !"ghost".equalsIgnoreCase(ActionBattleEffectiveMoveTypeResolver.resolve(caster, move))) return Optional.empty();
         UUID battleId = ActionBattleManager.battleIdForPokemonEntity(caster.getUUID());
         if (battleId == null) return Optional.empty();
         Pokemon pokemon = caster.getPokemon();
         return onMoveCompleted(battleId, pokemon.getUuid(), pokemon.getMaxHealth(), pokemon.getCurrentHealth(),
-                hasType(pokemon, "ghost"), health -> synchronizeHealth(caster, health));
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(caster, "ghost"),
+                health -> synchronizeHealth(caster, health));
     }
 
     public ApplicationResult connect(ActionBattleGhostCast cast, PokemonEntity target) {
@@ -338,6 +341,12 @@ public final class ActionBattleGhostRuntime {
                 guardedSession, target, target.level().getGameTime())) {
             discard(cast);
             return ApplicationResult.NOT_ARMED;
+        }
+        if (ActionBattleTypeMechanicIdentity.hasSameMechanicImmunity(target, "ghost")) {
+            discard(cast);
+            net.epiac9.cobblemonnml.util.DebugLog.log("[CobblemonNML] Ghost Curse immunity accepted. Pokemon="
+                    + target.getPokemon().getUuid() + ", source=actual_or_normal_adaptation");
+            return new ApplicationResult(ApplicationKind.IMMUNE, null, null, 0);
         }
         Pokemon pokemon = target.getPokemon();
         long tick = target.level().getGameTime();
@@ -397,13 +406,6 @@ public final class ActionBattleGhostRuntime {
     public void clearAll() {
         curses.clearAll();
         armedCasts.clear();
-    }
-
-    private static boolean hasType(Pokemon pokemon, String expected) {
-        return pokemon != null && (pokemon.getPrimaryType() != null
-                && expected.equalsIgnoreCase(pokemon.getPrimaryType().getName())
-                || pokemon != null && pokemon.getSecondaryType() != null
-                && expected.equalsIgnoreCase(pokemon.getSecondaryType().getName()));
     }
 
     private static boolean isDamaging(Move move) {

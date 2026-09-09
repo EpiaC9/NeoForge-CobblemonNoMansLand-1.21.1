@@ -9,6 +9,8 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.minecraft.world.entity.LivingEntity;
 
@@ -21,7 +23,7 @@ public final class ActionBattleIceController {
 
     public static void onSuccessfulMoveHit(PokemonEntity attacker, PokemonEntity target, Move move) {
         if (attacker == null || target == null || move == null || !FightOrFlightAdapter.isNativeDamageMove(move)
-                || !isIceMove(move)) return;
+                || !isIceMove(attacker, move)) return;
         UUID battleId = ActionBattleManager.battleIdForPokemonEntity(target.getUUID());
         if (battleId == null || !battleId.equals(ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))) return;
         applyIceApplication(target, target.level().getGameTime());
@@ -40,13 +42,14 @@ public final class ActionBattleIceController {
                 && ActionBattleEffectController.global().hasHaze(battleId, pokemon.getUuid(), currentTick);
         ActionBattleTypeEffectController controller = ActionBattleTypeEffectController.global();
         controller.guardSession(sessionId);
-        return controller.applyIceApplication(sessionId, pokemon.getUuid(), currentTick, hasType(pokemon, "ice"), hazeActive);
+        return controller.applyIceApplication(sessionId, pokemon.getUuid(), currentTick,
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(target, "ice"), hazeActive);
     }
 
     public static float modifyDamage(PokemonEntity attacker, LivingEntity target, Move move, float damage) {
         UUID sessionId = activeSessionId();
         if (sessionId == null || attacker == null || !(target instanceof PokemonEntity pokemonTarget) || move == null
-                || !(damage > 0.0F) || !isIceMove(move)) return damage;
+                || !(damage > 0.0F) || !isIceMove(attacker, move)) return damage;
         ActionBattleTypeEffectController controller = ActionBattleTypeEffectController.global();
         controller.guardSession(sessionId);
         return (float) controller.modifyDamage(sessionId, pokemonTarget.getPokemon().getUuid(), false, true, damage,
@@ -67,8 +70,8 @@ public final class ActionBattleIceController {
         return DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
     }
 
-    private static boolean isIceMove(Move move) {
-        return move.getType() != null && "ice".equals(normalize(move.getType().getName()));
+    private static boolean isIceMove(PokemonEntity attacker, Move move) {
+        return "ice".equals(normalize(ActionBattleEffectiveMoveTypeResolver.resolve(attacker, move)));
     }
 
     private static boolean hasType(Pokemon pokemon, String expected) {

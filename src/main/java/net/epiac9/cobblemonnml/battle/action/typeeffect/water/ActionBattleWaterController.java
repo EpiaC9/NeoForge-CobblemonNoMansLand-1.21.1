@@ -8,6 +8,8 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldObject;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldObjectTracker;
@@ -43,8 +45,15 @@ public final class ActionBattleWaterController {
                 FightOrFlightAdapter.moveTargetCategory(move));
     }
 
+    public static boolean isQualifyingInteraction(PokemonEntity attacker, Move move) {
+        return move != null && ActionBattleWaterContactRules.isQualifyingInteraction(
+                ActionBattleEffectiveMoveTypeResolver.resolve(attacker, move),
+                FightOrFlightAdapter.isNativeDamageMove(move), FightOrFlightAdapter.movePower(move),
+                FightOrFlightAdapter.moveTargetCategory(move));
+    }
+
     public static boolean onSuccessfulInteraction(PokemonEntity attacker, PokemonEntity target, Move move) {
-        if (attacker == null || move == null || !isQualifyingInteraction(move)
+        if (attacker == null || move == null || !isQualifyingInteraction(attacker, move)
                 || !DungeonSession.isActive() || !(attacker.level() instanceof ServerLevel level)) return false;
         PokemonEntity affected = target != null ? target : attacker;
         ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(attacker.getUUID());
@@ -139,7 +148,7 @@ public final class ActionBattleWaterController {
         if (toucherSide == null || !lifecycle.consumeFirst()) return;
         bubble.setChanged();
         boolean allied = toucherSide == lifecycle.ownerSide();
-        boolean waterTyped = hasType(toucher.getPokemon(), "water");
+        boolean waterTyped = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(toucher, "water");
         long tick = bubble.getLevel().getGameTime();
         ActionBattleTypeEffectController effects = ActionBattleTypeEffectController.global();
         effects.guardSession(lifecycle.sessionId());

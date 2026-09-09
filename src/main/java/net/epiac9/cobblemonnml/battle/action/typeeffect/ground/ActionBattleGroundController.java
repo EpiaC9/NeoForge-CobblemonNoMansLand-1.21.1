@@ -13,6 +13,8 @@ import net.epiac9.cobblemonnml.battle.action.projectile.wave.ActionBattleWaveSer
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattlePokemonHealth;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.mixin.ActionBattleLivingEntityAccessor;
 import net.minecraft.server.level.ServerLevel;
@@ -28,6 +30,11 @@ public final class ActionBattleGroundController {
 
     public static boolean isQualifyingMove(Move move) {
         return move != null && move.getType() != null && qualifies(move.getType().getName(),
+                ActionProjectileProfile.deliveryType(move.getName()));
+    }
+
+    public static boolean isQualifyingMove(PokemonEntity attacker, Move move) {
+        return move != null && qualifies(ActionBattleEffectiveMoveTypeResolver.resolve(attacker, move),
                 ActionProjectileProfile.deliveryType(move.getName()));
     }
 
@@ -77,17 +84,18 @@ public final class ActionBattleGroundController {
     }
 
     public static HitPlan planHit(PokemonEntity attacker, PokemonEntity target, Move move) {
-        if (attacker == null || target == null || !isQualifyingMove(move)) return HitPlan.NOT_QUALIFYING;
+        if (attacker == null || target == null || !isQualifyingMove(attacker, move)) return HitPlan.NOT_QUALIFYING;
         if (hasFlyingType(target)) return HitPlan.NOT_QUALIFYING;
         long currentTick = attacker.level().getGameTime();
         ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(target.getUUID());
         ActionBattleGroundState.View view = session == null ? null
                 : ActionBattleTypeEffectController.global().groundView(
                 session.dungeonSessionId(), target.getPokemon().getUuid(), currentTick).orElse(null);
-        boolean targetGroundTyped = hasGroundType(target);
+        boolean targetGroundTyped = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(target, "ground");
         ActionBattleGroundState.Branch branch = view != null ? view.branch()
                 : targetGroundTyped ? ActionBattleGroundState.Branch.DIG : ActionBattleGroundState.Branch.SINK;
-        return planHit(true, false, view != null && view.depthPercent() == 90, hasGroundType(attacker), branch);
+        return planHit(true, false, view != null && view.depthPercent() == 90,
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "ground"), branch);
     }
 
     public static Resolution resolveAfterDamage(HitPlan plan, int actualDamage, Runnable advance,

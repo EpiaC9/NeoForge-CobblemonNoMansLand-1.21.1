@@ -4,6 +4,7 @@ import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.Cobblemon;
 import com.cobblemon.mod.common.api.storage.party.PlayerPartyStore;
 import com.cobblemon.mod.common.pokemon.Pokemon;
+import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
 import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlEffect;
@@ -30,6 +31,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockCon
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockVisualRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleBoostedMoveRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugController;
@@ -366,12 +369,15 @@ public final class ActionBattleHudSync {
                 session, pokemon, move, currentTick);
         boolean dragonAllowed = !net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime
                 .blocksTrainerCommands(session, pokemon.getUuid(), currentTick);
+        PokemonEntity entity = pokemon.getEntity();
+        String effectiveType = ActionBattleEffectiveMoveTypeResolver.resolve(entity, move);
+        boolean boosted = ActionBattleBoostedMoveRules.isMechanicallyBoosted(entity, move);
         return new ActionBattleHudPayload.MoveState(
-                move.getName(), move.getType().getName(), FightOrFlightAdapter.currentPp(move), FightOrFlightAdapter.maxPp(move), FightOrFlightAdapter.supports(move) && controlAllowed && fightingAllowed && dragonAllowed,
+                move.getName(), effectiveType, FightOrFlightAdapter.currentPp(move), FightOrFlightAdapter.maxPp(move), FightOrFlightAdapter.supports(move) && controlAllowed && fightingAllowed && dragonAllowed,
                 session.pokemonAbilitySlotCooldownRemainingTicks(pokemon.getUuid(), slot, currentTick),
                 session.pokemonAbilitySlotCooldownDurationTicks(pokemon.getUuid(), slot, currentTick),
                 net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRuntime
-                        .momentum(session, pokemon.getUuid())
+                        .momentum(session, pokemon.getUuid()), boosted
         );
     }
 

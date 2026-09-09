@@ -16,6 +16,8 @@ import net.epiac9.cobblemonnml.battle.action.health.ActionBattleDamageSource;
 import net.epiac9.cobblemonnml.battle.action.health.ActionBattleHealthResolver;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionBattleProjectileEntity;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.registry.ModBlocks;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import me.rufia.fightorflight.entity.PokemonAttackEffect;
@@ -39,7 +41,7 @@ public final class ActionBattleBugRuntime {
     private ActionBattleBugRuntime() {}
 
     public static Optional<ActionBattleBugCast> arm(PokemonEntity user, PokemonEntity target, Move move) {
-        if (user == null || move == null || user.level().isClientSide || !isBugMove(move)
+        if (user == null || move == null || user.level().isClientSide || !isBugMove(user, move)
                 || FightOrFlightAdapter.movePower(move) <= 0
                 || FightOrFlightAdapter.isSelfOrAllyTargetCategory(FightOrFlightAdapter.moveTargetCategory(move))) {
             return Optional.empty();
@@ -53,7 +55,7 @@ public final class ActionBattleBugRuntime {
         EnumSet<ActionBattleBugTrainingStat> highest = ActionBattleBugRules.highest(
                 training.hp(), training.attack(), training.defense(), training.specialAttack(),
                 training.specialDefense(), training.speed());
-        boolean bugTyped = hasType(pokemon, "bug");
+        boolean bugTyped = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(user, "bug");
         long tick = user.level().getGameTime();
         var trigger = ActionBattleBugController.global().trigger(session.battleId(), pokemon.getUuid(),
                 highest, bugTyped, pokemon.getMaxHealth(), tick);
@@ -324,10 +326,8 @@ public final class ActionBattleBugRuntime {
                 before, target.getPokemon().getCurrentHealth(), feedbackCategory);
     }
 
-    private static boolean isBugMove(Move move) { return move.getType() != null && "bug".equalsIgnoreCase(move.getType().getName()); }
-    private static boolean hasType(Pokemon pokemon, String type) {
-        return pokemon.getPrimaryType() != null && type.equalsIgnoreCase(pokemon.getPrimaryType().getName())
-                || pokemon.getSecondaryType() != null && type.equalsIgnoreCase(pokemon.getSecondaryType().getName());
+    private static boolean isBugMove(PokemonEntity user, Move move) {
+        return "bug".equalsIgnoreCase(ActionBattleEffectiveMoveTypeResolver.resolve(user, move));
     }
     private static boolean isEnemy(ActionBattleSession session, UUID user, UUID target) {
         return user != null && target != null && session.isPlayerPokemon(user) != session.isPlayerPokemon(target)

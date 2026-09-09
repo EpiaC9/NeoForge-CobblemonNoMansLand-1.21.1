@@ -49,6 +49,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRun
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCast;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattlePropulsionController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattlePropulsionRules;
@@ -213,6 +214,7 @@ public final class FightOrFlightAdapter {
     }
 
     public static boolean consumeOnePp(PokemonEntity caster, Move move) {
+        ActionBattleTypeMechanicIdentity.logCommitSnapshot(caster);
         if (!consumeOnePp(move)) return false;
         ActionBattleGhostRuntime.global().onPpConsumed(caster, 1);
         UUID battleId = caster != null ? ActionBattleManager.battleIdForPokemonEntity(caster.getUUID()) : null;
@@ -366,7 +368,7 @@ public final class FightOrFlightAdapter {
         long currentTick = attacker.level().getGameTime();
         ActionBattleSleepController.WakePlan wakePlan = ActionBattleSleepController.planDamagingWake(
                 sleepSession, target, currentTick, true,
-                ActionBattleFairyController.hasType(attacker.getPokemon(), "fairy"));
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "fairy"));
         applyOnUseEffectsWithoutActionStatuses(attacker, target, move);
         boolean success = target.hurt(attacker.damageSources().indirectMagic(attacker, attacker), scaledDamage);
         if (success) attacker.setLastHurtMob(target);
@@ -525,7 +527,7 @@ public final class FightOrFlightAdapter {
             long currentTick = attacker.level().getGameTime();
             ActionBattleSleepController.WakePlan wakePlan = pokemonTarget != null
                     ? ActionBattleSleepController.planDamagingWake(sleepSession, pokemonTarget, currentTick, false,
-                    ActionBattleFairyController.hasType(attacker.getPokemon(), "fairy"))
+                    ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "fairy"))
                     : ActionBattleSleepController.WakePlan.NONE;
             LivingEntity finalTarget = target;
             ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, finalTarget, move,

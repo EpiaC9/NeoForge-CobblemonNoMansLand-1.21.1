@@ -11,6 +11,8 @@ import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -30,9 +32,9 @@ public final class ActionBattleDarkRuntime {
         }
         if (!ActionBattleEffectApplicationGuard.allowsNewApplication(
                 session, target, attacker.level().getGameTime())) return ActionBattleDarkState.HitResult.IGNORED;
-        boolean darkMove = move.getType() != null && "dark".equalsIgnoreCase(move.getType().getName());
-        boolean attackerDark = ActionBattleFairyController.hasType(attacker.getPokemon(), "dark");
-        boolean targetDark = ActionBattleFairyController.hasType(target.getPokemon(), "dark");
+        boolean darkMove = "dark".equalsIgnoreCase(ActionBattleEffectiveMoveTypeResolver.resolve(attacker, move));
+        boolean attackerDark = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "dark");
+        boolean targetDark = ActionBattleTypeMechanicIdentity.hasSameMechanicImmunity(target, "dark");
         boolean targetPsychic = ActionBattleFairyController.hasType(target.getPokemon(), "psychic");
         ActionBattleDarkRules.HitPlan plan = ActionBattleDarkRules.planHit(
                 connected, darkMove, attackerDark, targetDark, targetPsychic,

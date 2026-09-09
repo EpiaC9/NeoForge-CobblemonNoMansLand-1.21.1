@@ -9,6 +9,7 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicatio
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.minecraft.world.entity.LivingEntity;
@@ -41,13 +42,13 @@ public final class ActionBattlePoisonController {
                     pokemon.getUuid(), currentTick);
             if (!passesPenetration(chance, penetrationRoll)) return false;
             return controller.applyPoisonMove(sessionId, pokemon.getUuid(), currentTick,
-                    hasType(pokemon, "poison"), ActionBattlePoisonRules.BASE_MOVE_GAIN);
+                    ActionBattleTypeMechanicIdentity.hasMechanicBenefit(target, "poison"), ActionBattlePoisonRules.BASE_MOVE_GAIN);
         }
         int baseGain = controller.poisonMoveAccumulationGain(sessionId, pokemon.getUuid());
         int penetratedGain = penetratedDirectGain(ActionBattleProtectController.global(), battleId,
                 pokemon.getUuid(), currentTick, baseGain);
         return penetratedGain > 0 && controller.applyPoisonMove(sessionId, pokemon.getUuid(), currentTick,
-                hasType(pokemon, "poison"), penetratedGain);
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(target, "poison"), penetratedGain);
     }
 
     public static float modifyDamage(PokemonEntity attacker, LivingEntity target, Move move, float damage) {

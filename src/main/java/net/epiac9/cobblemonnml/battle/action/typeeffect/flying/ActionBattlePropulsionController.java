@@ -2,6 +2,7 @@ package net.epiac9.cobblemonnml.battle.action.typeeffect.flying;
 
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -134,7 +135,7 @@ public final class ActionBattlePropulsionController {
                 || target.level() != level) return null;
         double speed = ActionBattlePropulsionRules.speedBlocksPerTick(momentum);
         if (speed <= 0.0D) return null;
-        ActionBattlePropulsionRules.Mode mode = ActionBattleFlyingRules.isFlyingPokemon(attacker.getPokemon())
+        ActionBattlePropulsionRules.Mode mode = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "flying")
                 ? ActionBattlePropulsionRules.Mode.BELL : ActionBattlePropulsionRules.Mode.STRAIGHT;
         Vec3 start = attacker.position();
         Vec3 lockedTarget = lockedImpactPoint(attacker, target);

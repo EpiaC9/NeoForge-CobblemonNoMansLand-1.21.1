@@ -10,6 +10,7 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 
@@ -67,7 +68,7 @@ public final class ActionBattleElectricController {
         }
         boolean groundTyped = hasType(pokemon, "ground");
         boolean rockTyped = hasType(pokemon, "rock");
-        boolean electricTyped = hasType(pokemon, "electric");
+        boolean electricTyped = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(target, "electric");
         boolean hazeActive = ActionBattleEffectController.global().hasHaze(
                 session.battleId(), pokemon.getUuid(), currentTick);
         ActionBattleTypeEffectController effects = ActionBattleTypeEffectController.global();

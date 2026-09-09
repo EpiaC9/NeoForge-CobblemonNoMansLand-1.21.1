@@ -9,6 +9,8 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.minecraft.world.entity.LivingEntity;
 
@@ -21,10 +23,10 @@ public final class ActionBattleFireController {
     public static void onSuccessfulMoveHit(PokemonEntity attacker, PokemonEntity target, Move move, double pressureAmount) {
         UUID sessionId = activeSessionId();
         if (sessionId == null || attacker == null || target == null || move == null || !(pressureAmount > 0.0D)
-                || !FightOrFlightAdapter.isNativeDamageMove(move) || !isFireMove(move)) return;
+                || !FightOrFlightAdapter.isNativeDamageMove(move) || !isFireMove(attacker, move)) return;
         Pokemon targetPokemon = target.getPokemon();
-        boolean fireTyped = hasType(targetPokemon, "fire");
-        boolean waterTyped = hasType(targetPokemon, "water");
+        boolean fireTyped = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(target, "fire");
+        boolean waterTyped = ActionBattleTypeMechanicIdentity.hasActualType(targetPokemon, "water");
         if (ActionBattleFireRules.targetInteraction(fireTyped, waterTyped) == ActionBattleFireRules.TargetInteraction.IMMUNE) return;
         UUID battleId = ActionBattleManager.battleIdForPokemonEntity(target.getUUID());
         if (battleId == null || !battleId.equals(ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))) return;
@@ -43,7 +45,7 @@ public final class ActionBattleFireController {
     public static float modifyDamage(PokemonEntity attacker, LivingEntity target, Move move, float damage) {
         UUID sessionId = activeSessionId();
         if (sessionId == null || attacker == null || !(target instanceof PokemonEntity pokemonTarget) || move == null
-                || !(damage > 0.0F) || !isFireMove(move)) return damage;
+                || !(damage > 0.0F) || !isFireMove(attacker, move)) return damage;
         ActionBattleTypeEffectController controller = ActionBattleTypeEffectController.global();
         controller.guardSession(sessionId);
         return (float) controller.modifyDamage(sessionId, pokemonTarget.getPokemon().getUuid(), true, damage,
@@ -60,14 +62,8 @@ public final class ActionBattleFireController {
         return DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
     }
 
-    private static boolean isFireMove(Move move) {
-        return move.getType() != null && "fire".equals(normalize(move.getType().getName()));
-    }
-
-    private static boolean hasType(Pokemon pokemon, String expected) {
-        if (pokemon == null) return false;
-        if (pokemon.getPrimaryType() != null && expected.equals(normalize(pokemon.getPrimaryType().getName()))) return true;
-        return pokemon.getSecondaryType() != null && expected.equals(normalize(pokemon.getSecondaryType().getName()));
+    private static boolean isFireMove(PokemonEntity attacker, Move move) {
+        return "fire".equals(normalize(ActionBattleEffectiveMoveTypeResolver.resolve(attacker, move)));
     }
 
     private static String normalize(String value) {

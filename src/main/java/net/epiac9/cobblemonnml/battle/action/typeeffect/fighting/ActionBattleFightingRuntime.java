@@ -9,6 +9,7 @@ import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatSource;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 
 import java.util.Optional;
@@ -140,10 +141,7 @@ public final class ActionBattleFightingRuntime {
     }
 
     public static boolean isFightingHolder(Pokemon pokemon) {
-        return pokemon != null && (pokemon.getPrimaryType() != null
-                && "fighting".equalsIgnoreCase(pokemon.getPrimaryType().getName())
-                || pokemon != null && pokemon.getSecondaryType() != null
-                && "fighting".equalsIgnoreCase(pokemon.getSecondaryType().getName()));
+        return ActionBattleTypeMechanicIdentity.hasMechanicBenefit(pokemon, "fighting");
     }
 
     private static ActionBattleSession session(PokemonEntity entity) {
