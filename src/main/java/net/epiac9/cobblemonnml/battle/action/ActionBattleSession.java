@@ -169,6 +169,20 @@ public final class ActionBattleSession {
         return hasPlayerMoveTarget(ownerUUID) || hasPlayerMoveCommand(ownerUUID);
     }
 
+    public boolean hasPokemonMovementIntent(UUID pokemonUUID) {
+        UUID ownerUUID = playerOwnerForPokemon(pokemonUUID);
+        if (ownerUUID != null) return hasPlayerMovementIntent(ownerUUID);
+        return pokemonUUID != null && pokemonUUID.equals(trainerActivePokemonUUID)
+                && hasTrainerMovementIntent();
+    }
+
+    public boolean hasDirectionalMovementIntent(UUID pokemonUUID) {
+        UUID ownerUUID = playerOwnerForPokemon(pokemonUUID);
+        if (ownerUUID != null) return hasPlayerMoveTarget(ownerUUID);
+        return pokemonUUID != null && pokemonUUID.equals(trainerActivePokemonUUID)
+                && hasTrainerRepositionTarget();
+    }
+
     public UUID playerOwnerForPokemon(UUID pokemonUUID) {
         if (pokemonUUID == null) return null;
         if (pokemonUUID.equals(playerActivePokemonUUID)) return playerUUID;

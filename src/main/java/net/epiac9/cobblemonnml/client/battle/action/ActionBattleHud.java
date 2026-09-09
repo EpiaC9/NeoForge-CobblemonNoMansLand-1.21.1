@@ -320,6 +320,14 @@ public final class ActionBattleHud {
             drawScaledRight(graphics, font, obscuredText(KEYS[slot], obscurityStage), x + 89, y + 3, 0.55F,
                     ActionBattleObscurityHudRules.presentationColor(disabled ? MUTED : TEXT, obscurityStage));
         }
+        String momentum = ActionBattleFlyingHudRules.label(move.type(), move.flyingMomentum(), obscurityStage);
+        if (!momentum.isEmpty()) {
+            drawScaledRight(graphics, font, obscuredText(momentum, obscurityStage), x + 74, y + 3, 0.52F,
+                    ActionBattleFlyingHudRules.color(move.type(), move.flyingMomentum(), obscurityStage));
+            if (ActionBattleFlyingHudRules.showLockMarker(move.type(), move.flyingMomentum(), obscurityStage)) {
+                renderMomentumReticle(graphics, x + 76, y + 3);
+            }
+        }
         graphics.disableScissor();
         if (disabled) graphics.fill(x, y, x + rect.width(), y + rect.height(), DISABLED);
         if (!ActionBattleObscurityHudRules.hideInformation(obscurityStage) && move.cooldownRemainingTicks() > 0L && move.cooldownDurationTicks() > 0L) {
@@ -332,6 +340,14 @@ public final class ActionBattleHud {
         }
         ActionBattleObscurityHudRenderer.renderMaskedSurface(graphics, rect, obscurityStage, 8 + slot,
                 ActionBattleObscuritySurfaceMask.Shape.MOVE);
+    }
+
+    private static void renderMomentumReticle(GuiGraphics graphics, int x, int y) {
+        int color = ActionBattleFlyingHudRules.MAX_COLOR;
+        graphics.fill(x, y, x + 3, y + 1, color);
+        graphics.fill(x, y, x + 1, y + 3, color);
+        graphics.fill(x + 5, y, x + 8, y + 1, color);
+        graphics.fill(x + 7, y, x + 8, y + 3, color);
     }
 
     private static void renderTypeIcon(GuiGraphics graphics, int x, int y, String type, float alpha,

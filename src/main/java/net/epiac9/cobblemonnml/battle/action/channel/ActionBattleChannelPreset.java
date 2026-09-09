@@ -6,4 +6,9 @@ public record ActionBattleChannelPreset(int durationTicks, boolean immobilizeCas
     public ActionBattleChannelPreset {
         if (durationTicks <= 0) throw new IllegalArgumentException("durationTicks must be > 0");
     }
+
+    public ActionBattleChannelPreset withDurationTicks(int ticks) {
+        return new ActionBattleChannelPreset(ticks, immobilizeCaster, cancelOnDamage,
+                cancelOnCommand, trackTargetPosition, cancelWhenTargetLost);
+    }
 }

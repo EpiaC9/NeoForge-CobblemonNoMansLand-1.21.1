@@ -169,6 +169,13 @@ public final class ActionBattleHudSync {
         drowsyStatusState(pokemonUUID, currentTick).ifPresent(states::add);
         poisonStatusState(pokemonUUID, currentTick).ifPresent(states::add);
         electricStatusState(pokemonUUID, currentTick).ifPresent(states::add);
+        net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime
+                .view(battleId, pokemonUUID, currentTick).ifPresent(view -> states.add(
+                        new ActionBattleHudPayload.StatusState(
+                                view.branch() == net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRules.Branch.MAGNET_RISE
+                                        ? net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelVisuals.MAGNET_RISE_STATUS_ID
+                                        : net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelVisuals.WEIGHTED_STATUS_ID,
+                                view.remainingTicks(), view.totalTicks())));
         ActionBattleRockController rock = ActionBattleRockController.global();
         rock.stockpileView(battleId, pokemonUUID, currentTick).ifPresent(view ->
                 states.add(new ActionBattleHudPayload.StatusState(ActionBattleRockVisualRules.STOCKPILE_STATUS_ID,
@@ -362,7 +369,9 @@ public final class ActionBattleHudSync {
         return new ActionBattleHudPayload.MoveState(
                 move.getName(), move.getType().getName(), FightOrFlightAdapter.currentPp(move), FightOrFlightAdapter.maxPp(move), FightOrFlightAdapter.supports(move) && controlAllowed && fightingAllowed && dragonAllowed,
                 session.pokemonAbilitySlotCooldownRemainingTicks(pokemon.getUuid(), slot, currentTick),
-                session.pokemonAbilitySlotCooldownDurationTicks(pokemon.getUuid(), slot, currentTick)
+                session.pokemonAbilitySlotCooldownDurationTicks(pokemon.getUuid(), slot, currentTick),
+                net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRuntime
+                        .momentum(session, pokemon.getUuid())
         );
     }
 

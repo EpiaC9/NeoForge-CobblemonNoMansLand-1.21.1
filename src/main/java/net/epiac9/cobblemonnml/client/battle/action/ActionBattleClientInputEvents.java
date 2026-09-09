@@ -50,7 +50,16 @@ public final class ActionBattleClientInputEvents {
         double targetDistance = Math.max(64.0D, minecraft.options.getEffectiveRenderDistance() * 16.0D);
         HitResult hit = minecraft.player.pick(targetDistance, 1.0F, false);
         if (hit == null) return;
-        Vec3 target = hit.getLocation();
-        PacketDistributor.sendToServer(new ActionBattleMoveHerePayload(target.x, target.y, target.z));
+        Vec3 eye = minecraft.player.getEyePosition();
+        Vec3 look = minecraft.player.getLookAngle();
+        Vec3 impact = hit.getLocation();
+        var target = ActionBattleMoveHereTargetingRules.target(
+                point(eye), point(look), hit.getType() == HitResult.Type.BLOCK, point(impact));
+        if (target == null) return;
+        PacketDistributor.sendToServer(new ActionBattleMoveHerePayload(target.x(), target.y(), target.z()));
+    }
+
+    private static ActionBattleMoveHereTargetingRules.Point point(Vec3 value) {
+        return value == null ? null : new ActionBattleMoveHereTargetingRules.Point(value.x, value.y, value.z);
     }
 }

@@ -17,6 +17,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassC
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattlePropulsionRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.util.DebugLog;
@@ -69,6 +71,12 @@ final class ActionBattleTrainerAiController {
         }
 
         long currentTick = level.getGameTime();
+        if (net.epiac9.cobblemonnml.battle.action.interrupt.ActionBattleInterruptController.isActive(
+                session.battleId(), trainerPokemon.getUuid(), currentTick)) {
+            trainerPokemonEntity.getNavigation().stop();
+            session.clearTrainerMoveState();
+            return;
+        }
         if (net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime
                 .isRoarStunned(trainerPokemon.getUuid())) {
             stopTrainerMovement(session, trainerPokemonEntity,
@@ -149,16 +157,21 @@ final class ActionBattleTrainerAiController {
             DebugLog.log("[CobblemonNML] Trainer Toxic Spikes ACTION start result. Battle=" + session.battleId() + ", result=" + result);
             return;
         }
-        if (!onCooldown && FightOrFlightAdapter.canCommit(trainerPokemonEntity, playerPokemonEntity, move)) {
+        int momentum = ActionBattleFlyingRuntime.momentum(session, trainerPokemon.getUuid());
+        ActionBattlePropulsionRules.CommitMode commitMode = FightOrFlightAdapter.commitMode(
+                trainerPokemonEntity, playerPokemonEntity, move, momentum);
+        if (!onCooldown && commitMode != ActionBattlePropulsionRules.CommitMode.REPOSITION) {
             trainerPokemonEntity.getNavigation().stop();
             if (!FightOrFlightAdapter.consumeOnePp(trainerPokemonEntity, move)) {
                 ActionBattleCommandController.cancelPendingOrders(session, ActionBattleCommandController.Side.TRAINER, ActionBattleCommandController.InterruptReason.MOVE_FAILED);
                 return;
             }
             var grassCommit = ActionBattleGrassController.commitMove(trainerPokemonEntity, move);
+            ActionBattleCommittedMove committedMove = captureCommittedMove(session, trainerPokemonEntity, move);
             if (FightOrFlightAdapter.execute(trainerPokemonEntity, playerPokemonEntity, move,
-                    grassCommit.capturedDamageMultiplier())) {
+                    grassCommit.capturedDamageMultiplier(), committedMove)) {
                 ActionBattleRockRuntime.onMoveCommitted(trainerPokemonEntity, move);
+                net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime.onSuccessfulSelfBuffCommit(trainerPokemonEntity, move);
                 long cooldownTicks = ActionBattleGhostRuntime.global().applyAbilityCooldown(
                         session, trainerPokemonEntity, session.trainerMoveSlot(), currentTick).sharedTicks();
                 ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), trainerPokemon.getUuid());
@@ -169,7 +182,14 @@ final class ActionBattleTrainerAiController {
             } else {
                 FightOrFlightAdapter.refundOnePp(move);
                 ActionBattleGrassController.restoreEmpower(trainerPokemonEntity, grassCommit);
-                ActionBattleCommandController.cancelPendingOrders(session, ActionBattleCommandController.Side.TRAINER, ActionBattleCommandController.InterruptReason.MOVE_FAILED);
+                if (commitMode == ActionBattlePropulsionRules.CommitMode.PROPULSION) {
+                    repositionPendingMove(session, trainerPokemon, trainerPokemonEntity,
+                            playerPokemonEntity, move, false, currentTick);
+                } else {
+                    ActionBattleCommandController.cancelPendingOrders(session,
+                            ActionBattleCommandController.Side.TRAINER,
+                            ActionBattleCommandController.InterruptReason.MOVE_FAILED);
+                }
             }
             return;
         }
@@ -218,9 +238,12 @@ final class ActionBattleTrainerAiController {
                     trainerEntity, session.trainerMoveSlot(), currentTick);
             ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), trainerPokemon.getUuid(), move);
             ActionBattleConfusionController.applyCooldownPenalty(session, trainerEntity, currentTick);
-            FightOrFlightAdapter.executeConfusedRanged(trainerEntity, move,
-                    ActionBattleConfusionController.randomShotDirection(trainerEntity), grassCommit.capturedDamageMultiplier());
+            var redirectedDirection = ActionBattleConfusionController.randomShotDirection(trainerEntity);
+            ActionBattleCommittedMove committedMove = captureCommittedMove(session, trainerEntity, move);
+            FightOrFlightAdapter.executeConfusedRanged(trainerEntity, move, redirectedDirection,
+                    grassCommit.capturedDamageMultiplier(), committedMove);
             ActionBattleRockRuntime.onMoveCommitted(trainerEntity, move);
+            net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime.onSuccessfulSelfBuffCommit(trainerEntity, move);
             DebugLog.log("[CobblemonNML] Trainer Confusion fired ranged move in random direction. Battle=" + session.battleId() + ", move=" + move.getName());
             return true;
         }
@@ -231,9 +254,11 @@ final class ActionBattleTrainerAiController {
                     trainerEntity, session.trainerMoveSlot(), currentTick);
             ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), trainerPokemon.getUuid(), move);
             ActionBattleConfusionController.applyCooldownPenalty(session, trainerEntity, currentTick);
+            ActionBattleCommittedMove committedMove = captureCommittedMove(session, trainerEntity, move);
             ActionBattleConfusionController.startMeleeDash(session, level, trainerEntity, move, currentTick,
-                    grassCommit.capturedDamageMultiplier());
+                    grassCommit.capturedDamageMultiplier(), committedMove);
             ActionBattleRockRuntime.onMoveCommitted(trainerEntity, move);
+            net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime.onSuccessfulSelfBuffCommit(trainerEntity, move);
             DebugLog.log("[CobblemonNML] Trainer Confusion started uncontrolled melee dash. Battle=" + session.battleId() + ", move=" + move.getName());
             return true;
         }
@@ -253,6 +278,12 @@ final class ActionBattleTrainerAiController {
             return true;
         }
         return false;
+    }
+
+    private static ActionBattleCommittedMove captureCommittedMove(ActionBattleSession session,
+                                                                   PokemonEntity attacker, Move move) {
+        int momentum = ActionBattleFlyingRuntime.momentum(session, attacker.getPokemon().getUuid());
+        return ActionBattleCommittedMove.capture(attacker, move, momentum, attacker.getRandom()::nextDouble);
     }
 
     private static void handleExhaustedReposition(ActionBattleSession session, ServerLevel level, ActionBattlePokemonRefs refs,
@@ -303,6 +334,8 @@ final class ActionBattleTrainerAiController {
         }
         int previousSlot = session.trainerActivePartyIndex();
         session.setTrainerSendOutPending(true);
+        ActionBattleSwapTransitionGuard.begin(session.battleId(), ActionBattleCommandController.Side.TRAINER,
+                trainerPokemon.getUuid(), replacement.pokemon().getUuid());
         ActionBattleCommandController.cancelPendingOrders(session, ActionBattleCommandController.Side.TRAINER, ActionBattleCommandController.InterruptReason.SWAP);
         ActionBattleEffectRuntime.onPokemonUnavailable(session, trainerPokemon.getUuid(), false, currentTick);
         ActionBattlePokemonRuntime.recall(trainerPokemon);
@@ -463,7 +496,12 @@ final class ActionBattleTrainerAiController {
             return;
         }
         if (session.isPokemonMovementCommandOnCooldown(trainerPokemon.getUuid(), currentTick)) return;
-        var trackedPlayerPosition = ActionBattleEvasionController.trackedPosition(playerPokemonEntity, currentTick);
+        ActionBattleVisualTrackingRules.faceTarget(trainerPokemonEntity, playerPokemonEntity);
+        var remembered = ActionBattleTargetTracker.global().lastVisible(session.battleId(), trainerPokemon.getUuid(),
+                playerPokemonEntity.getPokemon().getUuid());
+        var trackedPlayerPosition = remembered
+                .map(point -> new net.minecraft.world.phys.Vec3(point.x(), point.y(), point.z()))
+                .orElseGet(() -> ActionBattleEvasionController.trackedPosition(playerPokemonEntity, currentTick));
         ActionBattleTrainerTactics.Point[] candidates = ActionBattleTrainerTactics.repositionCandidates(
                 trainerPokemonEntity.getX(), trainerPokemonEntity.getZ(), trackedPlayerPosition.x, trackedPlayerPosition.z,
                 FightOrFlightAdapter.isRangedMove(move));
@@ -474,7 +512,8 @@ final class ActionBattleTrainerAiController {
             failRepositionAttempt(session, trainerPokemonEntity, "candidate was unreachable");
             return;
         }
-        if (!trainerPokemonEntity.getNavigation().moveTo(path, ActionBattleMovementController.movementSpeed(session, trainerPokemon.getUuid(), currentTick))) {
+        if (!trainerPokemonEntity.getNavigation().moveTo(path,
+                ActionBattleMovementController.movementSpeed(session, trainerPokemon.getUuid(), currentTick))) {
             failRepositionAttempt(session, trainerPokemonEntity, "navigation refused tactical position");
             return;
         }

@@ -83,6 +83,7 @@ final class ActionBattlePokemonRuntime {
                 session.dungeonSessionId(), pokemon.getUuid());
         if (playerSide) session.setPlayerSendOutPending(playerOwnerUUID, false);
         else session.setTrainerSendOutPending(false);
+        ActionBattleSwapTransitionGuard.bindComplete(session.battleId(), pokemon.getUuid());
         if (entity.level() instanceof ServerLevel level) {
             ServerPlayer player = level.getServer().getPlayerList().getPlayer(
                     playerOwnerUUID != null ? playerOwnerUUID : session.playerUUID());

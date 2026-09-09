@@ -1,6 +1,7 @@
 package net.epiac9.cobblemonnml.battle.action;
 
 import com.cobblemon.mod.common.CobblemonMemories;
+import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
@@ -14,6 +15,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattlePar
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugRuntime;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.server.level.ServerLevel;
@@ -22,6 +24,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.pathfinder.Path;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -109,19 +112,55 @@ final class ActionBattleMovementController {
             session.clearPlayerMoveCommand(playerUUID);
             return;
         }
-        if (move != null && net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter.canCommit(pokemonEntity, targetEntity, move)) {
+        int momentum = ActionBattleFlyingRuntime.momentum(session, pokemonEntity.getPokemon().getUuid());
+        if (move != null && FightOrFlightAdapter.commitMode(
+                pokemonEntity, targetEntity, move, momentum)
+                != net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattlePropulsionRules.CommitMode.REPOSITION) {
             pokemonEntity.getNavigation().stop();
             return;
         }
-        var tracked = ActionBattleEvasionController.trackedPosition(targetEntity, currentTick);
-        Path path = pokemonEntity.getNavigation().createPath(BlockPos.containing(tracked), 0);
-        if (path == null || !path.canReach()) {
+        ActionBattleVisualTrackingRules.faceTarget(pokemonEntity, targetEntity);
+        Vec3 tracked = rememberedTarget(session, pokemonEntity, targetEntity)
+                .orElseGet(() -> ActionBattleEvasionController.trackedPosition(targetEntity, currentTick));
+        Path path = reachablePath(pokemonEntity, tracked);
+        if (path == null) path = reachableRepositionPath(pokemonEntity, tracked,
+                move != null && FightOrFlightAdapter.isRangedMove(move));
+        if (path == null) {
             pokemonEntity.getNavigation().stop();
-            session.clearPlayerMoveCommand(playerUUID);
-            DebugLog.log("[CobblemonNML] Pending move cancelled because opponent is unreachable. Battle=" + session.battleId());
             return;
         }
-        pokemonEntity.getNavigation().moveTo(path, movementSpeed(session, pokemonEntity.getPokemon().getUuid(), currentTick));
+        pokemonEntity.getNavigation().moveTo(path,
+                movementSpeed(session, pokemonEntity.getPokemon().getUuid(), currentTick));
+    }
+
+    private static java.util.Optional<Vec3> rememberedTarget(ActionBattleSession session,
+                                                              PokemonEntity attacker,
+                                                              PokemonEntity target) {
+        if (session == null || attacker == null || target == null) return java.util.Optional.empty();
+        ActionBattleTargetTracker tracker = ActionBattleTargetTracker.global();
+        UUID ownerId = attacker.getPokemon().getUuid();
+        UUID targetId = target.getPokemon().getUuid();
+        tracker.clearRememberedIfReached(session.battleId(), ownerId, targetId,
+                new ActionBattleTargetingRules.Point(attacker.getX(), attacker.getY(), attacker.getZ()),
+                Math.max(0.75D, attacker.getBbWidth() * 0.75D));
+        return tracker.lastVisible(session.battleId(), ownerId, targetId)
+                .map(point -> new Vec3(point.x(), point.y(), point.z()));
+    }
+
+    private static Path reachablePath(PokemonEntity pokemon, Vec3 target) {
+        if (pokemon == null || target == null) return null;
+        Path path = pokemon.getNavigation().createPath(BlockPos.containing(target), 0);
+        return path != null && path.canReach() ? path : null;
+    }
+
+    private static Path reachableRepositionPath(PokemonEntity pokemon, Vec3 target, boolean ranged) {
+        if (pokemon == null || target == null) return null;
+        for (ActionBattleTrainerTactics.Point candidate : ActionBattleTrainerTactics.repositionCandidates(
+                pokemon.getX(), pokemon.getZ(), target.x, target.z, ranged)) {
+            Path path = reachablePath(pokemon, new Vec3(candidate.x(), target.y, candidate.z()));
+            if (path != null) return path;
+        }
+        return null;
     }
 
 
@@ -190,13 +229,14 @@ final class ActionBattleMovementController {
 
     private static boolean hasExplicitMovementIntent(ActionBattleSession session, UUID entityUUID) {
         if (entityUUID == null || session == null) return false;
-        if (entityUUID.equals(session.playerActiveEntityUUID())) return session.hasPlayerMovementIntent();
         for (UUID playerUUID : session.playerUUIDs()) {
             if (entityUUID.equals(session.playerActiveEntityUUID(playerUUID))) {
-                return session.hasPlayerMoveTarget(playerUUID) || session.hasPlayerMoveCommand(playerUUID);
+                return session.hasPokemonMovementIntent(session.playerActivePokemonUUID(playerUUID));
             }
         }
-        if (entityUUID.equals(session.trainerActiveEntityUUID())) return session.hasTrainerMovementIntent();
+        if (entityUUID.equals(session.trainerActiveEntityUUID())) {
+            return session.hasPokemonMovementIntent(session.trainerActivePokemonUUID());
+        }
         return false;
     }
 

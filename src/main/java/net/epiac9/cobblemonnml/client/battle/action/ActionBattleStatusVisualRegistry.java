@@ -62,6 +62,8 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual TYPE_BUG_EFFECT_GUARD = typeEffectVisual("bug_effect_guard", 0xFF68BFA9);
     private static final StatusVisual TYPE_BUG_COMBINED_CARAPACE = typeEffectVisual("bug_combined_carapace", 0xFFB0A967);
     private static final StatusVisual TYPE_BUG_SPEED = typeEffectVisual("bug_speed", 0xFFB5DE65);
+    private static final StatusVisual TYPE_STEEL_MAGNET_RISE = typeEffectVisual("magnet_rise", 0xFFB8D7E5);
+    private static final StatusVisual TYPE_STEEL_WEIGHTED = typeEffectVisual("weighted", 0xFF7F8B96);
     private static final StatusVisual[] DETERIORATING_SHIELD = {
             visual("deteriorating_shield_1", 0xFFD8E7EC), visual("deteriorating_shield_2", 0xFFD0DFE5), visual("deteriorating_shield_3", 0xFFC5D5DC),
             visual("deteriorating_shield_4", 0xFFBACAD2), visual("deteriorating_shield_5", 0xFFADBFC8), visual("deteriorating_shield_6", 0xFFA0B4BE),
@@ -136,6 +138,8 @@ public final class ActionBattleStatusVisualRegistry {
             case "TYPE_BUG_EFFECT_GUARD" -> TYPE_BUG_EFFECT_GUARD;
             case "TYPE_BUG_COMBINED_CARAPACE" -> TYPE_BUG_COMBINED_CARAPACE;
             case "TYPE_BUG_SPEED" -> TYPE_BUG_SPEED;
+            case "TYPE_STEEL_MAGNET_RISE" -> TYPE_STEEL_MAGNET_RISE;
+            case "TYPE_STEEL_WEIGHTED" -> TYPE_STEEL_WEIGHTED;
             default -> null;
         };
     }

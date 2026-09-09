@@ -8,6 +8,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleState;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleCommittedMove;
 import net.epiac9.cobblemonnml.battle.action.projectile.wave.ActionBattleWaveParameters;
 import net.epiac9.cobblemonnml.battle.action.projectile.wave.ActionBattleWaveServerRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundController;
@@ -41,6 +42,11 @@ public final class ActionBattleEarthquakeHandler {
     }
 
     public static boolean launch(PokemonEntity attacker, Move move, double committedGrassMultiplier) {
+        return launch(attacker, move, committedGrassMultiplier, ActionBattleCommittedMove.none());
+    }
+
+    public static boolean launch(PokemonEntity attacker, Move move, double committedGrassMultiplier,
+                                 ActionBattleCommittedMove committedMove) {
         if (!isEarthquake(move) || !canLaunch(attacker)
                 || !(attacker.level() instanceof ServerLevel level)) return false;
         ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(attacker.getUUID());
@@ -52,7 +58,7 @@ public final class ActionBattleEarthquakeHandler {
                 attacker.position(), level.getGameTime(), waveParameters(),
                 (waveLevel, origin, target) -> hasClearGroundPath(waveLevel, attacker, origin, target),
                 (waveLevel, target) -> FightOrFlightAdapter.resolveRangedNativePokemonHit(
-                        attacker, target, move, committedGrassMultiplier));
+                        attacker, target, move, committedGrassMultiplier, committedMove));
         return true;
     }
 

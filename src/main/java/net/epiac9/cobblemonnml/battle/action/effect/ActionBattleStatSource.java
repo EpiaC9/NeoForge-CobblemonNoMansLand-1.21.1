@@ -15,6 +15,7 @@ public enum ActionBattleStatSource {
     BUG_DEFENSE,
     BUG_SPECIAL_DEFENSE,
     DRAGON_UPROAR,
+    STEEL_WEIGHT,
     ABILITY,
     OTHER_ACTION
 }

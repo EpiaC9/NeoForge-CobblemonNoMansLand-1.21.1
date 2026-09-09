@@ -1,6 +1,7 @@
 package net.epiac9.cobblemonnml;
 
 import net.epiac9.cobblemonnml.battle.action.ActionBattlePokemonControlGuard;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleCombatGuard;
 import net.epiac9.cobblemonnml.dimension.gameplay.DungeonBattleLifeTransfer;
 import net.epiac9.cobblemonnml.registry.ModAttachments;
 import net.epiac9.cobblemonnml.registry.ModBlocks;
@@ -50,5 +51,6 @@ public class CobblemonNML {
 
         // Action battle Pokemon controls
         ActionBattlePokemonControlGuard.register();
+        ActionBattleCombatGuard.register();
     }
 }

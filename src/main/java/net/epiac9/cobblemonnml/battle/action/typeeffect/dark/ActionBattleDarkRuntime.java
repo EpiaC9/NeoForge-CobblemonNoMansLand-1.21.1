@@ -5,10 +5,12 @@ import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleRangeRules;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleTargetingRules;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleVisualTrackingRules;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRules;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -51,7 +53,10 @@ public final class ActionBattleDarkRuntime {
                 && isOpposingActivePokemon(session, pokemon, target)
                 && !canPerceive(session, pokemon, target, currentTick)) {
             pokemon.setTarget(null);
-            pokemon.getNavigation().stop();
+            if (ActionBattleTargetingRules.shouldStopNavigationOnTargetLoss(
+                    session.hasPokemonMovementIntent(pokemon.getPokemon().getUuid()))) {
+                pokemon.getNavigation().stop();
+            }
         }
     }
 
@@ -77,6 +82,9 @@ public final class ActionBattleDarkRuntime {
             return false;
         }
         double awareness = currentAwareness(session, observer.getPokemon().getUuid(), currentTick);
+        awareness *= ActionBattleVisualTrackingRules.awarenessMultiplier(
+                ActionBattleFlyingRules.isFlyingPokemon(observer.getPokemon()),
+                !observer.onGround(), observer.getLookAngle().y);
         return ActionBattleTargetingRules.canPerceive(ActionBattleRangeRules.hitboxGapSquared(
                 observer.getBoundingBox(), target.getBoundingBox()), awareness);
     }

@@ -8,7 +8,11 @@ public final class ActionBattleCommandController {
     private ActionBattleCommandController() {}
 
     public enum Side { PLAYER, TRAINER }
-    public enum InterruptReason { NEW_COMMAND, SWAP, FAINT, RECALL, TARGET_INVALID, MOVE_FAILED, CONTROL_EFFECT, SLEEP, BATTLE_END }
+    public enum InterruptReason { NEW_COMMAND, SWAP, FAINT, RECALL, TARGET_INVALID, MOVE_FAILED, CONTROL_EFFECT, SLEEP, EXPLICIT_INTERRUPT, BATTLE_END }
+
+    public static boolean onOrdinaryHit(ActionBattleSession session, UUID pokemonUUID) {
+        return false;
+    }
 
     public static void onCommandIssued(ActionBattleSession session, UUID pokemonUUID) {
         if (!isActivePokemon(session, pokemonUUID)) return;
@@ -68,6 +72,8 @@ public final class ActionBattleCommandController {
         ActionBattleHailHandler.onControlEffect(pokemonUUID);
         ActionBattleToxicSpikesHandler.onControlEffect(pokemonUUID);
     }
+
+    public static void onExplicitInterrupt(UUID pokemonUUID) { applyControlHooks(pokemonUUID); }
 
     private static boolean cancelOrdersForSide(ActionBattleSession session, Side side) {
         if (side == Side.PLAYER) {

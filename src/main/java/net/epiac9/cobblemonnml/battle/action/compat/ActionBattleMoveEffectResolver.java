@@ -36,6 +36,18 @@ public final class ActionBattleMoveEffectResolver {
         return false;
     }
 
+    public static boolean isSelfBuffingMove(Move move) {
+        if (move == null) return false;
+        List<MoveData> entries = MoveData.moveData.get(move.getName());
+        if (entries == null) return false;
+        for (MoveData entry : entries) {
+            if (!(entry instanceof StatChangeMoveData statData)) continue;
+            int stages = ((ActionBattleStatChangeMoveDataAccessor) statData).cobblemonNml$getStage();
+            if (stages > 0 && !Objects.equals(statData.getTarget(), "target")) return true;
+        }
+        return false;
+    }
+
     public static boolean hasSupportedFlinchOnHitMetadata(Move move) { return hasSupportedOnHitMetadata(move, StatusFamily.FLINCH); }
     public static boolean hasSupportedConfusionOnHitMetadata(Move move) { return hasSupportedOnHitMetadata(move, StatusFamily.CONFUSION); }
     public static boolean hasExplicitWakeOnHitMetadata(Move move) { return hasSupportedOnHitMetadata(move, StatusFamily.WAKE); }

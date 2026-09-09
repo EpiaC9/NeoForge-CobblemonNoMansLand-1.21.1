@@ -68,7 +68,9 @@ public final class ActionBattleWaveServerRuntime {
             List<ActionBattleWaveRuntime.PokemonSample> samples = entities.stream().map(entity -> {
                 var battle = ActionBattleManager.findSessionForBattlePokemonEntity(entity.getUUID());
                 boolean valid = battle != null && battle.state() == ActionBattleState.ACTIVE
-                        && active.instance.sessionId().equals(battle.dungeonSessionId());
+                        && active.instance.sessionId().equals(battle.dungeonSessionId())
+                        && !net.epiac9.cobblemonnml.battle.action.ActionBattleSwapTransitionGuard
+                        .rejectsHit(entity.getPokemon().getUuid());
                 entitiesByPokemonId.put(entity.getPokemon().getUuid(), entity);
                 return new ActionBattleWaveRuntime.PokemonSample(entity.getPokemon().getUuid(), active.instance.sessionId(),
                         new ActionBattleWaveRuntime.Point(entity.getX(), entity.getY(), entity.getZ()), valid);
