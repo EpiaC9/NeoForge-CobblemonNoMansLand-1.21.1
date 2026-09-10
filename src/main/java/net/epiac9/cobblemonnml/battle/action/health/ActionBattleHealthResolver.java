@@ -6,6 +6,7 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostC
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRules;
 
 import java.util.UUID;
+import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
 
 public final class ActionBattleHealthResolver {
     private final ActionBattleGhostController curses;
@@ -22,6 +23,8 @@ public final class ActionBattleHealthResolver {
                 battleId, pokemonUUID, ActionBattleGhostCurseType.WITHERING, currentTick).isPresent()) {
             adjusted = (int) Math.ceil(requested * 0.50D);
         }
+        adjusted = ActionBattleHealingRules.adjust(adjusted,
+                ActionBattleControlController.global().blocksHealing(battleId, pokemonUUID, currentTick));
         int actual = ActionBattlePokemonHealth.heal(access, adjusted);
         return new Result(requested, actual, access.currentHealth());
     }

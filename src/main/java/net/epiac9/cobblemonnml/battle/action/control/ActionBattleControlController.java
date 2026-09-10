@@ -138,6 +138,14 @@ public final class ActionBattleControlController {
         for (PokemonControlState state : states.values()) state.control.tick(currentTick);
     }
 
+    public void refreshImprison(UUID battleId, UUID sourcePokemonUUID, Set<String> moveIds, long currentTick) {
+        Map<UUID, PokemonControlState> states = battleId != null ? statesByBattle.get(battleId) : null;
+        if (states == null || sourcePokemonUUID == null || moveIds == null || moveIds.isEmpty()) return;
+        for (PokemonControlState state : states.values()) {
+            state.control.refreshImprison(sourcePokemonUUID, moveIds, currentTick);
+        }
+    }
+
     public void clearBattle(UUID battleId) { if (battleId != null) statesByBattle.remove(battleId); }
 
     private PokemonControlState existingOrCreate(UUID battleId, UUID pokemonUUID) {

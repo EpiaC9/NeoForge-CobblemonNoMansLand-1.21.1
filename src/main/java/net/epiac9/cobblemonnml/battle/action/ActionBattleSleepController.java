@@ -2,14 +2,12 @@ package net.epiac9.cobblemonnml.battle.action;
 
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatApplicationService;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatSource;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
+import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleSleepRules;
+import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleSleepState;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleSleepState;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleSleepWakeRules;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.util.RandomSource;
@@ -23,7 +21,7 @@ public final class ActionBattleSleepController {
     private ActionBattleSleepController() {}
 
     public static Map<ActionBattleStat, Integer> defensiveStatStages() {
-        return Map.of(ActionBattleStat.DEFENSE, -1, ActionBattleStat.SPECIAL_DEFENSE, -1);
+        return Map.of();
     }
 
     public static void tickPokemon(ActionBattleSession session, PokemonEntity target, long currentTick) {
@@ -59,9 +57,6 @@ public final class ActionBattleSleepController {
                 ActionBattleEffectController.global().wakeSleep(dungeonSessionId, pokemonUUID, currentTick);
                 return false;
             }
-            ActionBattleStatApplicationService.global().applyBatch(session.battleId(), pokemonUUID,
-                    defensiveStatStages(),
-                    currentTick, ActionBattleStatSource.SLEEP, true);
             if (entity instanceof PokemonEntity pokemon && !pokemon.isRemoved()) {
                 pokemon.getNavigation().stop();
                 pokemon.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
@@ -111,49 +106,24 @@ public final class ActionBattleSleepController {
 
     public static int rollSleepDurationTicks(RandomSource random) {
         if (random == null) throw new IllegalArgumentException("Sleep duration random source cannot be null.");
-        return ActionBattleSleepWakeRules.sleepDurationTicksFromRoll(random.nextInt(7));
+        return ActionBattleSleepRules.durationTicksFromRoll(random.nextInt(7));
     }
 
-    public static WakePlan planDamagingWake(boolean sleeping, boolean ranged, boolean fairyTypedAttacker) {
-        return sleeping
-                ? new WakePlan(true, ActionBattleSleepWakeRules.damageMultiplier(true, ranged, fairyTypedAttacker),
-                ranged, fairyTypedAttacker)
-                : WakePlan.NONE;
-    }
-
-    public static WakePlan planDamagingWake(ActionBattleSession session, PokemonEntity target, long currentTick,
-                                             boolean ranged, boolean fairyTypedAttacker) {
-        boolean sleeping = session != null && target != null && currentTick >= 0L
-                && isSleeping(session, target.getPokemon().getUuid(), currentTick);
-        return planDamagingWake(sleeping, ranged, fairyTypedAttacker);
-    }
-
-    public static boolean applyWakeDamageAndWake(ActionBattleSession session, PokemonEntity target, long currentTick, int beforeHp, WakePlan plan) {
-        if (session == null || target == null || !shouldWakeAfterDamage(plan, beforeHp,
-                target.getPokemon().getCurrentHealth())) return false;
+    public static boolean wakeFromExplicitEffect(ActionBattleSession session, PokemonEntity target, long currentTick) {
+        if (session == null || target == null || currentTick < 0L) return false;
         boolean woke = ActionBattleEffectController.global().wakeSleep(session.dungeonSessionId(), target.getPokemon().getUuid(), currentTick);
         if (woke) {
             clearSleepStats(session, target.getPokemon().getUuid(), currentTick);
             ActionBattlePersistentController.global().onSleepEnded(session.battleId(), target.getPokemon().getUuid());
             if (target.level() instanceof net.minecraft.server.level.ServerLevel level) ActionBattleStatusParticleController.emitWakeBurst(level, target);
-            DebugLog.log("[CobblemonNML] Action battle Pokemon woke from ability damage. Battle=" + session.battleId() + ", pokemon=" + target.getPokemon().getUuid()
-                    + ", ranged=" + plan.ranged() + ", fairyAttacker=" + plan.fairyTypedAttacker()
-                    + ", multiplier=" + plan.damageMultiplier());
+            DebugLog.log("[CobblemonNML] Action battle Pokemon woke from an explicit wake effect. Battle="
+                    + session.battleId() + ", pokemon=" + target.getPokemon().getUuid());
         }
         return woke;
     }
 
     private static void clearSleepStats(ActionBattleSession session, UUID pokemonUUID, long currentTick) {
-        ActionBattleEffectController.global().clearStatContributionsFromSource(
-                session.battleId(), pokemonUUID, ActionBattleStatSource.SLEEP, currentTick);
-    }
-
-    public static boolean shouldWakeAfterDamage(WakePlan plan, int beforeHp, int afterHp) {
-        return plan != null && plan.wakesTarget() && beforeHp > afterHp;
-    }
-
-    public record WakePlan(boolean wakesTarget, float damageMultiplier, boolean ranged, boolean fairyTypedAttacker) {
-        public static final WakePlan NONE = new WakePlan(false, 1.0F, false, false);
+        // Sleep no longer owns stat-stage contributions.
     }
 
     public enum CommandKind { MOVE, MOVE_HERE, REPOSITION, PENDING_CONTINUATION, VOLUNTARY_SWAP, MANDATORY_REPLACEMENT }

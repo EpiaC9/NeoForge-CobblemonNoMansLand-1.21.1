@@ -10,8 +10,14 @@ public final class ActionBattleWaterHealth {
     private ActionBattleWaterHealth() {}
 
     public static Result heal(Access access) {
+        return heal(access, false);
+    }
+
+    public static Result heal(Access access, boolean healBlocked) {
         requireAccess(access);
-        ActionBattlePokemonHealth.heal(access, ActionBattleWaterRules.healAmount(access.maxHealth()));
+        int requested = ActionBattleWaterRules.healAmount(access.maxHealth());
+        ActionBattlePokemonHealth.heal(access,
+                net.epiac9.cobblemonnml.battle.action.health.ActionBattleHealingRules.adjust(requested, healBlocked));
         return result(access);
     }
 

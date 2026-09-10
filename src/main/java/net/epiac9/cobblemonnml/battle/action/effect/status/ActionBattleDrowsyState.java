@@ -1,4 +1,4 @@
-package net.epiac9.cobblemonnml.battle.action.typeeffect.fairy;
+package net.epiac9.cobblemonnml.battle.action.effect.status;
 
 import net.epiac9.cobblemonnml.battle.action.ActionBattleTiming;
 
@@ -8,9 +8,9 @@ public record ActionBattleDrowsyState(long startTick, long endTick, int totalDur
     }
 
     public ActionBattleDrowsyState {
-        if (startTick < 0L) throw new IllegalArgumentException("Drowsy start tick cannot be negative.");
-        if (totalDurationTicks <= 0) throw new IllegalArgumentException("Drowsy duration must be positive.");
-        if (endTick < startTick) throw new IllegalArgumentException("Drowsy end tick cannot precede its start.");
+        if (startTick < 0L || totalDurationTicks <= 0 || endTick < startTick) {
+            throw new IllegalArgumentException("Invalid Drowsy state.");
+        }
     }
 
     public boolean isActive(long currentTick) {

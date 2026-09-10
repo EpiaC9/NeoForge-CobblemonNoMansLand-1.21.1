@@ -30,7 +30,7 @@ public final class ActionBattleEffectIconRenderer {
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
 
         float progress;
-        if ("TYPE_FIGHTING_OUTRAGE_BUILDUP".equals(state.statusId())) {
+        if ("RAMPAGE".equals(state.statusId())) {
             progress = Math.clamp((int) state.remainingTicks(), 0, 3) / 3.0F;
         } else if (ActionBattleStatusHudRules.hasCountdown(state.statusId())) {
             progress = new ActionBattleStatusHudEntry(state, visual).progress();

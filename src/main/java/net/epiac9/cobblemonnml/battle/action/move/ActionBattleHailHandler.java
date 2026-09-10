@@ -17,13 +17,13 @@ import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelState;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleHailVisuals;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleChannelVisuals;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostDamageRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCurseType;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostVisuals;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
+import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleParalysisController;
+import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleParalysisRules;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -170,6 +170,13 @@ public final class ActionBattleHailHandler {
         if (!FightOrFlightAdapter.consumeOnePp(caster, context.move())) return;
         long currentTick = context.level().getGameTime();
         applyCooldown(context, currentTick);
+        if (ActionBattleParalysisRules.failsAction(
+                ActionBattleParalysisController.active(context.session(), state.casterPokemonUUID(), currentTick),
+                caster.getRandom().nextDouble())) {
+            DebugLog.log("[CobblemonNML] Paralyzed Hail channel committed but failed at completion. Battle="
+                    + state.battleId() + ", caster=" + state.casterPokemonUUID());
+            return;
+        }
         ActionBattleControlController.global().recordSuccessfulMove(
                 state.battleId(), state.casterPokemonUUID(), context.move());
         ActionBattleProtectController.global().onSuccessfulNonProtectMove(
@@ -209,21 +216,6 @@ public final class ActionBattleHailHandler {
     private static void pulse(HailCastContext context, ActionBattlePersistentAreaState area) {
         if (context == null || area == null) return;
         ActionBattleHailVisuals.emitPulse(context.level(), area);
-        for (UUID playerUUID : context.session().playerUUIDs()) {
-            applyIcePulse(context, area, context.session().playerActivePokemonUUID(playerUUID));
-        }
-        UUID trainerPokemonUUID = context.session().trainerActivePokemonUUID();
-        if (trainerPokemonUUID != null) {
-            applyIcePulse(context, area, trainerPokemonUUID);
-        }
-    }
-
-    private static void applyIcePulse(HailCastContext context, ActionBattlePersistentAreaState area, UUID pokemonUUID) {
-        PokemonEntity pokemon = ActionBattleAreaEffectSupport.activePokemonEntity(context.session(), context.level(), pokemonUUID);
-        if (pokemon == null || pokemon.isRemoved()
-                || !ActionBattleIceRules.isValidAreaApplication(area, context.session().battleId(), pokemonUUID,
-                pokemon.getX(), pokemon.getY(), pokemon.getZ())) return;
-        ActionBattleIceController.applyIceApplication(pokemon, context.level().getGameTime());
     }
 
     private static void spawnCeilingCloud(ServerLevel level, ActionBattlePersistentAreaState area) {

@@ -21,14 +21,13 @@ import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleProtectVisuals;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectRuntime;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
+import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleDrowsyController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsycUpController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugRuntime;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
+import net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleRampageController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRuntime;
@@ -73,6 +72,9 @@ final class ActionBattleEffectRuntime {
 
         long currentTick = level.getGameTime();
         ActionBattleControlController.global().tickBattle(session.battleId(), currentTick);
+        refreshImprisonMoveSets(session, refs, currentTick);
+        net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleInfatuationController
+                .tickBattle(session, level, currentTick);
         if (refs != null) {
             for (Pokemon pokemon : refs.allPlayerPokemon()) {
                 ActionBattleDarkRuntime.tickState(session, pokemon.getUuid(), currentTick);
@@ -96,6 +98,21 @@ final class ActionBattleEffectRuntime {
             }
         }
         observeDamageFeedback(session, refs);
+    }
+
+    private static void refreshImprisonMoveSets(ActionBattleSession session, ActionBattlePokemonRefs refs,
+                                                 long currentTick) {
+        if (session == null || refs == null) return;
+        for (Pokemon pokemon : refs.allPlayerPokemon()) refreshImprisonMoveSet(session, pokemon, currentTick);
+        refreshImprisonMoveSet(session, refs.trainerPokemon(), currentTick);
+    }
+
+    private static void refreshImprisonMoveSet(ActionBattleSession session, Pokemon pokemon, long currentTick) {
+        if (pokemon == null) return;
+        Set<String> moveIds = new HashSet<>();
+        for (var move : pokemon.getMoveSet()) if (move != null) moveIds.add(move.getName());
+        if (!moveIds.isEmpty()) ActionBattleControlController.global().refreshImprison(
+                session.battleId(), pokemon.getUuid(), moveIds, currentTick);
     }
 
     static void seedDamageFeedback(ActionBattleSession session, Pokemon pokemon) {
@@ -124,6 +141,7 @@ final class ActionBattleEffectRuntime {
         ActionBattleWeightedKnockbackController.clearBattle(battleId);
         ActionBattleInterruptController.clearBattle(battleId);
         ActionBattleSwapTransitionGuard.clearBattle(battleId);
+        net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleInfatuationController.clearBattle(battleId);
     }
 
     static void clearAll() {
@@ -131,7 +149,7 @@ final class ActionBattleEffectRuntime {
         ActionBattleRockController.global().clearAll();
         ActionBattleGhostRuntime.global().clearAll();
         ActionBattleBugRuntime.clearAll();
-        ActionBattleFightingController.global().clearAll();
+        ActionBattleRampageController.global().clearAll();
         ActionBattleDragonRuntime.clearAll();
         ActionBattleDarkRuntime.clearAll();
         ActionBattleFlyingRuntime.clearAll();
@@ -142,6 +160,7 @@ final class ActionBattleEffectRuntime {
         ActionBattleWeightedKnockbackController.clearAll();
         ActionBattleInterruptController.clearAll();
         ActionBattleSwapTransitionGuard.clearAll();
+        net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleInfatuationController.clearAll();
     }
 
     static void onPokemonUnavailable(ActionBattleSession session, UUID pokemonId,
@@ -152,13 +171,13 @@ final class ActionBattleEffectRuntime {
     static void onPokemonUnavailable(ActionBattleSession session, UUID pokemonId,
                                      boolean fainted, long currentTick, boolean applyDragonCleanup) {
         if (session == null || pokemonId == null || currentTick < 0L) return;
-        ActionBattleFairyController.onPokemonRecalled(pokemonId, currentTick);
+        ActionBattleDrowsyController.onPokemonRecalled(session, pokemonId, currentTick);
         ActionBattleTypeEffectRuntime.onPokemonRecalled(session.dungeonSessionId(), pokemonId, currentTick);
         ActionBattleRockController.global().onPokemonUnavailable(session.battleId(), pokemonId);
         ActionBattleGhostRuntime.global().onPokemonUnavailable(session.battleId(), pokemonId);
         ActionBattleBugRuntime.clearPokemon(session, pokemonId, fainted);
         session.clearLastAcceptedMoveHereDirective(pokemonId);
-        ActionBattleFightingRuntime.onPokemonUnavailable(session, pokemonId, currentTick);
+        ActionBattleRampageController.global().clearPokemon(session.battleId(), pokemonId);
         if (applyDragonCleanup) ActionBattleDragonRuntime.onPokemonUnavailable(session, pokemonId, fainted, currentTick);
         ActionBattleDarkRuntime.onPokemonUnavailable(session, pokemonId, fainted, currentTick);
         ActionBattleFlyingRuntime.clearPokemon(session, pokemonId);
@@ -168,6 +187,8 @@ final class ActionBattleEffectRuntime {
         ActionBattleSteelRuntime.clearPokemon(session.battleId(), pokemonId);
         ActionBattleWeightedKnockbackController.clearPokemon(pokemonId);
         ActionBattleInterruptController.clearPokemon(session.battleId(), pokemonId);
+        net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleInfatuationController
+                .clearPokemon(session.battleId(), pokemonId);
         STAT_LINK_CLEANUP.onPokemonUnavailable(session.battleId(), pokemonId, currentTick);
         ActionBattlePersistentController.global().onPokemonUnavailable(session.battleId(), pokemonId, fainted, currentTick);
         ActionBattleControlController.global().onPokemonUnavailable(session.battleId(), pokemonId, fainted, currentTick);
@@ -180,7 +201,6 @@ final class ActionBattleEffectRuntime {
         if (entity == null || entity.isRemoved() || entity.level() != level) return;
         ActionBattleEvasionController.record(session, entity, currentTick);
         ActionBattleSleepController.tickPokemon(session, entity, currentTick);
-        ActionBattleFightingRuntime.tickPokemon(session, entity, currentTick);
         ActionBattleBugRuntime.tickPokemon(session, entity, currentTick);
         ActionBattleDragonRuntime.tickPokemon(session, level, entity, currentTick);
         ActionBattleDarkRuntime.tickPokemon(session, entity, currentTick);
@@ -286,11 +306,6 @@ final class ActionBattleEffectRuntime {
         boolean inside = isInsideHazeZone(session, raw, hazeActive);
         ActionBattleEffectController.global().setHazeProtected(session.battleId(), pokemonUUID, inside, currentTick);
         if (inside && DungeonSession.isActive()) {
-            ActionBattleTypeEffectController.global().suppressFireBonusByHaze(DungeonSession.getSessionId(), pokemonUUID);
-            ActionBattleTypeEffectController.global().suppressIceDefenseByHaze(DungeonSession.getSessionId(), pokemonUUID);
-            ActionBattleTypeEffectController.global().suppressFairySpecialDefenseByHaze(DungeonSession.getSessionId(), pokemonUUID);
-            ActionBattleTypeEffectController.global().suppressPoisonSpecialAttackByHaze(DungeonSession.getSessionId(), pokemonUUID);
-            ActionBattleTypeEffectController.global().suppressElectricSpeedByHaze(DungeonSession.getSessionId(), pokemonUUID);
             ActionBattleDragonRuntime.suppressStatsByHaze(session, pokemonUUID, currentTick);
             ActionBattleGhostRuntime.global().clearStatCursesForHaze(session.battleId(), pokemonUUID, currentTick);
         }

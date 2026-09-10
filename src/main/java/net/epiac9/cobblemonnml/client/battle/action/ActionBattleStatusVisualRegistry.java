@@ -1,12 +1,12 @@
 package net.epiac9.cobblemonnml.client.battle.action;
 
 import net.minecraft.resources.ResourceLocation;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyVisuals;
 
 public final class ActionBattleStatusVisualRegistry {
-    private static final StatusVisual SLEEP = typeEffectVisual("sleep", 0xFF7E73C7);
+    private static final StatusVisual SLEEP = visual("sleep", 0xFF7E73C7);
     private static final StatusVisual CONFUSION = visual("confusion", 0xFFC56BFF);
     private static final StatusVisual EVASION = visual("evasion", 0xFF8FD7E8);
+    private static final StatusVisual INFATUATION = visual("confusion", 0xFFFF79B0);
     private static final StatusVisual CONTROL_TAUNT = visual("control_taunt", 0xFFE56A54);
     private static final StatusVisual CONTROL_DISABLE = visual("control_disable", 0xFFB66DE8);
     private static final StatusVisual CONTROL_ENCORE = visual("control_encore", 0xFFFFB84D);
@@ -17,19 +17,12 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual PERSISTENT_PERISH_SONG = visual("persistent_perish_song", 0xFFE9E9E9);
     private static final StatusVisual PERSISTENT_BOUND = visual("persistent_bound", 0xFFB58B5A);
     private static final StatusVisual PERSISTENT_NIGHTMARE = visual("persistent_nightmare", 0xFF5C3E86);
-    private static final StatusVisual TYPE_FIRE_BUILDUP = typeEffectVisual("fire_build_up", 0xFFFFA24A);
-    private static final StatusVisual TYPE_FIRE_CINDERS = typeEffectVisual("cinders", 0xFFB97857);
-    private static final StatusVisual TYPE_FIRE_BURN = typeEffectVisual("burn", 0xFFFF5A32);
-    private static final StatusVisual TYPE_ICE_CHILL = typeEffectVisual("chill", 0xFF9EDFFF);
-    private static final StatusVisual TYPE_ICE_FREEZE = typeEffectVisual("freeze", 0xFF63BDEB);
-    private static final StatusVisual TYPE_ICE_FROSTBITE = typeEffectVisual("frostbite", 0xFF4A8FCB);
-    private static final StatusVisual TYPE_FAIRY_DROWSY = typeEffectVisual(ActionBattleFairyVisuals.drowsyTextureName(), 0xFFE890C8);
-    private static final StatusVisual TYPE_POISON = visual("confusion", 0xFF70C968);
-    private static final StatusVisual TYPE_POISON_LV1 = visual("confusion", 0xFF52AE5B);
-    private static final StatusVisual TYPE_POISON_LV2 = visual("confusion", 0xFF8D5BC4);
-    private static final StatusVisual TYPE_TOXIC = visual("confusion", 0xFF7139A3);
-    private static final StatusVisual TYPE_ELECTRIC_CHARGE = typeEffectVisual("electric_charge", 0xFFFFD740);
-    private static final StatusVisual TYPE_ELECTRIC_PARALYSIS = typeEffectVisual("paralysis", 0xFFFFB300);
+    private static final StatusVisual BURN = visual("burn", 0xFFFF5A32);
+    private static final StatusVisual FREEZE = visual("freeze", 0xFF63BDEB);
+    private static final StatusVisual DROWSY = visual("drowsy", 0xFFE890C8);
+    private static final StatusVisual POISON = visual("confusion", 0xFF70C968);
+    private static final StatusVisual TOXIC = visual("confusion", 0xFF7139A3);
+    private static final StatusVisual PARALYSIS = visual("paralysis", 0xFFFFB300);
     private static final StatusVisual TYPE_AQUA_SHIELD = typeEffectVisual("aqua_shield", 0xFF42C7E8);
     private static final StatusVisual TYPE_IMMOBILIZED = typeEffectVisual("immobilized", 0xFF2488C9);
     private static final StatusVisual TYPE_GRASS_EMPOWER = typeEffectVisual("grass_empower", 0xFF79D64A);
@@ -48,8 +41,8 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual TYPE_GHOST_HUNGER = typeEffectVisual("hunger", 0xFFA45B72);
     private static final StatusVisual TYPE_GHOST_MISFORTUNE = typeEffectVisual("misfortune", 0xFF75539D);
     private static final StatusVisual TYPE_GHOST_HAUNTING = typeEffectVisual("haunting", 0xFFC09ADB);
-    private static final StatusVisual TYPE_FIGHTING_OUTRAGE = typeEffectVisual("outrage", 0xFFE05A3F);
-    private static final StatusVisual TYPE_FIGHTING_EXHAUSTED = typeEffectVisual("exhausted", 0xFF9B8C7B);
+    private static final StatusVisual RAMPAGE = visual("rampage", 0xFFE05A3F);
+    private static final StatusVisual EXHAUSTED = visual("exhausted", 0xFF9B8C7B);
     private static final StatusVisual TYPE_DRAGON_UPROAR_BUILDUP = typeEffectVisual(
             net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonHudRules.ICON_NAME,
             net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonHudRules.BUILDUP_RING_ARGB);
@@ -87,6 +80,7 @@ public final class ActionBattleStatusVisualRegistry {
             case "SLEEP" -> SLEEP;
             case "CONFUSION" -> CONFUSION;
             case "EVASION" -> EVASION;
+            case "INFATUATION" -> INFATUATION;
             case "CONTROL_TAUNT" -> CONTROL_TAUNT;
             case "CONTROL_DISABLE" -> CONTROL_DISABLE;
             case "CONTROL_ENCORE" -> CONTROL_ENCORE;
@@ -97,19 +91,12 @@ public final class ActionBattleStatusVisualRegistry {
             case "PERSISTENT_PERISH_SONG" -> PERSISTENT_PERISH_SONG;
             case "PERSISTENT_BOUND" -> PERSISTENT_BOUND;
             case "PERSISTENT_NIGHTMARE" -> PERSISTENT_NIGHTMARE;
-            case "TYPE_FIRE_BUILDUP" -> TYPE_FIRE_BUILDUP;
-            case "TYPE_FIRE_CINDERS" -> TYPE_FIRE_CINDERS;
-            case "TYPE_FIRE_BURN" -> TYPE_FIRE_BURN;
-            case "TYPE_ICE_CHILL" -> TYPE_ICE_CHILL;
-            case "TYPE_ICE_FREEZE" -> TYPE_ICE_FREEZE;
-            case "TYPE_ICE_FROSTBITE" -> TYPE_ICE_FROSTBITE;
-            case "TYPE_FAIRY_DROWSY" -> TYPE_FAIRY_DROWSY;
-            case "TYPE_POISON" -> TYPE_POISON;
-            case "TYPE_POISON_LV1" -> TYPE_POISON_LV1;
-            case "TYPE_POISON_LV2" -> TYPE_POISON_LV2;
-            case "TYPE_TOXIC" -> TYPE_TOXIC;
-            case "TYPE_ELECTRIC_CHARGE" -> TYPE_ELECTRIC_CHARGE;
-            case "TYPE_ELECTRIC_PARALYSIS" -> TYPE_ELECTRIC_PARALYSIS;
+            case "BURN" -> BURN;
+            case "FREEZE" -> FREEZE;
+            case "DROWSY" -> DROWSY;
+            case "POISON" -> POISON;
+            case "TOXIC" -> TOXIC;
+            case "PARALYSIS" -> PARALYSIS;
             case "TYPE_AQUA_SHIELD" -> TYPE_AQUA_SHIELD;
             case "TYPE_IMMOBILIZED" -> TYPE_IMMOBILIZED;
             case "TYPE_GRASS_EMPOWER" -> TYPE_GRASS_EMPOWER;
@@ -128,8 +115,8 @@ public final class ActionBattleStatusVisualRegistry {
             case "TYPE_GHOST_HUNGER" -> TYPE_GHOST_HUNGER;
             case "TYPE_GHOST_MISFORTUNE" -> TYPE_GHOST_MISFORTUNE;
             case "TYPE_GHOST_HAUNTING" -> TYPE_GHOST_HAUNTING;
-            case "TYPE_FIGHTING_OUTRAGE_BUILDUP", "TYPE_FIGHTING_OUTRAGE" -> TYPE_FIGHTING_OUTRAGE;
-            case "TYPE_FIGHTING_EXHAUSTED" -> TYPE_FIGHTING_EXHAUSTED;
+            case "RAMPAGE" -> RAMPAGE;
+            case "EXHAUSTED" -> EXHAUSTED;
             case "TYPE_DRAGON_UPROAR_BUILDUP" -> TYPE_DRAGON_UPROAR_BUILDUP;
             case "TYPE_DRAGON_UPROAR" -> TYPE_DRAGON_UPROAR;
             case "TYPE_BUG_SHEDDING" -> TYPE_BUG_SHEDDING;

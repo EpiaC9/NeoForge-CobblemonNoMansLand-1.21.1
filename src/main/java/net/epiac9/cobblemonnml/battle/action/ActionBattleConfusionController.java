@@ -15,11 +15,9 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassC
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterHealth;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCast;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugCast;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugRuntime;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
@@ -61,18 +59,18 @@ public final class ActionBattleConfusionController {
     public static CommandPlan roll(ActionBattleSession session, PokemonEntity pokemon, ActionBattleConfusionRules.CommandKind kind, long currentTick) {
         if (session == null || pokemon == null || kind == null || !isConfused(session, pokemon.getPokemon().getUuid(), currentTick)) return CommandPlan.NORMAL;
         if (!ActionBattleConfusionRules.shouldCorrupt(kind, pokemon.getRandom().nextFloat())) return CommandPlan.NORMAL;
+        ActionBattleConfusionRules.RangedCorruption ranged = kind == ActionBattleConfusionRules.CommandKind.RANGED
+                ? ActionBattleConfusionRules.rangedCorruption(pokemon.getRandom().nextInt()) : null;
+        ActionBattleConfusionRules.SupportCorruption support = kind == ActionBattleConfusionRules.CommandKind.SUPPORT
+                ? ActionBattleConfusionRules.supportCorruption(pokemon.getRandom().nextInt()) : null;
         long channelBonus = kind == ActionBattleConfusionRules.CommandKind.CHANNEL
                 ? ActionBattleConfusionRules.channelBonusTicks(pokemon.getRandom().nextInt(7)) : 0L;
         boolean selfCancel = kind == ActionBattleConfusionRules.CommandKind.CHANNEL
                 && ActionBattleConfusionRules.shouldSelfCancelChannel(pokemon.getRandom().nextFloat());
         DebugLog.log("[CobblemonNML] Confusion corrupted command. Battle=" + session.battleId() + ", pokemon=" + pokemon.getPokemon().getUuid()
-                + ", kind=" + kind + ", penaltyTicks=" + ActionBattleConfusionRules.COOLDOWN_PENALTY_TICKS
+                + ", kind=" + kind
                 + (kind == ActionBattleConfusionRules.CommandKind.CHANNEL ? ", channelBonusTicks=" + channelBonus + ", selfCancel=" + selfCancel : ""));
-        return new CommandPlan(true, channelBonus, selfCancel);
-    }
-
-    public static boolean applyCooldownPenalty(ActionBattleSession session, PokemonEntity pokemon, long currentTick) {
-        return session != null && pokemon != null && ActionBattleCommandController.addCooldownPenalty(session, pokemon.getPokemon().getUuid(), currentTick, ActionBattleConfusionRules.COOLDOWN_PENALTY_TICKS);
+        return new CommandPlan(true, channelBonus, selfCancel, ranged, support);
     }
 
     public static Vec3 randomMoveTarget(PokemonEntity pokemon) {
@@ -86,6 +84,25 @@ public final class ActionBattleConfusionController {
         double y = (pokemon.getRandom().nextDouble() - 0.5D) * 0.7D;
         Vec3 direction = new Vec3(Math.cos(yaw), y, Math.sin(yaw));
         return direction.lengthSqr() > 0.000001D ? direction.normalize() : new Vec3(1.0D, 0.0D, 0.0D);
+    }
+
+    public static Vec3 corruptedShotDirection(PokemonEntity pokemon, PokemonEntity target,
+                                               ActionBattleConfusionRules.RangedCorruption mode) {
+        if (pokemon == null) return new Vec3(1.0D, 0.0D, 0.0D);
+        if (mode == ActionBattleConfusionRules.RangedCorruption.NO_TARGET) {
+            Vec3 look = pokemon.getLookAngle();
+            return look.lengthSqr() > 0.000001D ? look.normalize() : randomShotDirection(pokemon);
+        }
+        if (mode == ActionBattleConfusionRules.RangedCorruption.DIRECTION_DESYNC || target == null) {
+            return randomShotDirection(pokemon);
+        }
+        Vec3 aim = target.getEyePosition().subtract(pokemon.getEyePosition());
+        if (mode == ActionBattleConfusionRules.RangedCorruption.OFFSHOOT) {
+            aim = aim.add((pokemon.getRandom().nextDouble() - 0.5D) * 3.0D,
+                    (pokemon.getRandom().nextDouble() - 0.5D) * 2.0D,
+                    (pokemon.getRandom().nextDouble() - 0.5D) * 3.0D);
+        }
+        return aim.lengthSqr() > 0.000001D ? aim.normalize() : randomShotDirection(pokemon);
     }
 
     public static boolean startMeleeDash(ActionBattleSession session, ServerLevel level, PokemonEntity attacker, Move move, long currentTick) {
@@ -142,8 +159,11 @@ public final class ActionBattleConfusionController {
             return true;
         }
         if (attacker.horizontalCollision) {
+            net.epiac9.cobblemonnml.battle.action.interrupt.ActionBattleInterruptController.apply(
+                    session, attacker, ActionBattleConfusionRules.CRASH_INTERRUPT_TICKS, level.getGameTime());
             damageSelf(attacker, state.move(), state.committedGrassMultiplier(),
-                    state.ghostDamageMultiplier(), state.ghostCast(), state.committedMove());
+                    state.ghostDamageMultiplier(), state.ghostCast(), state.committedMove(),
+                    ActionBattleConfusionRules.crashDamageMultiplier());
             clearDashVelocity(attacker);
             return true;
         }
@@ -190,17 +210,11 @@ public final class ActionBattleConfusionController {
                                         ActionBattleGhostCast ghostCast, ActionBattleBugCast bugCast,
                                         ActionBattleCommittedMove committedMove) {
         PokemonEntity pokemonTarget = target instanceof PokemonEntity pokemon ? pokemon : null;
-        ActionBattleSession sleepSession = pokemonTarget != null
-                ? ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID()) : null;
         long currentTick = attacker.level().getGameTime();
         ActionBattleBugCast resolvedBugCast = bugCast;
         if (resolvedBugCast == null && pokemonTarget != null) {
             resolvedBugCast = ActionBattleBugRuntime.arm(attacker, pokemonTarget, move).orElse(null);
         }
-        ActionBattleSleepController.WakePlan wakePlan = pokemonTarget != null
-                ? ActionBattleSleepController.planDamagingWake(sleepSession, pokemonTarget, currentTick, false,
-                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "fairy"))
-                : ActionBattleSleepController.WakePlan.NONE;
         float targetDamage = Math.max(1.0F, ActionBattleCriticalRules.apply(
                 FightOrFlightAdapter.scaleActionDamage(attacker, target, move,
                         PokemonAttackEffect.calculatePokemonDamage(attacker, target, move), committedGrassMultiplier),
@@ -214,8 +228,6 @@ public final class ActionBattleConfusionController {
                     attacker, pokemonTarget, move, beforeHp, attemptedPokemonDamage, true);
             int actualBugTriggerDamage = ActionBattleBugRuntime.resolveIncomingDamage(pokemonTarget, beforeHp);
             ActionBattleBugRuntime.resolveHit(resolvedBugCast, pokemonTarget, actualBugTriggerDamage, move);
-            ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, true,
-                    protection.protectParticipated() || protection.aquaParticipated());
             net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime
                     .onConnectedHit(attacker, pokemonTarget, move, true);
             ActionBattleRockRuntime.HitResult rockHit = ActionBattleRockRuntime.resolveDirectHit(
@@ -225,34 +237,28 @@ public final class ActionBattleConfusionController {
                     Math.max(0, beforeHp - pokemonTarget.getPokemon().getCurrentHealth()));
             ActionBattleWaterController.onSuccessfulInteraction(attacker, pokemonTarget, move);
             ActionBattleGrassController.onSuccessfulMoveResolved(attacker, pokemonTarget, move);
-            ActionBattleSleepController.applyWakeDamageAndWake(sleepSession, pokemonTarget, currentTick, beforeHp, wakePlan);
             ActionBattleGhostRuntime.global().connect(ghostCast, pokemonTarget);
             ActionBattleGhostRuntime.global().onDamageResolved(pokemonTarget, beforeHp);
             ActionBattleRockRuntime.applyReflection(attacker, rockHit);
         } else if (!success) {
             ActionBattleGhostRuntime.global().discard(ghostCast);
         }
-        damageSelf(attacker, move, committedGrassMultiplier, ghostDamageMultiplier, null, committedMove);
     }
 
     private static void damageSelf(PokemonEntity attacker, Move move, double committedGrassMultiplier,
                                    double ghostDamageMultiplier,
-                                   ActionBattleGhostCast ghostCast, ActionBattleCommittedMove committedMove) {
+                                   ActionBattleGhostCast ghostCast, ActionBattleCommittedMove committedMove,
+                                   double damageMultiplier) {
         int beforeHp = attacker.getPokemon().getCurrentHealth();
         long currentTick = attacker.level().getGameTime();
-        ActionBattleSession sleepSession = ActionBattleManager.findSessionForBattlePokemonEntity(attacker.getUUID());
-        ActionBattleSleepController.WakePlan wakePlan = ActionBattleSleepController.planDamagingWake(
-                sleepSession, attacker, currentTick, false,
-                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "fairy"));
-        float selfDamage = Math.max(1.0F, ActionBattleCriticalRules.apply(
+        float selfDamage = Math.max(1.0F, (float) (damageMultiplier * ActionBattleCriticalRules.apply(
                 FightOrFlightAdapter.scaleActionDamage(attacker, attacker, move,
                         PokemonAttackEffect.calculatePokemonDamage(attacker, attacker, move), committedGrassMultiplier),
-                committedMove.critical()));
+                committedMove.critical())));
         boolean success = attacker.hurt(attacker.damageSources().magic(), selfDamage);
         if (success) {
             ActionBattleGrassController.onPokemonDamageResolved(attacker, attacker,
                     Math.max(0, beforeHp - attacker.getPokemon().getCurrentHealth()));
-            ActionBattleSleepController.applyWakeDamageAndWake(sleepSession, attacker, currentTick, beforeHp, wakePlan);
             ActionBattleGhostRuntime.global().connect(ghostCast, attacker);
             ActionBattleGhostRuntime.global().onDamageResolved(attacker, beforeHp);
         } else {
@@ -268,8 +274,10 @@ public final class ActionBattleConfusionController {
         return raw instanceof PokemonEntity pokemon ? pokemon : null;
     }
 
-    public record CommandPlan(boolean corrupted, long channelBonusTicks, boolean channelSelfCancel) {
-        public static final CommandPlan NORMAL = new CommandPlan(false, 0L, false);
+    public record CommandPlan(boolean corrupted, long channelBonusTicks, boolean channelSelfCancel,
+                              ActionBattleConfusionRules.RangedCorruption rangedCorruption,
+                              ActionBattleConfusionRules.SupportCorruption supportCorruption) {
+        public static final CommandPlan NORMAL = new CommandPlan(false, 0L, false, null, null);
     }
     private record DashState(UUID battleId, UUID pokemonUUID, Move move, long expiresAtTick,
                              double committedGrassMultiplier, double ghostDamageMultiplier,

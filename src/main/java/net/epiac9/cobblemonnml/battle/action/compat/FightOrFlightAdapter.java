@@ -12,7 +12,6 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleLineOfSight;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleRangeRules;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleTargetTracker;
-import net.epiac9.cobblemonnml.battle.action.ActionBattleSleepController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSwapTransitionGuard;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleEvasionController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleStatResolver;
@@ -29,14 +28,6 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatRules;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionBattleProjectileEntity;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionProjectileProfile;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleAquaShieldProtection;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
@@ -48,7 +39,6 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsyc
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCast;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattlePropulsionController;
@@ -73,13 +63,13 @@ public final class FightOrFlightAdapter {
     private FightOrFlightAdapter() {}
 
     public static boolean supports(Move move) {
-        return move != null && (ActionBattleBalefulBunkerHandler.isBalefulBunker(move) || ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || ActionBattleSteelRuntime.isQualifyingSelfBuffMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || ActionBattleElectricController.isQualifyingEnemyInteraction(move) || ActionBattleWaterController.isQualifyingInteraction(move) || ActionBattleGrassController.isQualifyingMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move))));
+        return move != null && (ActionBattleBalefulBunkerHandler.isBalefulBunker(move) || ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || ActionBattleSteelRuntime.isQualifyingSelfBuffMove(move) || ActionBattleWaterController.isQualifyingInteraction(move) || ActionBattleGrassController.isQualifyingMove(move) || (movePower(move) == 0 && ActionBattleMoveEffectResolver.hasSupportedActionStatusMetadata(move)));
     }
 
     public static boolean isMeleeMove(Move move) { return move != null && PokemonUtils.isMeleeAttackMove(move); }
 
     public static boolean isRangedMove(Move move) {
-        return move != null && (ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || (!PokemonUtils.isMeleeAttackMove(move) && ActionBattleElectricController.isQualifyingEnemyInteraction(move)) || (!PokemonUtils.isMeleeAttackMove(move) && ActionBattleWaterController.isQualifyingInteraction(move)) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move))));
+        return move != null && (ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isRangeAttackMove(move) || (!PokemonUtils.isMeleeAttackMove(move) && ActionBattleWaterController.isQualifyingInteraction(move)) || (movePower(move) == 0 && ActionBattleMoveEffectResolver.hasSupportedActionStatusMetadata(move)));
     }
 
     public static boolean isNativeDamageMove(Move move) {
@@ -220,7 +210,6 @@ public final class FightOrFlightAdapter {
         UUID battleId = caster != null ? ActionBattleManager.battleIdForPokemonEntity(caster.getUUID()) : null;
         if (battleId != null) ActionBattleGhostRuntime.global().onAffectedMoveCommitted(
                 battleId, caster.getPokemon().getUuid(), caster.level().getGameTime());
-        ActionBattleFightingRuntime.onMoveCommitted(caster, move);
         return true;
     }
 
@@ -364,11 +353,7 @@ public final class FightOrFlightAdapter {
         int beforeHp = target.getPokemon().getCurrentHealth();
         int attemptedPokemonDamage = ActionBattleWaterHealth.toPokemonDamage(
                 target.getPokemon().getMaxHealth(), target.getMaxHealth(), scaledDamage);
-        ActionBattleSession sleepSession = ActionBattleManager.findSessionForBattlePokemonEntity(target.getUUID());
         long currentTick = attacker.level().getGameTime();
-        ActionBattleSleepController.WakePlan wakePlan = ActionBattleSleepController.planDamagingWake(
-                sleepSession, target, currentTick, true,
-                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "fairy"));
         applyOnUseEffectsWithoutActionStatuses(attacker, target, move);
         boolean success = target.hurt(attacker.damageSources().indirectMagic(attacker, attacker), scaledDamage);
         if (success) attacker.setLastHurtMob(target);
@@ -378,31 +363,14 @@ public final class FightOrFlightAdapter {
         applyPostEffectsWithoutActionStatuses(attacker, target, move, success);
         boolean qualifyingWaterInteraction = success;
         ProtectionOutcome protection = applyProtectImpact(attacker, target, move, beforeHp, attemptedPokemonDamage, success);
-        ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, success,
-                protection.protectParticipated() || protection.aquaParticipated());
         ActionBattleDarkRuntime.onConnectedHit(attacker, target, move, success);
         ActionBattleRockRuntime.HitResult rockHit = ActionBattleRockRuntime.resolveDirectHit(attacker, target,
                 beforeHp, protection.incomingDamage(), success, protection.protectParticipated());
         ActionBattleGroundController.resolveAfterDamage(groundPlan, attacker, target, beforeHp);
         if (success) ActionBattleGrassController.onPokemonDamageResolved(attacker, target,
                 Math.max(0, beforeHp - target.getPokemon().getCurrentHealth()));
-        if (success) ActionBattleFireController.onSuccessfulMoveHit(
-                attacker, target, move, ActionBattleFireRules.NORMAL_PRESSURE);
         if (qualifyingWaterInteraction) ActionBattleWaterController.onSuccessfulInteraction(attacker, target, move);
         if (success) ActionBattleGrassController.onSuccessfulMoveResolved(attacker, target, move);
-        if (success && beforeHp > target.getPokemon().getCurrentHealth()) {
-            ActionBattleElectricController.onSuccessfulMoveHit(attacker, target, move);
-        }
-        if (ActionBattleIceRules.isQualifyingDamagingHit(
-                success, beforeHp, target.getPokemon().getCurrentHealth())) {
-            ActionBattleIceController.onSuccessfulMoveHit(attacker, target, move);
-        }
-        if (ActionBattlePoisonRules.isQualifyingDamagingHit(
-                success, beforeHp, target.getPokemon().getCurrentHealth())) {
-            ActionBattlePoisonController.onSuccessfulEnemyInteraction(attacker, target, move);
-        }
-        if (success) ActionBattleSleepController.applyWakeDamageAndWake(
-                sleepSession, target, currentTick, beforeHp, wakePlan);
         UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
         if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(target.getUUID());
         if (battleId != null) ActionBattleDamageFeedbackController.global().recordDamage(
@@ -411,6 +379,7 @@ public final class FightOrFlightAdapter {
         ActionBattleMoveEffectResolver.applyDeclaredFlinchOnHit(attacker, target, move, success);
         ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, target, move, success);
         ActionBattleMoveEffectResolver.applyDeclaredParalysisOnHit(attacker, target, move, success);
+        ActionBattleMoveEffectResolver.applyDeclaredMajorStatusesOnHit(attacker, target, move, success);
         ActionBattlePsycUpController.onSuccessfulEnemyMoveResolved(attacker, target, move, success);
         ActionBattleGhostRuntime.global().onDamageResolved(target, beforeHp);
         ActionBattleRockRuntime.applyReflection(attacker, rockHit);
@@ -523,12 +492,7 @@ public final class FightOrFlightAdapter {
                     ActionBattleCriticalRules.apply(scaleActionDamage(attacker, pokemonTarget, move,
                             PokemonAttackEffect.calculatePokemonDamage(attacker, pokemonTarget, move), committedGrassMultiplier),
                             committedMove != null ? committedMove.critical() : null)) : 0;
-            ActionBattleSession sleepSession = pokemonTarget != null ? ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID()) : null;
             long currentTick = attacker.level().getGameTime();
-            ActionBattleSleepController.WakePlan wakePlan = pokemonTarget != null
-                    ? ActionBattleSleepController.planDamagingWake(sleepSession, pokemonTarget, currentTick, false,
-                    ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "fairy"))
-                    : ActionBattleSleepController.WakePlan.NONE;
             LivingEntity finalTarget = target;
             ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, finalTarget, move,
                     ActionBattleMoveEffectResolver.StatTrigger.BEFORE_USE, true);
@@ -543,33 +507,21 @@ public final class FightOrFlightAdapter {
                 int actualBugTriggerDamage = success
                         ? ActionBattleBugRuntime.resolveIncomingDamage(pokemonTarget, beforeHp) : 0;
                 ActionBattleBugRuntime.resolveHit(bugCast, pokemonTarget, actualBugTriggerDamage, move);
-                ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, success,
-                        protection.protectParticipated() || protection.aquaParticipated());
                 ActionBattleDarkRuntime.onConnectedHit(attacker, pokemonTarget, move, success);
                 ActionBattleRockRuntime.HitResult rockHit = ActionBattleRockRuntime.resolveDirectHit(attacker, pokemonTarget,
                         beforeHp, protection.incomingDamage(), success, protection.protectParticipated());
                 ActionBattleGroundController.resolveAfterDamage(groundPlan, attacker, pokemonTarget, beforeHp);
                 if (success) ActionBattleGrassController.onPokemonDamageResolved(attacker, pokemonTarget,
                         Math.max(0, beforeHp - pokemonTarget.getPokemon().getCurrentHealth()));
-                if (success) ActionBattleFireController.onSuccessfulMoveHit(attacker, pokemonTarget, move, ActionBattleFireRules.NORMAL_PRESSURE);
                 if (qualifyingWaterHit) ActionBattleWaterController.onSuccessfulInteraction(attacker, pokemonTarget, move);
                 if (success) ActionBattleGrassController.onSuccessfulMoveResolved(attacker, pokemonTarget, move);
-                if (success && beforeHp > pokemonTarget.getPokemon().getCurrentHealth()) {
-                    ActionBattleElectricController.onSuccessfulMoveHit(attacker, pokemonTarget, move);
-                }
-                if (ActionBattleIceRules.isQualifyingDamagingHit(success, beforeHp, pokemonTarget.getPokemon().getCurrentHealth())) {
-                    ActionBattleIceController.onSuccessfulMoveHit(attacker, pokemonTarget, move);
-                }
-                if (ActionBattlePoisonRules.isQualifyingDamagingHit(success, beforeHp, pokemonTarget.getPokemon().getCurrentHealth())) {
-                    ActionBattlePoisonController.onSuccessfulEnemyInteraction(attacker, pokemonTarget, move);
-                }
-                if (success) ActionBattleSleepController.applyWakeDamageAndWake(sleepSession, pokemonTarget, currentTick, beforeHp, wakePlan);
                 UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
                 if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(pokemonTarget.getUUID());
                 if (battleId != null) ActionBattleDamageFeedbackController.global().recordDamage(battleId, pokemonTarget.getPokemon().getUuid(), beforeHp, pokemonTarget.getPokemon().getCurrentHealth(), ActionBattleDamageFeedbackCategory.NORMAL);
                 ActionBattleMoveEffectResolver.applyDeclaredFlinchOnHit(attacker, pokemonTarget, move, success);
                 ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, pokemonTarget, move, success);
                 ActionBattleMoveEffectResolver.applyDeclaredParalysisOnHit(attacker, pokemonTarget, move, success);
+                ActionBattleMoveEffectResolver.applyDeclaredMajorStatusesOnHit(attacker, pokemonTarget, move, success);
                 ActionBattleMoveEffectResolver.applyDeclaredStatChanges(attacker, pokemonTarget, move,
                         ActionBattleMoveEffectResolver.StatTrigger.ON_HIT, success);
                 ActionBattlePsycUpController.onSuccessfulEnemyMoveResolved(attacker, pokemonTarget, move, success);
@@ -607,7 +559,7 @@ public final class FightOrFlightAdapter {
             }
             return true;
         }
-        if (PokemonUtils.isRangeAttackMove(move) || ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move) || ActionBattlePoisonController.isQualifyingPoisonMove(move) || ActionBattleElectricController.isQualifyingEnemyInteraction(move) || ActionBattleWaterController.isQualifyingInteraction(move) || ActionBattleGrassController.isQualifyingMove(move) || (movePower(move) == 0 && (ActionBattleMoveEffectResolver.hasSupportedFlinchOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedConfusionOnHitMetadata(move) || ActionBattleMoveEffectResolver.hasSupportedParalysisOnHitMetadata(move)))) {
+        if (PokemonUtils.isRangeAttackMove(move) || ActionBattleWaterController.isQualifyingInteraction(move) || ActionBattleGrassController.isQualifyingMove(move) || (movePower(move) == 0 && ActionBattleMoveEffectResolver.hasSupportedActionStatusMetadata(move))) {
             PokemonUtils.sendAnimationPacket(attacker, "special");
             ActionBattleProjectileEntity projectile = new ActionBattleProjectileEntity(
                     attacker.level(), attacker, target, move, committedGrassMultiplier,

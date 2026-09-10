@@ -246,7 +246,12 @@ public final class ActionBattleWaterController {
     }
 
     private static void heal(Pokemon pokemon) {
-        if (pokemon != null) ActionBattleWaterHealth.heal(healthAccess(pokemon));
+        if (pokemon == null) return;
+        ActionBattleSession session = ActionBattleManager.findSessionForPokemon(pokemon.getUuid());
+        long tick = pokemon.getEntity() != null ? pokemon.getEntity().level().getGameTime() : 0L;
+        boolean blocked = session != null && net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController
+                .global().blocksHealing(session.battleId(), pokemon.getUuid(), tick);
+        ActionBattleWaterHealth.heal(healthAccess(pokemon), blocked);
     }
 
     private static ActionBattleWaterHealth.Access healthAccess(Pokemon pokemon) {

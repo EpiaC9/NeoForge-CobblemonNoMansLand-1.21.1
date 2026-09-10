@@ -11,15 +11,14 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatusApplication;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.epiac9.cobblemonnml.mixin.ActionBattleStatChangeMoveDataAccessor;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatApplicationService;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatSource;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleConfusionRules;
 import net.minecraft.world.entity.LivingEntity;
 
 import java.util.List;
@@ -27,6 +26,7 @@ import java.util.Locale;
 import java.util.Objects;
 
 public final class ActionBattleMoveEffectResolver {
+    public static final int DEFAULT_DIRECT_STATUS_DURATION_TICKS = 180;
     private ActionBattleMoveEffectResolver() {}
 
     public static boolean hasStatusMetadata(Move move) {
@@ -54,6 +54,13 @@ public final class ActionBattleMoveEffectResolver {
     public static boolean hasExplicitWakeOnHitMetadata(Move move) { return hasSupportedOnHitMetadata(move, StatusFamily.WAKE); }
     public static boolean hasSupportedParalysisOnHitMetadata(Move move) { return hasSupportedOnHitMetadata(move, StatusFamily.PARALYSIS); }
 
+    public static boolean hasSupportedActionStatusMetadata(Move move) {
+        return hasSupportedFlinchOnHitMetadata(move) || hasSupportedConfusionOnHitMetadata(move)
+                || hasSupportedParalysisOnHitMetadata(move) || hasSupportedOnHitMetadata(move, StatusFamily.BURN)
+                || hasSupportedOnHitMetadata(move, StatusFamily.FREEZE) || hasSupportedOnHitMetadata(move, StatusFamily.POISON)
+                || hasSupportedOnHitMetadata(move, StatusFamily.TOXIC);
+    }
+
     public static boolean isOwnedParalysisName(String name) {
         String normalized = name != null ? name.trim().toLowerCase(Locale.ROOT) : "";
         return Objects.equals(normalized, "paralysis") || Objects.equals(normalized, "paralyze")
@@ -64,7 +71,9 @@ public final class ActionBattleMoveEffectResolver {
         if (!isOnHitTarget(status)) return false;
         String name = status.getName();
         return StatusFamily.FLINCH.matchesMetadata(name) || StatusFamily.CONFUSION.matchesMetadata(name)
-            || StatusFamily.WAKE.matchesMetadata(name) || StatusFamily.PARALYSIS.matchesMetadata(name);
+            || StatusFamily.WAKE.matchesMetadata(name) || StatusFamily.PARALYSIS.matchesMetadata(name)
+            || StatusFamily.BURN.matchesMetadata(name) || StatusFamily.FREEZE.matchesMetadata(name)
+            || StatusFamily.POISON.matchesMetadata(name) || StatusFamily.TOXIC.matchesMetadata(name);
     }
 
     public static void applyDeclaredStatChanges(PokemonEntity attacker, LivingEntity suppliedTarget,
@@ -93,6 +102,32 @@ public final class ActionBattleMoveEffectResolver {
         }
     }
 
+    public static boolean applyCorruptedSupport(PokemonEntity attacker, PokemonEntity enemy, Move move,
+                                                 ActionBattleConfusionRules.SupportCorruption mode) {
+        if (attacker == null || move == null || mode == null
+                || mode == ActionBattleConfusionRules.SupportCorruption.FAIL || attacker.level().isClientSide) return false;
+        List<MoveData> entries = MoveData.moveData.get(move.getName());
+        if (entries == null) return false;
+        boolean applied = false;
+        for (MoveData entry : entries) {
+            if (!(entry instanceof StatChangeMoveData statData)) continue;
+            int declared = ((ActionBattleStatChangeMoveDataAccessor) statData).cobblemonNml$getStage();
+            if (declared == 0) continue;
+            PokemonEntity receiver = mode == ActionBattleConfusionRules.SupportCorruption.INVERSE_SELF ? attacker : enemy;
+            if (receiver == null) continue;
+            int corrupted = mode == ActionBattleConfusionRules.SupportCorruption.INVERSE_SELF
+                    ? -declared : declared < 0 ? -declared : declared;
+            ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(receiver.getUUID());
+            if (session == null || !ActionBattleEffectApplicationGuard.allowsNewApplication(
+                    session, receiver, attacker.level().getGameTime())) continue;
+            applied |= ActionBattleStatApplicationService.global().applyBatch(session.battleId(),
+                    receiver.getPokemon().getUuid(), ActionBattleStatMoveMetadata.translate(statData.getName(), corrupted),
+                    attacker.level().getGameTime(), ActionBattleStatSource.NORMAL_MOVE, true).receiverStages().values().stream()
+                    .anyMatch(value -> value != 0);
+        }
+        return applied;
+    }
+
     public static void applyDeclaredFlinchOnHit(PokemonEntity attacker, PokemonEntity target, Move move, boolean hitSucceeded) {
         applyDeclared(attacker, target, move, hitSucceeded, StatusFamily.FLINCH);
     }
@@ -102,22 +137,33 @@ public final class ActionBattleMoveEffectResolver {
     }
 
     public static void applyDeclaredParalysisOnHit(PokemonEntity attacker, PokemonEntity target, Move move, boolean hitSucceeded) {
+        applyDeclaredDirectStatus(attacker, target, move, hitSucceeded, StatusFamily.PARALYSIS, ActionBattleStatus.PARALYSIS);
+    }
+
+    public static void applyDeclaredMajorStatusesOnHit(PokemonEntity attacker, PokemonEntity target, Move move,
+                                                        boolean hitSucceeded) {
+        applyDeclaredDirectStatus(attacker, target, move, hitSucceeded, StatusFamily.BURN, ActionBattleStatus.BURN);
+        applyDeclaredDirectStatus(attacker, target, move, hitSucceeded, StatusFamily.FREEZE, ActionBattleStatus.FREEZE);
+        applyDeclaredDirectStatus(attacker, target, move, hitSucceeded, StatusFamily.POISON, ActionBattleStatus.POISON);
+        applyDeclaredDirectStatus(attacker, target, move, hitSucceeded, StatusFamily.TOXIC, ActionBattleStatus.TOXIC);
+    }
+
+    private static void applyDeclaredDirectStatus(PokemonEntity attacker, PokemonEntity target, Move move,
+                                                   boolean hitSucceeded, StatusFamily family,
+                                                   ActionBattleStatus status) {
         if (!hitSucceeded || attacker == null || target == null || move == null || attacker.level().isClientSide) return;
-        if (!allowsDirectParalysisMetadata(move.getType() != null ? move.getType().getName() : null)) return;
         ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(target.getUUID());
         if (session == null || !session.battleId().equals(ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID()))
                 || !DungeonSession.isActive() || !session.dungeonSessionId().equals(DungeonSession.getSessionId())
-                || !rollEffect(attacker, move, StatusFamily.PARALYSIS)) return;
+                || !rollEffect(attacker, move, family)) return;
         if (!ActionBattleEffectApplicationGuard.allowsNewApplication(
                 session, target, attacker.level().getGameTime())) return;
-        ActionBattleElectricController.applyExternalParalysis(ActionBattleTypeEffectController.global(),
-                session.dungeonSessionId(), target.getPokemon().getUuid(), attacker.level().getGameTime(),
-                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(target, "electric"), ActionBattleEffectController.global().hasHaze(
-                        session.battleId(), target.getPokemon().getUuid(), attacker.level().getGameTime()));
+        ActionBattleEffectController.global().applyStatus(session.battleId(), target.getPokemon().getUuid(), status,
+                attacker.level().getGameTime(), DEFAULT_DIRECT_STATUS_DURATION_TICKS);
     }
 
     public static boolean allowsDirectParalysisMetadata(String moveTypeName) {
-        return !"electric".equals(moveTypeName != null ? moveTypeName.trim().toLowerCase(Locale.ROOT) : "");
+        return true;
     }
 
     private static boolean hasSupportedOnHitMetadata(Move move, StatusFamily family) {
@@ -199,12 +245,21 @@ public final class ActionBattleMoveEffectResolver {
         CONFUSION,
         FLINCH,
         WAKE,
-        PARALYSIS;
+        PARALYSIS,
+        BURN,
+        FREEZE,
+        POISON,
+        TOXIC;
 
         boolean matchesMetadata(String name) {
             if (this == FLINCH) return Objects.equals(name, "flinch");
             if (this == WAKE) return Objects.equals(name, "wake") || Objects.equals(name, "wakeup") || Objects.equals(name, "wake_up");
             if (this == PARALYSIS) return isOwnedParalysisName(name);
+            if (this == BURN) return Objects.equals(name, "burn") || Objects.equals(name, "burned");
+            if (this == FREEZE) return Objects.equals(name, "freeze") || Objects.equals(name, "frozen");
+            if (this == POISON) return Objects.equals(name, "poison") || Objects.equals(name, "poisoned");
+            if (this == TOXIC) return Objects.equals(name, "toxic") || Objects.equals(name, "badly_poisoned")
+                    || Objects.equals(name, "badpoison");
             return Objects.equals(name, "confusion") || Objects.equals(name, "confuse") || Objects.equals(name, "confused");
         }
 
@@ -212,6 +267,7 @@ public final class ActionBattleMoveEffectResolver {
             if (this == FLINCH) return fallback.isSupportedFlinchOnHit();
             if (this == WAKE) return fallback.isExplicitWakeOnHit();
             if (this == PARALYSIS) return fallback.isSupportedParalysisOnHit();
+            if (this == BURN || this == FREEZE || this == POISON || this == TOXIC) return false;
             return fallback.isSupportedConfusionOnHit();
         }
     }

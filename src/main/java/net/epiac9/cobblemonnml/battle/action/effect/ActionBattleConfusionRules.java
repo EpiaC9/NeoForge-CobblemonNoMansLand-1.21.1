@@ -4,11 +4,11 @@ import com.cobblemon.mod.common.api.moves.Move;
 
 public final class ActionBattleConfusionRules {
     public static final long DURATION_TICKS = 180L;
-    public static final long COOLDOWN_PENALTY_TICKS = 60L;
-    public static final float CORRUPTION_CHANCE = 0.33F;
-    public static final float CHANNEL_SELF_CANCEL_CHANCE = 0.30F;
-    public static final int CHANNEL_BONUS_MIN_SECONDS = 2;
-    public static final int CHANNEL_BONUS_MAX_SECONDS = 8;
+    public static final float CORRUPTION_CHANCE = 0.50F;
+    public static final float CHANNEL_SELF_CANCEL_CHANCE = 0.50F;
+    public static final int CHANNEL_BONUS_MIN_SECONDS = 1;
+    public static final int CHANNEL_BONUS_MAX_SECONDS = 3;
+    public static final long CRASH_INTERRUPT_TICKS = 20L;
 
     private ActionBattleConfusionRules() {}
 
@@ -25,6 +25,16 @@ public final class ActionBattleConfusionRules {
         return roll >= 0.0F && roll < CHANNEL_SELF_CANCEL_CHANCE;
     }
 
+    public static RangedCorruption rangedCorruption(int roll) {
+        return RangedCorruption.values()[Math.floorMod(roll, RangedCorruption.values().length)];
+    }
+
+    public static SupportCorruption supportCorruption(int roll) {
+        return SupportCorruption.values()[Math.floorMod(roll, SupportCorruption.values().length)];
+    }
+
+    public static double crashDamageMultiplier() { return 0.50D; }
+
     public static CommandKind commandKindFor(Move move) {
         if (move == null) return CommandKind.SUPPORT;
         if (net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandler.isBalefulBunker(move)) return CommandKind.PROTECT;
@@ -36,4 +46,6 @@ public final class ActionBattleConfusionRules {
     }
 
     public enum CommandKind { MOVE_HERE, RANGED, MELEE, CHANNEL, SUPPORT, PROTECT, SWAP_OUT }
+    public enum RangedCorruption { NO_TARGET, OFFSHOOT, LAST_KNOWN_POSITION, DIRECTION_DESYNC }
+    public enum SupportCorruption { FAIL, INVERSE_SELF, WRONG_SIDE }
 }

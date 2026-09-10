@@ -12,7 +12,6 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatApplicationS
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatSource;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattlePokemonHealth;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
@@ -199,15 +198,10 @@ public final class ActionBattleGhostRuntime {
                     currentTick, uproar.personalTicks());
             return new ActionBattleGhostDamageRules.CooldownPlan(0L, uproar.personalTicks(), moveSlot);
         }
-        long baseSharedTicks = ActionBattleFightingRuntime.sharedCooldownTicks(
-                session, caster, moveSlot, currentTick);
+        long baseSharedTicks = net.epiac9.cobblemonnml.battle.action.ActionBattleAbilityCooldownRules
+                .normal().sharedTicks();
         var plan = damageRules.abilityCooldownPlan(session.battleId(), caster.getPokemon().getUuid(),
                 moveSlot, currentTick, baseSharedTicks);
-        if (ActionBattleFightingRuntime.consumeActivationCooldownSuppression(
-                session, caster, moveSlot, currentTick)) {
-            emitAbilityCooldownConsumption(caster, plan);
-            return new ActionBattleGhostDamageRules.CooldownPlan(0L, 0L, moveSlot);
-        }
         session.startPokemonSharedAbilityCooldown(caster.getPokemon().getUuid(), currentTick, plan.sharedTicks());
         if (plan.personalTicks() > 0L && moveSlot >= 0) {
             session.startPokemonPersonalMoveCooldown(caster.getPokemon().getUuid(), moveSlot,

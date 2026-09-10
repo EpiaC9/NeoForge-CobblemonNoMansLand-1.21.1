@@ -62,6 +62,16 @@ public final class ActionBattleControlState {
         return effect != null ? effect.type() : null;
     }
 
+    public boolean refreshImprison(java.util.UUID sourcePokemonUUID, java.util.Set<String> blockedMoveIds,
+                                   long currentTick) {
+        ActionBattleControlEffect effect = activeEffect(currentTick);
+        if (effect == null || effect.type() != ActionBattleControlType.IMPRISON
+                || !java.util.Objects.equals(effect.sourcePokemonUUID(), sourcePokemonUUID)
+                || blockedMoveIds == null || blockedMoveIds.isEmpty()) return false;
+        active = ActionBattleControlEffect.imprison(sourcePokemonUUID, blockedMoveIds);
+        return true;
+    }
+
     public long remainingTicks(long currentTick) {
         ActionBattleControlEffect effect = activeEffect(currentTick);
         if (effect == null) return 0L;

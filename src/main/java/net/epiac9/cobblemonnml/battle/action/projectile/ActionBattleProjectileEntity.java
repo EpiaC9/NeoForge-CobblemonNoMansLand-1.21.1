@@ -8,7 +8,6 @@ import me.rufia.fightorflight.entity.projectile.PokemonArrow;
 import me.rufia.fightorflight.utils.PokemonUtils;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
-import net.epiac9.cobblemonnml.battle.action.ActionBattleSleepController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleEvasionController;
 import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectResolver;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
@@ -16,15 +15,6 @@ import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCo
 import net.epiac9.cobblemonnml.battle.action.ActionBattleCommittedMove;
 import net.epiac9.cobblemonnml.battle.action.critical.ActionBattleCriticalResult;
 import net.epiac9.cobblemonnml.battle.action.critical.ActionBattleCriticalRules;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsycUpController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterHealth;
@@ -33,7 +23,6 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroun
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCast;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugCast;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugRuntime;
@@ -350,12 +339,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         int beforeHp = pokemonTarget != null ? pokemonTarget.getPokemon().getCurrentHealth() : 0;
         int attemptedPokemonDamage = pokemonTarget != null ? ActionBattleWaterHealth.toPokemonDamage(
                 pokemonTarget.getPokemon().getMaxHealth(), pokemonTarget.getMaxHealth(), getDamage()) : 0;
-        ActionBattleSession sleepSession = pokemonTarget != null ? ActionBattleManager.findSessionForBattlePokemonEntity(pokemonTarget.getUUID()) : null;
         long currentTick = attacker.level().getGameTime();
-        ActionBattleSleepController.WakePlan wakePlan = nativeDamageMove && pokemonTarget != null
-                ? ActionBattleSleepController.planDamagingWake(sleepSession, pokemonTarget, currentTick, true,
-                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "fairy"))
-                : ActionBattleSleepController.WakePlan.NONE;
         if (nativeDamageMove) {
             FightOrFlightAdapter.applyOnUseEffectsWithoutActionStatuses(attacker, target, move);
         } else {
@@ -382,8 +366,6 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
             int actualBugTriggerDamage = nativeDamageMove && success
                     ? ActionBattleBugRuntime.resolveIncomingDamage(pokemonTarget, beforeHp) : 0;
             ActionBattleBugRuntime.resolveHit(bugCast, pokemonTarget, actualBugTriggerDamage, move);
-            ActionBattleFightingRuntime.onSuccessfulHit(attacker, move, success,
-                    protection.protectParticipated() || protection.aquaParticipated());
             net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime
                     .onConnectedHit(attacker, pokemonTarget, move, success);
             ActionBattleRockRuntime.HitResult rockHit = nativeDamageMove
@@ -394,32 +376,16 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
                     groundPlan, attacker, pokemonTarget, beforeHp);
             if (success) ActionBattleGrassController.onPokemonDamageResolved(attacker, pokemonTarget,
                     Math.max(0, beforeHp - pokemonTarget.getPokemon().getCurrentHealth()));
-            if (nativeDamageMove && success) ActionBattleFireController.onSuccessfulMoveHit(attacker, pokemonTarget, move, ActionBattleFireRules.NORMAL_PRESSURE);
             if (qualifyingWaterInteraction) ActionBattleWaterController.onSuccessfulInteraction(attacker, pokemonTarget, move);
             if (success) ActionBattleGrassController.onSuccessfulMoveResolved(attacker, pokemonTarget, move);
-            if (nativeDamageMove && success && beforeHp > pokemonTarget.getPokemon().getCurrentHealth()) {
-                ActionBattleElectricController.onSuccessfulMoveHit(attacker, pokemonTarget, move);
-            }
-            if (!nativeDamageMove && success) {
-                ActionBattleElectricController.onSuccessfulEnemyInteraction(attacker, pokemonTarget, move);
-            }
-            if (nativeDamageMove && ActionBattleIceRules.isQualifyingDamagingHit(success, beforeHp, pokemonTarget.getPokemon().getCurrentHealth())) {
-                ActionBattleIceController.onSuccessfulMoveHit(attacker, pokemonTarget, move);
-            }
-            if (nativeDamageMove && ActionBattlePoisonRules.isQualifyingDamagingHit(
-                    success, beforeHp, pokemonTarget.getPokemon().getCurrentHealth())) {
-                ActionBattlePoisonController.onSuccessfulEnemyInteraction(attacker, pokemonTarget, move);
-            }
-            if (nativeDamageMove && success) ActionBattleSleepController.applyWakeDamageAndWake(sleepSession, pokemonTarget, currentTick, beforeHp, wakePlan);
             UUID battleId = ActionBattleManager.battleIdForPokemonEntity(attacker.getUUID());
             if (battleId == null) battleId = ActionBattleManager.battleIdForPokemonEntity(pokemonTarget.getUUID());
             if (battleId != null) ActionBattleDamageFeedbackController.global().recordDamage(battleId, pokemonTarget.getPokemon().getUuid(), beforeHp, pokemonTarget.getPokemon().getCurrentHealth(), ActionBattleDamageFeedbackCategory.NORMAL);
             ActionBattleMoveEffectResolver.applyDeclaredFlinchOnHit(attacker, pokemonTarget, move, success);
             ActionBattleMoveEffectResolver.applyDeclaredConfusionOnHit(attacker, pokemonTarget, move, success);
             ActionBattleMoveEffectResolver.applyDeclaredParalysisOnHit(attacker, pokemonTarget, move, success);
+            ActionBattleMoveEffectResolver.applyDeclaredMajorStatusesOnHit(attacker, pokemonTarget, move, success);
             ActionBattlePsycUpController.onSuccessfulEnemyMoveResolved(attacker, pokemonTarget, move, success);
-            if (!nativeDamageMove && success) ActionBattleFairyController.onSuccessfulEnemyTargetingMove(attacker, pokemonTarget, move);
-            if (!nativeDamageMove && success) ActionBattlePoisonController.onSuccessfulEnemyInteraction(attacker, pokemonTarget, move);
             if (success) ActionBattleGhostRuntime.global().connect(ghostCast, pokemonTarget);
             else ActionBattleGhostRuntime.global().discard(ghostCast);
             ActionBattleGhostRuntime.global().onDamageResolved(pokemonTarget, beforeHp);

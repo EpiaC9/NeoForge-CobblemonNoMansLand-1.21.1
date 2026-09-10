@@ -3,10 +3,9 @@ package net.epiac9.cobblemonnml.battle.action.typeeffect.normal;
 import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
+import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveTargetRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockMoveRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime;
 
@@ -15,8 +14,7 @@ import java.util.Set;
 
 public final class ActionBattleBoostedMoveRules {
     private static final Set<String> MECHANIC_TYPES = Set.of(
-            "fire", "water", "grass", "electric", "ice", "poison", "ground", "psychic", "rock",
-            "ghost", "dragon", "fighting", "dark", "bug", "flying", "steel", "fairy"
+            "water", "grass", "ground", "psychic", "rock", "ghost", "dragon", "dark", "bug", "flying", "steel"
     );
 
     private ActionBattleBoostedMoveRules() {}
@@ -48,20 +46,18 @@ public final class ActionBattleBoostedMoveRules {
     private static boolean moveHasEnhancedBranch(PokemonEntity user, Move move, String type) {
         boolean damaging = FightOrFlightAdapter.isNativeDamageMove(move)
                 || FightOrFlightAdapter.movePower(move) > 0;
-        boolean enemyTarget = ActionBattleFairyController.isEnemyTargetCategory(
+        boolean enemyTarget = ActionBattleMoveTargetRules.targetsEnemy(
                 FightOrFlightAdapter.moveTargetCategory(move));
         return switch (normalize(type)) {
-            case "fire", "ice", "dark", "bug" -> damaging && enemyTarget;
+            case "dark", "bug" -> damaging && enemyTarget;
             case "water" -> true;
             case "grass" -> ActionBattleGrassController.isQualifyingMove(move);
-            case "electric" -> damaging || enemyTarget;
-            case "poison" -> ActionBattlePoisonController.isQualifyingPoisonMove(move);
             case "ground" -> ActionBattleGroundController.isQualifyingMove(user, move);
             case "psychic" -> enemyTarget;
             case "rock" -> ActionBattleRockMoveRules.qualifies(move);
-            case "ghost", "dragon", "fighting", "flying" -> true;
+            case "ghost", "dragon", "flying" -> true;
             case "steel" -> ActionBattleSteelRuntime.isQualifyingSelfBuffMove(move);
-            case "fairy" -> ActionBattleFairyController.isQualifyingAutomaticDrowsyMove(move);
+            case "fairy" -> false;
             default -> false;
         };
     }

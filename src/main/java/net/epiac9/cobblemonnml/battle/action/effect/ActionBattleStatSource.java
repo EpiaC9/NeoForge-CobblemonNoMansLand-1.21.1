@@ -8,8 +8,6 @@ public enum ActionBattleStatSource {
     GHOST_CURSE,
     GHOST_FRAILTY,
     GHOST_WEAKNESS,
-    FIGHTING_OUTRAGE,
-    SLEEP,
     BUG_ATTACK,
     BUG_SPECIAL_ATTACK,
     BUG_DEFENSE,

@@ -26,7 +26,8 @@ public final class ActionBattleLineOfSight {
                 : session.containsArena(target.getX(), target.getZ());
         return ActionBattleTargetingRules.evaluateVisibility(
                 point(origin), point(facing), hitbox(box), insideArena,
-                (from, to) -> clear(level, attacker, vec(from), vec(to))
+                (from, to) -> clear(level, attacker, vec(from), vec(to)),
+                ActionBattleEvasionController.isEvading(target, level.getGameTime())
         );
     }
 

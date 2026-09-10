@@ -157,13 +157,22 @@ public final class ActionBattleGrassController {
         ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(seededTarget.getUUID());
         if (session == null || ActionBattleTypeEffectController.global().leechSeedView(session.dungeonSessionId(),
                 seededTarget.getPokemon().getUuid(), seededTarget.level().getGameTime()).isEmpty()) return 0;
+        int requested = ActionBattleGrassRules.leechHealAmount(actualDamage,
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(dealer, "grass"));
+        boolean blocked = net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController.global()
+                .blocksHealing(session.battleId(), dealer.getPokemon().getUuid(), dealer.level().getGameTime());
         return ActionBattlePokemonHealth.heal(healthAccess(dealer.getPokemon()),
-                ActionBattleGrassRules.leechHealAmount(actualDamage,
-                        ActionBattleTypeMechanicIdentity.hasMechanicBenefit(dealer, "grass")));
+                net.epiac9.cobblemonnml.battle.action.health.ActionBattleHealingRules.adjust(requested, blocked));
     }
 
     public static int healPokemon(Pokemon pokemon, int requested) {
-        return pokemon == null ? 0 : ActionBattlePokemonHealth.heal(healthAccess(pokemon), requested);
+        if (pokemon == null) return 0;
+        ActionBattleSession session = ActionBattleManager.findSessionForPokemon(pokemon.getUuid());
+        long tick = pokemon.getEntity() != null ? pokemon.getEntity().level().getGameTime() : 0L;
+        boolean blocked = session != null && net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController
+                .global().blocksHealing(session.battleId(), pokemon.getUuid(), tick);
+        return ActionBattlePokemonHealth.heal(healthAccess(pokemon),
+                net.epiac9.cobblemonnml.battle.action.health.ActionBattleHealingRules.adjust(requested, blocked));
     }
 
     public static boolean createSeed(ServerLevel level, UUID sessionId, UUID owner,

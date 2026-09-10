@@ -9,12 +9,11 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatRules;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricContributionSource;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleParalysisState;
+import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleParalysisController;
+import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleParalysisRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
+import net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleRampageController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugRuntime;
 import net.epiac9.cobblemonnml.util.DebugLog;
@@ -171,33 +170,14 @@ final class ActionBattleMovementController {
                 session.dungeonSessionId(), pokemonUUID, currentTick);
         double groundMultiplier = ActionBattleTypeEffectController.global().groundMovementMultiplier(
                 session.dungeonSessionId(), pokemonUUID, currentTick);
-        double exhaustedMultiplier = ActionBattleFightingRuntime.normalLocomotionMultiplier(
-                session, pokemonUUID, currentTick);
+        double exhaustedMultiplier = ActionBattleRampageController.global().movementMultiplier(
+                session.battleId(), pokemonUUID, currentTick);
         double bugMultiplier = ActionBattleBugRuntime.locomotionMultiplier(session, pokemonUUID, currentTick);
+        double paralysisMultiplier = ActionBattleParalysisRules.movementMultiplier(
+                ActionBattleParalysisController.active(session, pokemonUUID, currentTick));
         return ActionBattleMovementActionRules.composeMovementSpeed(ACTION_MOVEMENT_SPEED,
                 ActionBattleStatRules.standardMultiplier(stage), grassMultiplier,
-                groundMultiplier * exhaustedMultiplier * bugMultiplier);
-    }
-
-    static ActionBattleParalysisState.FlinchContributionResult observeElectricParalysisMovement(
-            ActionBattleSession session, PokemonEntity pokemonEntity, int suppliedAmount) {
-        if (session == null || pokemonEntity == null || pokemonEntity.isRemoved() || suppliedAmount <= 0) {
-            return ActionBattleParalysisState.FlinchContributionResult.IGNORED;
-        }
-        return ActionBattleParalysisController.global().observeMovement(ActionBattleTypeEffectController.global(),
-                session, pokemonEntity, pokemonEntity.level().getGameTime(), suppliedAmount);
-    }
-
-    static void observeElectricParalysisMovement(ActionBattleSession session, ServerLevel level) {
-        if (session == null || level == null) return;
-        int suppliedAmount = ActionBattleElectricContributionSource.movementFlinch();
-        if (suppliedAmount <= 0) return;
-        observeElectricParalysisMovement(session, pokemonEntity(level, session.playerActiveEntityUUID()), suppliedAmount);
-        for (UUID playerUUID : session.playerUUIDs()) {
-            if (playerUUID.equals(session.playerUUID())) continue;
-            observeElectricParalysisMovement(session, pokemonEntity(level, session.playerActiveEntityUUID(playerUUID)), suppliedAmount);
-        }
-        observeElectricParalysisMovement(session, pokemonEntity(level, session.trainerActiveEntityUUID()), suppliedAmount);
+                groundMultiplier * exhaustedMultiplier * bugMultiplier, paralysisMultiplier);
     }
 
     static void removeBattle(ActionBattleSession session) {

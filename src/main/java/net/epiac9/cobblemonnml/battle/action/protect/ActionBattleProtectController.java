@@ -53,6 +53,14 @@ public final class ActionBattleProtectController {
         removeIfInactive(new Key(battleId, pokemonUUID), state);
     }
 
+    public int recordFailedProtectAttempt(UUID battleId, UUID pokemonUUID, int levels) {
+        if (battleId == null || pokemonUUID == null || levels <= 0) return 0;
+        ActionBattleDeterioratingShieldState shield = deterioration.computeIfAbsent(
+                new Key(battleId, pokemonUUID), ignored -> new ActionBattleDeterioratingShieldState());
+        for (int index = 0; index < Math.min(2, levels); index++) shield.increaseLevel();
+        return shield.level();
+    }
+
     public void reduceDeterioratingShieldLevel(UUID battleId, UUID pokemonUUID) {
         ActionBattleDeterioratingShieldState state = state(battleId, pokemonUUID);
         if (state == null) return;

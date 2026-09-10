@@ -18,22 +18,14 @@ import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectControll
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentType;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectState;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRules;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireState;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleIceRules;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonVisuals;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockVisualRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleBoostedMoveRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugRules;
@@ -56,6 +48,10 @@ public final class ActionBattleHudSync {
         long currentTick = player.serverLevel().getGameTime();
         long swapCooldownRemaining = Math.max(0L, session.playerSwapCooldownEndTick() - currentTick);
         long swapCooldownDuration = session.playerSwapCooldownDurationTicks();
+        if (ActionBattlePokemonSelection.nextUsable(player, session.playerActivePartyIndex(player.getUUID())) == null) {
+            swapCooldownRemaining = 1L;
+            swapCooldownDuration = 1L;
+        }
         var binding = ActionBattleGhostRuntime.global().curses().view(session.battleId(),
                 playerPokemon.getUuid(), net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostCurseType.BINDING,
                 currentTick);
@@ -70,6 +66,13 @@ public final class ActionBattleHudSync {
         if (uproarCommandsBlocked) {
             moveHereCooldownRemaining = 1L;
             moveHereCooldownDuration = 1L;
+        }
+        if (ActionBattlePersistentController.global().has(
+                session.battleId(), playerPokemon.getUuid(), ActionBattlePersistentType.BOUND, currentTick)) {
+            moveHereCooldownRemaining = Math.max(1L, ActionBattlePersistentController.global().remainingTicks(
+                    session.battleId(), playerPokemon.getUuid(), ActionBattlePersistentType.BOUND, currentTick));
+            moveHereCooldownDuration = Math.max(1L, ActionBattlePersistentController.global().durationTicks(
+                    session.battleId(), playerPokemon.getUuid(), ActionBattlePersistentType.BOUND));
         }
         if (net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime
                 .blocksSwap(playerPokemon.getUuid())) {
@@ -167,11 +170,11 @@ public final class ActionBattleHudSync {
             }
             states.add(new ActionBattleHudPayload.StatusState("PERSISTENT_" + type.name(), persistentRemaining, Math.max(1L, persistentDuration)));
         }
-        fireStatusState(pokemonUUID, currentTick).ifPresent(states::add);
-        iceStatusState(pokemonUUID, currentTick).ifPresent(states::add);
         drowsyStatusState(pokemonUUID, currentTick).ifPresent(states::add);
-        poisonStatusState(pokemonUUID, currentTick).ifPresent(states::add);
-        electricStatusState(pokemonUUID, currentTick).ifPresent(states::add);
+        long infatuationRemaining = net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleInfatuationController
+                .remainingTicks(battleId, pokemonUUID, currentTick);
+        if (infatuationRemaining > 0L) states.add(new ActionBattleHudPayload.StatusState("INFATUATION",
+                infatuationRemaining, net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleInfatuationRules.DURATION_TICKS));
         net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime
                 .view(battleId, pokemonUUID, currentTick).ifPresent(view -> states.add(
                         new ActionBattleHudPayload.StatusState(
@@ -206,21 +209,13 @@ public final class ActionBattleHudSync {
         typeEffects.grassMovementView(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view ->
                 states.add(new ActionBattleHudPayload.StatusState(ActionBattleGrassVisuals.MOVEMENT_STATUS_ID,
                         view.remainingTicks(), view.totalDurationTicks())));
-        ActionBattleFightingRuntime.view(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view -> {
-            if (view.buildupCount() > 0) {
-                states.add(new ActionBattleHudPayload.StatusState(
-                        ActionBattleFightingVisuals.OUTRAGE_BUILDUP_STATUS_ID,
-                        view.buildupCount(), net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRules.BUILDUP_HITS));
-            } else if (view.outrageActive()) {
-                states.add(new ActionBattleHudPayload.StatusState(
-                        ActionBattleFightingVisuals.OUTRAGE_STATUS_ID,
-                        view.outrageRemainingTicks(), net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRules.OUTRAGE_DURATION_TICKS));
-            } else if (view.exhaustedActive()) {
-                states.add(new ActionBattleHudPayload.StatusState(
-                        ActionBattleFightingVisuals.EXHAUSTED_STATUS_ID,
-                        view.exhaustedRemainingTicks(), net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRules.EXHAUSTED_DURATION_TICKS));
-            }
-        });
+        net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleRampageController.global()
+                .view(battleId, pokemonUUID, currentTick).ifPresent(view -> {
+                    if (view.active()) states.add(new ActionBattleHudPayload.StatusState("RAMPAGE",
+                            view.activeRemainingTicks(), net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleRampageState.ACTIVE_DURATION_TICKS));
+                    else if (view.exhausted()) states.add(new ActionBattleHudPayload.StatusState("EXHAUSTED",
+                            view.exhaustedRemainingTicks(), net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleRampageState.EXHAUSTED_DURATION_TICKS));
+                });
         net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonController.global()
                 .view(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view -> {
             if (view.phase() == net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonState.Phase.BUILDUP) {
@@ -271,72 +266,15 @@ public final class ActionBattleHudSync {
                 statusId, remaining, ActionBattleBugRules.LOCKOUT_TICKS));
     }
 
-        private static java.util.Optional<ActionBattleHudPayload.StatusState> electricStatusState(UUID pokemonUUID, long currentTick) {
-        UUID sessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
-        if (sessionId == null) return java.util.Optional.empty();
-        ActionBattleTypeEffectController controller = ActionBattleTypeEffectController.global();
-        java.util.Optional<ActionBattleTypeEffectState.ElectricParalysisView> paralysis =
-            controller.electricParalysisView(sessionId, pokemonUUID, currentTick);
-        if (paralysis.isPresent()) {
-            ActionBattleTypeEffectState.ElectricParalysisView view = paralysis.get();
-            return java.util.Optional.of(new ActionBattleHudPayload.StatusState(ActionBattleElectricVisuals.paralysisStatusId(),
-                ActionBattleElectricVisuals.paralysisRemaining(view.remainingTicks()), ActionBattleElectricVisuals.paralysisDuration()));
-        }
-        return controller.electricChargeView(sessionId, pokemonUUID, currentTick)
-            .map(view -> new ActionBattleHudPayload.StatusState(ActionBattleElectricVisuals.chargeStatusId(),
-                ActionBattleElectricVisuals.chargeRemaining(view.charge()), ActionBattleElectricVisuals.chargeDuration()));
-        }
-
-    private static java.util.Optional<ActionBattleHudPayload.StatusState> poisonStatusState(UUID pokemonUUID, long currentTick) {
-        UUID sessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
-        if (sessionId == null) return java.util.Optional.empty();
-        return ActionBattleTypeEffectController.global().poisonView(sessionId, pokemonUUID, currentTick)
-                .map(view -> new ActionBattleHudPayload.StatusState(
-                        ActionBattlePoisonVisuals.hudStatusId(view.level()),
-                        ActionBattlePoisonVisuals.hudRemaining(view.level(), view.accumulation(), view.toxicRemainingTicks()),
-                        ActionBattlePoisonVisuals.hudDuration(view.level())));
-    }
-
     private static java.util.Optional<ActionBattleHudPayload.StatusState> drowsyStatusState(UUID pokemonUUID, long currentTick) {
         UUID sessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
         if (sessionId == null) return java.util.Optional.empty();
-        return ActionBattleTypeEffectController.global().drowsyView(sessionId, pokemonUUID, currentTick)
+        return ActionBattleEffectController.global().drowsyView(sessionId, pokemonUUID, currentTick)
                 .filter(view -> view.remainingTicks() > 0L)
                 .map(view -> new ActionBattleHudPayload.StatusState(
-                        net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyRules.HUD_STATUS_ID,
+                        net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleDrowsyRules.HUD_STATUS_ID,
                         view.remainingTicks(), view.totalDurationTicks()));
     }
-
-    private static java.util.Optional<ActionBattleHudPayload.StatusState> fireStatusState(UUID pokemonUUID, long currentTick) {
-        UUID sessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
-        if (sessionId == null) return java.util.Optional.empty();
-        return ActionBattleTypeEffectController.global().fireView(sessionId, pokemonUUID, currentTick)
-                .map(ActionBattleHudSync::toFireStatusState);
-    }
-
-    private static ActionBattleHudPayload.StatusState toFireStatusState(ActionBattleTypeEffectState.FireView fire) {
-        if (fire.phase() == ActionBattleFireState.Phase.BURN) {
-            return new ActionBattleHudPayload.StatusState("TYPE_FIRE_BURN", fire.burnRemainingTicks(), ActionBattleFireRules.BURN_DURATION_TICKS);
-        }
-        long pressure = Math.clamp(Math.round(fire.pressure()), 1L, Math.round(ActionBattleFireRules.BURN_THRESHOLD));
-        String statusId = fire.phase() == ActionBattleFireState.Phase.CINDERS ? "TYPE_FIRE_CINDERS" : "TYPE_FIRE_BUILDUP";
-        return new ActionBattleHudPayload.StatusState(statusId, pressure, Math.round(ActionBattleFireRules.BURN_THRESHOLD));
-    }
-
-    private static java.util.Optional<ActionBattleHudPayload.StatusState> iceStatusState(UUID pokemonUUID, long currentTick) {
-        UUID sessionId = DungeonSession.isActive() ? DungeonSession.getSessionId() : null;
-        if (sessionId == null) return java.util.Optional.empty();
-        return ActionBattleTypeEffectController.global().iceView(sessionId, pokemonUUID, currentTick)
-                .map(ActionBattleHudSync::toIceStatusState);
-    }
-
-    private static ActionBattleHudPayload.StatusState toIceStatusState(ActionBattleTypeEffectState.IceView ice) {
-        return new ActionBattleHudPayload.StatusState(
-                ActionBattleIceRules.hudStatusId(ice.phase()),
-                ActionBattleIceRules.hudRemaining(ice.phase(), ice.currentHits(), ice.frostbiteRemainingTicks()),
-                ActionBattleIceRules.hudDuration(ice.phase(), ice.hitsRequired()));
-    }
-
 
     private static ActionBattleHudPayload.StatStageState statStages(UUID battleId, UUID pokemonUUID, long currentTick) {
         return new ActionBattleHudPayload.StatStageState(
@@ -365,8 +303,8 @@ public final class ActionBattleHudSync {
         if (move == null) return ActionBattleHudPayload.MoveState.empty();
         boolean controlAllowed = ActionBattleControlController.global().canUseMove(
                 session.battleId(), pokemon.getUuid(), move, currentTick);
-        boolean fightingAllowed = ActionBattleFightingRuntime.canUseAbility(
-                session, pokemon, move, currentTick);
+        boolean fightingAllowed = net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleRampageController
+                .global().canUseAbility(session.battleId(), pokemon.getUuid(), move.getName(), currentTick);
         boolean dragonAllowed = !net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime
                 .blocksTrainerCommands(session, pokemon.getUuid(), currentTick);
         PokemonEntity entity = pokemon.getEntity();

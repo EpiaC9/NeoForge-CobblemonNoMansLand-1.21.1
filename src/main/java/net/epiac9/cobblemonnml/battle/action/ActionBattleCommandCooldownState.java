@@ -112,6 +112,12 @@ final class ActionBattleCommandCooldownState {
         return true;
     }
 
+    boolean addAbilityPenalty(UUID pokemonUUID, long currentTick, long penaltyTicks) {
+        if (!valid(pokemonUUID, currentTick, penaltyTicks)) return false;
+        extend(moveEndTicks, moveDurationTicks, pokemonUUID, currentTick, penaltyTicks);
+        return true;
+    }
+
     boolean addMovementPenalty(UUID pokemonUUID, long currentTick, long penaltyTicks) {
         if (!valid(pokemonUUID, currentTick, penaltyTicks)) return false;
         extend(movementEndTicks, movementDurationTicks, pokemonUUID, currentTick, penaltyTicks);

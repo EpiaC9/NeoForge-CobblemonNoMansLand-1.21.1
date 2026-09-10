@@ -67,7 +67,7 @@ public final class ActionBattleStatusHudRenderer {
     }
 
     static int visibleBuildupSegments(ActionBattleHudPayload.StatusState state) {
-        if (state == null || !"TYPE_FIGHTING_OUTRAGE_BUILDUP".equals(state.statusId())) return 0;
+        if (state == null || !"RAMPAGE".equals(state.statusId())) return 0;
         return Math.clamp((int) state.remainingTicks(), 0, 2);
     }
 

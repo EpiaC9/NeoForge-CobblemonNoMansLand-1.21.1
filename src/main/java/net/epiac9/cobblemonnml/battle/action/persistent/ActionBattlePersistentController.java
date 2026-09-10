@@ -1,9 +1,5 @@
 package net.epiac9.cobblemonnml.battle.action.persistent;
 
-import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
-import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlEffect;
-import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlState;
-import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,18 +27,16 @@ public final class ActionBattlePersistentController {
     }
 
     public boolean applyBound(UUID battleId, UUID targetPokemonUUID, UUID sourcePokemonUUID, long currentTick) {
+        return applyBound(battleId, targetPokemonUUID, sourcePokemonUUID, currentTick,
+                ActionBattlePersistentRules.boundDurationTicks(ThreadLocalRandom.current().nextInt(3)));
+    }
+
+    public boolean applyBound(UUID battleId, UUID targetPokemonUUID, UUID sourcePokemonUUID,
+                              long currentTick, long durationTicks) {
         if (!valid(battleId, targetPokemonUUID) || sourcePokemonUUID == null || currentTick < 0L) return false;
         ActionBattlePersistentState state = state(battleId, targetPokemonUUID);
         if (state == null || state.has(ActionBattlePersistentType.BOUND, currentTick)) return false;
-        ActionBattleControlState.ApplyResult trapped = ActionBattleControlController.global().applyTrapped(battleId, targetPokemonUUID, sourcePokemonUUID, currentTick);
-        if (trapped != ActionBattleControlState.ApplyResult.APPLIED_CONDITIONAL && trapped != ActionBattleControlState.ApplyResult.REPLACED_CONDITIONAL) return false;
-        long duration = ActionBattlePersistentRules.boundDurationTicks(ThreadLocalRandom.current().nextInt(3));
-        if (state.applyBound(sourcePokemonUUID, currentTick, duration)) return true;
-        ActionBattleControlEffect active = ActionBattleControlController.global().activeEffect(battleId, targetPokemonUUID, currentTick);
-        if (active != null && active.type() == ActionBattleControlType.TRAPPED && sourcePokemonUUID.equals(active.sourcePokemonUUID())) {
-            ActionBattleControlController.global().endConditional(battleId, targetPokemonUUID, ActionBattleControlType.TRAPPED, currentTick);
-        }
-        return false;
+        return state.applyBound(sourcePokemonUUID, currentTick, durationTicks);
     }
 
     public boolean has(UUID battleId, UUID pokemonUUID, ActionBattlePersistentType type, long currentTick) {
@@ -63,9 +57,7 @@ public final class ActionBattlePersistentController {
     public boolean clearEffect(UUID battleId, UUID pokemonUUID, ActionBattlePersistentType type, long currentTick) {
         ActionBattlePersistentState state = existing(battleId, pokemonUUID);
         if (state == null) return false;
-        UUID source = type == ActionBattlePersistentType.BOUND ? state.sourcePokemonUUID(type) : null;
         if (!state.clear(type)) return false;
-        if (type == ActionBattlePersistentType.BOUND) endOwnedTrapped(battleId, pokemonUUID, source, currentTick);
         removeIfEmpty(battleId, pokemonUUID, state);
         return true;
     }
@@ -102,9 +94,6 @@ public final class ActionBattlePersistentController {
         for (Map.Entry<UUID, ActionBattlePersistentState> entry : battleStates.entrySet()) {
             for (ActionBattlePersistentEvent event : entry.getValue().tick(currentTick)) {
                 ticks.add(new ActionBattlePersistentTick(entry.getKey(), event));
-                if (event.type() == ActionBattlePersistentType.BOUND && event.kind() == ActionBattlePersistentEvent.Kind.ENDED) {
-                    endOwnedTrapped(battleId, entry.getKey(), event.sourcePokemonUUID(), currentTick);
-                }
             }
             if (entry.getValue().isEmpty()) empty.add(entry.getKey());
         }
@@ -114,19 +103,6 @@ public final class ActionBattlePersistentController {
     }
 
     public void clearBattle(UUID battleId) { if (battleId != null) statesByBattle.remove(battleId); }
-
-    private void endOwnedTrapped(UUID battleId, UUID targetPokemonUUID, long currentTick) {
-        ActionBattlePersistentState state = existing(battleId, targetPokemonUUID);
-        UUID source = state != null ? state.sourcePokemonUUID(ActionBattlePersistentType.BOUND) : null;
-        endOwnedTrapped(battleId, targetPokemonUUID, source, currentTick);
-    }
-
-    private void endOwnedTrapped(UUID battleId, UUID targetPokemonUUID, UUID sourcePokemonUUID, long currentTick) {
-        ActionBattleControlEffect active = ActionBattleControlController.global().activeEffect(battleId, targetPokemonUUID, currentTick);
-        if (active == null || active.type() != ActionBattleControlType.TRAPPED) return;
-        if (sourcePokemonUUID != null && !sourcePokemonUUID.equals(active.sourcePokemonUUID())) return;
-        ActionBattleControlController.global().endConditional(battleId, targetPokemonUUID, ActionBattleControlType.TRAPPED, currentTick);
-    }
 
     private ActionBattlePersistentState state(UUID battleId, UUID pokemonUUID) {
         if (!valid(battleId, pokemonUUID)) return null;

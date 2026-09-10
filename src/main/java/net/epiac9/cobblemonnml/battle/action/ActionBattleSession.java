@@ -516,6 +516,12 @@ public final class ActionBattleSession {
         return side != null && commandCooldowns.addPenalty(pokemonUUID, side, currentTick, penaltyTicks);
     }
 
+    public boolean addPokemonAbilityCooldownPenalty(UUID pokemonUUID, long currentTick, long penaltyTicks) {
+        return state == ActionBattleState.ACTIVE
+                && cooldownSide(pokemonUUID) != null
+                && commandCooldowns.addAbilityPenalty(pokemonUUID, currentTick, penaltyTicks);
+    }
+
     public boolean addPokemonMovementCooldownPenalty(UUID pokemonUUID, long currentTick, long penaltyTicks) {
         return state == ActionBattleState.ACTIVE
                 && cooldownSide(pokemonUUID) != null

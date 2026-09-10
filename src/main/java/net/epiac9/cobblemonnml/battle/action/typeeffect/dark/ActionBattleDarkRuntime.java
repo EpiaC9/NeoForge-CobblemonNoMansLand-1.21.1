@@ -8,7 +8,6 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleTargetingRules;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleVisualTrackingRules;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
@@ -35,7 +34,7 @@ public final class ActionBattleDarkRuntime {
         boolean darkMove = "dark".equalsIgnoreCase(ActionBattleEffectiveMoveTypeResolver.resolve(attacker, move));
         boolean attackerDark = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "dark");
         boolean targetDark = ActionBattleTypeMechanicIdentity.hasSameMechanicImmunity(target, "dark");
-        boolean targetPsychic = ActionBattleFairyController.hasType(target.getPokemon(), "psychic");
+        boolean targetPsychic = ActionBattleTypeMechanicIdentity.hasActualType(target.getPokemon(), "psychic");
         ActionBattleDarkRules.HitPlan plan = ActionBattleDarkRules.planHit(
                 connected, darkMove, attackerDark, targetDark, targetPsychic,
                 FightOrFlightAdapter.movePower(move) > 0);

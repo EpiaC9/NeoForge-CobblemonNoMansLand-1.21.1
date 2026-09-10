@@ -14,6 +14,8 @@ import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelPreset;
 import net.epiac9.cobblemonnml.battle.action.channel.ActionBattleChannelState;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
+import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleParalysisController;
+import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleParalysisRules;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleChannelVisuals;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.particles.ParticleTypes;
@@ -132,6 +134,16 @@ public final class ActionBattleToxicSpikesHandler {
     private static void complete(ActionBattleChannelState state) {
         CastContext context = CASTS.remove(state.casterPokemonUUID());
         if (context == null || state.lastTargetablePosition() == null) return;
+        PokemonEntity caster = ActionBattleAreaEffectSupport.activePokemonEntity(
+                context.session(), context.level(), state.casterPokemonUUID());
+        long currentTick = context.level().getGameTime();
+        if (caster != null && ActionBattleParalysisRules.failsAction(
+                ActionBattleParalysisController.active(context.session(), state.casterPokemonUUID(), currentTick),
+                caster.getRandom().nextDouble())) {
+            DebugLog.log("[CobblemonNML] Paralyzed Toxic Spikes channel committed but failed at completion. Battle="
+                    + state.battleId() + ", caster=" + state.casterPokemonUUID());
+            return;
+        }
         AREAS.create(state.battleId(), state.casterPokemonUUID(), MOVE_ID, state.lastTargetablePosition(), AREA, area -> pulse(context, area));
         DebugLog.log("[CobblemonNML] Toxic Spikes channel completed. Battle=" + state.battleId() + ", caster=" + state.casterPokemonUUID() + ", anchor=" + state.lastTargetablePosition());
     }

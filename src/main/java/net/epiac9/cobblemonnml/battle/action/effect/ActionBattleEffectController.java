@@ -1,6 +1,8 @@
 package net.epiac9.cobblemonnml.battle.action.effect;
 
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleSleepState;
+import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleSleepState;
+import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleDrowsyRules;
+import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleDrowsyTracker;
 
 import java.util.HashMap;
 import java.util.ArrayList;
@@ -107,6 +109,61 @@ public final class ActionBattleEffectController {
         if (!validIds(battleId, pokemonUUID) || currentTick < 0L) return false;
         return state(battleId, pokemonUUID).beginSleep(currentTick, durationTicks);
     }
+
+    public ActionBattleStatusApplication applyStatus(UUID battleId, UUID pokemonUUID,
+                                                      ActionBattleStatus status, long currentTick,
+                                                      long durationTicks) {
+        if (!validIds(battleId, pokemonUUID)) return ActionBattleStatusApplication.REJECTED_INVALID;
+        return state(battleId, pokemonUUID).applyStatus(status, currentTick, durationTicks);
+    }
+
+    public boolean applyDrowsy(UUID battleId, UUID pokemonUUID, long currentTick,
+                               ActionBattleDrowsyTracker.CompletionRoute route) {
+        if (!validIds(battleId, pokemonUUID) || currentTick < 0L || route == null) return false;
+        return state(battleId, pokemonUUID).applyDrowsy(currentTick, route);
+    }
+
+    public boolean applyDrowsy(UUID battleId, UUID pokemonUUID, long currentTick) {
+        return applyDrowsy(battleId, pokemonUUID, currentTick, ActionBattleDrowsyTracker.CompletionRoute.SLEEP);
+    }
+
+    public boolean completeDrowsy(UUID battleId, UUID pokemonUUID, long currentTick,
+                                  int completionDurationTicks,
+                                  ActionBattleDrowsyTracker.CompletionRoute route) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        return state != null && state.completeDrowsy(currentTick, completionDurationTicks, route);
+    }
+
+    public java.util.Optional<DrowsyView> drowsyView(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        return state != null ? state.drowsyState().map(value -> new DrowsyView(
+                value.remainingTicks(currentTick), value.totalDurationTicks())) : java.util.Optional.empty();
+    }
+
+    public java.util.Optional<ActionBattleDrowsyTracker.CompletionState> drowsyCompletionView(
+            UUID battleId, UUID pokemonUUID) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        return state != null ? state.drowsyCompletion() : java.util.Optional.empty();
+    }
+
+    public int nextDrowsyDurationTicks(UUID battleId, UUID pokemonUUID) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        return state != null ? state.nextDrowsyDurationTicks() : ActionBattleDrowsyRules.BASE_DURATION_TICKS;
+    }
+
+    public ActionBattleDrowsyTracker.CompletionRoute pendingDrowsyCompletionRoute(
+            UUID battleId, UUID pokemonUUID) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        return state != null ? state.pendingDrowsyCompletionRoute()
+                : ActionBattleDrowsyTracker.CompletionRoute.SLEEP;
+    }
+
+    public java.util.Set<UUID> trackedPokemonIds(UUID battleId) {
+        Map<UUID, ActionBattleEffectState> states = battleId != null ? statesByBattle.get(battleId) : null;
+        return states != null ? java.util.Set.copyOf(states.keySet()) : java.util.Set.of();
+    }
+
+    public record DrowsyView(long remainingTicks, long totalDurationTicks) {}
 
     public boolean wakeSleep(UUID battleId, UUID pokemonUUID, long currentTick) {
         ActionBattleEffectState state = existingState(battleId, pokemonUUID);

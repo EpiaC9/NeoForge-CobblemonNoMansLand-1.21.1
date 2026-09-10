@@ -4,11 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class ActionBattleTargetingRules {
-    public static final int VISIBILITY_SAMPLE_COUNT = 32;
-    public static final int REQUIRED_CLEAR_RAYS = 16;
+    public static final int VISIBILITY_SAMPLE_COUNT = 16;
+    public static final int REQUIRED_CLEAR_RAYS = 8;
+    public static final int EVASION_SAMPLE_COUNT = 8;
+    public static final int EVASION_REQUIRED_CLEAR_RAYS = 4;
     private static final double FORWARD_CONE_COSINE = Math.cos(Math.toRadians(140.0D));
     private static final double[] X_SAMPLES = {0.15D, 0.3833333333D, 0.6166666667D, 0.85D};
-    private static final double[] Y_SAMPLES = {0.10D, 0.3666666667D, 0.6333333333D, 0.90D};
+    private static final double[] Y_SAMPLES = {0.20D, 0.80D};
     private static final double[] Z_SAMPLES = {0.20D, 0.80D};
 
     private ActionBattleTargetingRules() {}
@@ -67,19 +69,29 @@ public final class ActionBattleTargetingRules {
 
     public static VisibilityResult evaluateVisibility(Point origin, Point facing, Hitbox target,
                                                        boolean insideArena, RayProbe probe) {
+        return evaluateVisibility(origin, facing, target, insideArena, probe, false);
+    }
+
+    public static VisibilityResult evaluateVisibility(Point origin, Point facing, Hitbox target,
+                                                       boolean insideArena, RayProbe probe,
+                                                       boolean evasionActive) {
+        int totalRays = evasionActive ? EVASION_SAMPLE_COUNT : VISIBILITY_SAMPLE_COUNT;
+        int requiredClear = evasionActive ? EVASION_REQUIRED_CLEAR_RAYS : REQUIRED_CLEAR_RAYS;
         if (origin == null || facing == null || target == null || probe == null) {
-            return new VisibilityResult(0, VISIBILITY_SAMPLE_COUNT, insideArena, false, false);
+            return new VisibilityResult(0, totalRays, insideArena, false, false);
         }
         int coneRays = 0;
         int clearRays = 0;
-        for (Point sample : samplePoints(target)) {
+        List<Point> samples = samplePoints(target);
+        for (int index = 0; index < totalRays; index++) {
+            Point sample = samples.get(evasionActive ? index * 2 : index);
             if (!insideForwardCone(origin, facing, sample)) continue;
             coneRays++;
             if (probe.clear(origin, sample)) clearRays++;
         }
-        boolean insideCone = coneRays >= REQUIRED_CLEAR_RAYS;
-        boolean visible = insideArena && insideCone && clearRays >= REQUIRED_CLEAR_RAYS;
-        return new VisibilityResult(clearRays, VISIBILITY_SAMPLE_COUNT, insideArena, insideCone, visible);
+        boolean insideCone = coneRays >= requiredClear;
+        boolean visible = insideArena && insideCone && clearRays >= requiredClear;
+        return new VisibilityResult(clearRays, totalRays, insideArena, insideCone, visible);
     }
 
     private static double lerp(double min, double max, double fraction) {

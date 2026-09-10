@@ -7,7 +7,6 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatus;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentType;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -45,7 +44,7 @@ public final class ActionBattleStatusParticleController {
             if (persistent.has(session.battleId(), pokemon.getUuid(), ActionBattlePersistentType.BOUND, tick)) emitAcrossBody(level, entity, 2, ParticleTypes.ASH, 0.005D);
             if (persistent.has(session.battleId(), pokemon.getUuid(), ActionBattlePersistentType.NIGHTMARE, tick)) emitAcrossBody(level, entity, 2, ParticleTypes.PORTAL, 0.01D);
         }
-        if (tick % DROWSY_INTERVAL_TICKS == 0L && ActionBattleTypeEffectController.global()
+        if (tick % DROWSY_INTERVAL_TICKS == 0L && effects
                 .drowsyView(session.dungeonSessionId(), pokemon.getUuid(), tick).isPresent()) {
             AABB box = entity.getBoundingBox();
             level.sendParticles(ParticleTypes.ENCHANT, box.getCenter().x, box.maxY + 0.20D, box.getCenter().z,

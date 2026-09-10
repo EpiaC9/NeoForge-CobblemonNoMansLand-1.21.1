@@ -18,8 +18,9 @@ public final class ActionBattleMovementActionRules {
     }
 
     public static double composeMovementSpeed(double baseSpeed, double statMultiplier,
-                                              double grassMultiplier, double groundMultiplier) {
-        return baseSpeed * statMultiplier * grassMultiplier * groundMultiplier;
+                                              double grassMultiplier, double groundMultiplier,
+                                              double paralysisMultiplier) {
+        return baseSpeed * statMultiplier * grassMultiplier * groundMultiplier * paralysisMultiplier;
     }
 
     public static boolean blocksMovement(boolean waterImmobilized, boolean groundImmobilized) {

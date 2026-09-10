@@ -8,7 +8,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleTargetingRules;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingRuntime;
+import net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleRampageController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
 import net.minecraft.server.level.ServerLevel;
 
@@ -42,7 +42,7 @@ public final class ActionBattleDragonAutonomousController {
                     || session.isPokemonAbilitySlotOnCooldown(pokemon.getUuid(), slot, currentTick)
                     || !ActionBattleControlController.global().canUseMove(
                             session.battleId(), pokemon.getUuid(), move, currentTick)
-                    || !ActionBattleFightingRuntime.canUseAbility(session, pokemon, move, currentTick)) continue;
+                    || !ActionBattleRampageController.global().canUseAbility(session.battleId(), pokemon.getUuid(), move.getName(), currentTick)) continue;
             boolean enemyTargeted = !FightOrFlightAdapter.isSelfOrAllyTargetCategory(
                     FightOrFlightAdapter.moveTargetCategory(move));
             if (!ActionBattleTargetingRules.maySelectMove(enemyVisible, enemyTargeted)) continue;
