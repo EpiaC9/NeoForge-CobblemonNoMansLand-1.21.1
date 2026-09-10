@@ -16,11 +16,16 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroun
 import net.epiac9.cobblemonnml.battle.action.projectile.wave.ActionBattleWaveServerRuntime;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsycUpController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundShockwaveRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fighting.ActionBattleFightingGuardRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleChillingAuraRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyIllusionRuntime;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.server.MinecraftServer;
@@ -52,9 +57,11 @@ public final class ActionBattleTypeEffectRuntime {
                     || event.result() != ActionBattleGroundState.TickResult.NATURAL_EXPEL) continue;
             if (pokemon != null) ActionBattleGroundController.launchExpelWave(sessionId, pokemon);
         }
-        ActionBattleWaterController.tickSession(sessionId);
         ActionBattleWaveServerRuntime.tick(level, sessionId);
         ActionBattleDrowsyController.tickSession(level, sessionId);
+        ActionBattleGroundShockwaveRuntime.tick(level, sessionId, level.getGameTime());
+        ActionBattleChillingAuraRuntime.tick(level.getGameTime());
+        ActionBattleFireRuntime.tickAll(level.getGameTime());
     }
 
     public static void clearPlayer(ServerPlayer player) {
@@ -75,7 +82,6 @@ public final class ActionBattleTypeEffectRuntime {
                 if (battle != null) {
                     ActionBattleEffectController.global().onPokemonRecalled(
                             battle.battleId(), pokemon.getUuid(), player.level().getGameTime());
-                    ActionBattlePsycUpController.global().onPokemonUnavailable(battle.battleId(), pokemon.getUuid());
                     ActionBattleRockController.global().onPokemonUnavailable(battle.battleId(), pokemon.getUuid());
                     ActionBattleGhostRuntime.global().onPokemonUnavailable(battle.battleId(), pokemon.getUuid());
                 }
@@ -94,14 +100,20 @@ public final class ActionBattleTypeEffectRuntime {
         ActionBattleTypeEffectController.global().clearSession(sessionId);
         ActionBattleDragonRuntime.clearSession(sessionId);
         ActionBattleDarkRuntime.clearSession(sessionId);
+        ActionBattleFireRuntime.clearAll();
+        ActionBattleFightingGuardRuntime.clearAll();
+        ActionBattleChillingAuraRuntime.clearAll();
     }
 
     public static void clearSession(ServerLevel level, UUID sessionId) {
         ActionBattleWaterController.clearSession(level, sessionId);
         ActionBattleGrassController.clearSession(level, sessionId);
+        ActionBattleElectricController.clearSession(level, sessionId);
+        ActionBattleFairyIllusionRuntime.clearWorld(level);
         ActionBattleWaveServerRuntime.clearSession(sessionId);
         clearSession(sessionId);
         ActionBattleGroundVisualSync.clearSession(sessionId);
+        ActionBattleGroundShockwaveRuntime.clearSession(sessionId);
     }
 
     public static void onPokemonRecalled(UUID sessionId, UUID pokemonUUID, long currentTick) {
@@ -115,13 +127,17 @@ public final class ActionBattleTypeEffectRuntime {
     public static void clearAll() {
         ActionBattleTypeEffectController.global().clearAll();
         ActionBattleEffectController.global().clearAll();
-        ActionBattlePsycUpController.global().clearAll();
         ActionBattleRockController.global().clearAll();
         ActionBattleGrassController.clearAll();
+        ActionBattleElectricController.clearAll();
         ActionBattleWaveServerRuntime.clearAll();
         ActionBattleGroundVisualSync.clearAll();
+        ActionBattleGroundShockwaveRuntime.clearAll();
         ActionBattleDragonRuntime.clearAll();
         ActionBattleDarkRuntime.clearAll();
+        ActionBattleFireRuntime.clearAll();
+        ActionBattleFightingGuardRuntime.clearAll();
+        ActionBattleChillingAuraRuntime.clearAll();
     }
 
     private static PokemonEntity activePokemonEntity(ServerLevel level, UUID pokemonId) {

@@ -3,6 +3,7 @@ package net.epiac9.cobblemonnml.battle.action.critical;
 import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRules;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.util.DebugLog;
 
 import java.util.function.DoubleSupplier;
@@ -14,7 +15,7 @@ public final class ActionBattleCriticalResolver {
                                                      int flyingMomentum, DoubleSupplier rolls) {
         int baseStage = ActionBattleCriticalStageSources.stage(attacker, move);
         int flyingBonus = ActionBattleFlyingRules.criticalStageBonus(
-                ActionBattleFlyingRules.isFlyingMove(move), flyingMomentum);
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "flying"), flyingMomentum);
         ActionBattleCriticalResult result = resolve(baseStage, flyingBonus, rolls);
         if (attacker != null && move != null) {
             DebugLog.log("[CobblemonNML] ACTION critical committed. pokemon="

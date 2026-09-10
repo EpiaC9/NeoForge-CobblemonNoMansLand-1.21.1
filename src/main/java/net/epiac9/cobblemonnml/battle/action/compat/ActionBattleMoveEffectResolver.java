@@ -158,8 +158,9 @@ public final class ActionBattleMoveEffectResolver {
                 || !rollEffect(attacker, move, family)) return;
         if (!ActionBattleEffectApplicationGuard.allowsNewApplication(
                 session, target, attacker.level().getGameTime())) return;
-        ActionBattleEffectController.global().applyStatus(session.battleId(), target.getPokemon().getUuid(), status,
-                attacker.level().getGameTime(), DEFAULT_DIRECT_STATUS_DURATION_TICKS);
+        ActionBattleEffectController.global().applyStatus(session.battleId(), attacker.getPokemon().getUuid(),
+                target.getPokemon().getUuid(), status, attacker.level().getGameTime(),
+                DEFAULT_DIRECT_STATUS_DURATION_TICKS);
     }
 
     public static boolean allowsDirectParalysisMetadata(String moveTypeName) {

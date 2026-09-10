@@ -20,6 +20,13 @@ public final class ActionBattleFlyingRuntime {
     public static void tickPokemon(ActionBattleSession session, PokemonEntity pokemon, long currentTick) {
         if (session == null || pokemon == null || pokemon.isRemoved()
                 || !(pokemon.level() instanceof ServerLevel level)) return;
+        boolean flyingIdentity = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(pokemon, "flying");
+        if (!flyingIdentity) {
+            ActionBattleFlyingController.global().clearPokemon(
+                    session.battleId(), pokemon.getPokemon().getUuid());
+            return;
+        }
+
         PokemonEntity target = trackedEnemy(session, level, pokemon.getPokemon().getUuid());
         boolean visible = false;
         if (target != null && !target.isRemoved() && target.isAlive()
@@ -37,7 +44,7 @@ public final class ActionBattleFlyingRuntime {
         }
         ActionBattleFlyingController controller = ActionBattleFlyingController.global();
         if (controller.tick(session.battleId(), pokemon.getPokemon().getUuid(),
-                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(pokemon, "flying"), visible, currentTick)) {
+                true, visible, currentTick)) {
             DebugLog.log("[CobblemonNML] Flying Momentum changed. Battle=" + session.battleId()
                     + ", pokemon=" + pokemon.getPokemon().getUuid()
                     + ", level=" + controller.momentum(session.battleId(), pokemon.getPokemon().getUuid())

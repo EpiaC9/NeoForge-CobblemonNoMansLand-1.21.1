@@ -22,10 +22,10 @@ public final class ActionBattleDarkRules {
         return attackerDarkTyped ? 1 : 0;
     }
 
-    public static HitPlan planHit(boolean connected, boolean darkMove, boolean attackerDarkTyped,
+    public static HitPlan planHit(boolean connected, boolean attackerDarkTyped,
                                   boolean targetDarkTyped, boolean targetPsychicTyped,
                                   boolean damagingMove) {
-        if (!connected || !darkMove || targetDarkTyped || targetPsychicTyped) return HitPlan.NONE;
+        if (!connected || !attackerDarkTyped || targetDarkTyped || targetPsychicTyped) return HitPlan.NONE;
         return new HitPlan(true, awarenessReduction(attackerDarkTyped, damagingMove),
                 obscurityIncrease(attackerDarkTyped));
     }

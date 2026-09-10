@@ -2,12 +2,11 @@ package net.epiac9.cobblemonnml.battle.action.typeeffect.water;
 
 import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
-import com.cobblemon.mod.common.pokemon.Pokemon;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
-import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeMechanicActionContext;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
@@ -16,7 +15,6 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldO
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.field.AquaBubbleBlockEntity;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.field.WaterFieldPlacement;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
-import net.epiac9.cobblemonnml.mixin.ActionBattleLivingEntityAccessor;
 import net.epiac9.cobblemonnml.registry.ModBlocks;
 import net.epiac9.cobblemonnml.battle.action.projectile.lob.ActionBattleLobPayload;
 import net.epiac9.cobblemonnml.battle.action.projectile.lob.ActionBattleLobProjectileEntity;
@@ -25,15 +23,11 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 public final class ActionBattleWaterController {
     private static final ActionBattleFieldObjectTracker BUBBLES =
             new ActionBattleFieldObjectTracker(ActionBattleWaterRules.MAX_BUBBLES_PER_OWNER);
-    private static final Map<UUID, Pokemon> POKEMON_REFS = new HashMap<>();
-    private static final Map<UUID, UUID> BATTLE_REFS = new HashMap<>();
     private static long nextSequence;
 
     private ActionBattleWaterController() {}
@@ -46,15 +40,25 @@ public final class ActionBattleWaterController {
     }
 
     public static boolean isQualifyingInteraction(PokemonEntity attacker, Move move) {
-        return move != null && ActionBattleWaterContactRules.isQualifyingInteraction(
-                ActionBattleEffectiveMoveTypeResolver.resolve(attacker, move),
-                FightOrFlightAdapter.isNativeDamageMove(move), FightOrFlightAdapter.movePower(move),
-                FightOrFlightAdapter.moveTargetCategory(move));
+        return attacker != null && move != null
+                && ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "water");
+    }
+
+    public static boolean onOwnedActionStarted(ActionBattleTypeMechanicActionContext context) {
+        if (context == null || context.pokemon() == null || context.move() == null) return false;
+        PokemonEntity target = context.target() instanceof PokemonEntity pokemon ? pokemon : null;
+        return launchBubble(context.pokemon(), target, context.move());
     }
 
     public static boolean onSuccessfulInteraction(PokemonEntity attacker, PokemonEntity target, Move move) {
         if (attacker == null || move == null || !isQualifyingInteraction(attacker, move)
                 || !DungeonSession.isActive() || !(attacker.level() instanceof ServerLevel level)) return false;
+        return launchBubble(attacker, target, move);
+    }
+
+    private static boolean launchBubble(PokemonEntity attacker, PokemonEntity target, Move move) {
+        if (attacker == null || move == null || !DungeonSession.isActive()
+                || !(attacker.level() instanceof ServerLevel level)) return false;
         PokemonEntity affected = target != null ? target : attacker;
         ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(attacker.getUUID());
         if (session == null || !session.battleId().equals(ActionBattleManager.battleIdForPokemonEntity(affected.getUUID()))
@@ -64,7 +68,8 @@ public final class ActionBattleWaterController {
                 ? ActionBattleFieldObject.OwnerSide.PLAYER : owner.equals(session.trainerActivePokemonUUID())
                 ? ActionBattleFieldObject.OwnerSide.TRAINER : null;
         if (side == null) return false;
-        PokemonEntity anchor = level.random.nextBoolean() ? attacker : affected;
+        PokemonEntity anchor = FightOrFlightAdapter.isSelfOrAllyTargetCategory(
+                FightOrFlightAdapter.moveTargetCategory(move)) ? attacker : affected;
         var candidates = WaterFieldPlacement.validCandidates(
                 new WaterFieldPlacement.Position(anchor.blockPosition().getX(), anchor.blockPosition().getY(), anchor.blockPosition().getZ()),
                 candidate -> {
@@ -145,38 +150,83 @@ public final class ActionBattleWaterController {
         ActionBattleFieldObject.OwnerSide toucherSide = session.isPlayerPokemon(pokemonUUID)
                 ? ActionBattleFieldObject.OwnerSide.PLAYER : pokemonUUID.equals(session.trainerActivePokemonUUID())
                 ? ActionBattleFieldObject.OwnerSide.TRAINER : null;
-        if (toucherSide == null || !lifecycle.consumeFirst()) return;
-        bubble.setChanged();
+        if (toucherSide == null) return;
         boolean allied = toucherSide == lifecycle.ownerSide();
-        boolean waterTyped = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(toucher, "water");
         long tick = bubble.getLevel().getGameTime();
         ActionBattleTypeEffectController effects = ActionBattleTypeEffectController.global();
         effects.guardSession(lifecycle.sessionId());
-        POKEMON_REFS.put(pokemonUUID, toucher.getPokemon());
-        BATTLE_REFS.put(pokemonUUID, session.battleId());
-        ActionBattleWaterContactRules.ActivationResult contact = ActionBattleWaterContactRules.resolveContact(allied, waterTyped);
-        boolean appliesEffect = contact == ActionBattleWaterContactRules.ActivationResult.ALLY_SHIELD
-                || contact == ActionBattleWaterContactRules.ActivationResult.ENEMY_IMMOBILIZED;
+        ActionBattleWaterContactRules.ActivationResult contact = ActionBattleWaterContactRules.resolveContact(allied, false);
+        if (contact == ActionBattleWaterContactRules.ActivationResult.IGNORED || !lifecycle.consumeFirst()) return;
+        bubble.setChanged();
+        boolean appliesEffect = contact == ActionBattleWaterContactRules.ActivationResult.ENEMY_TRAPPED;
         if (appliesEffect && !ActionBattleEffectApplicationGuard.allowsNewApplication(session, toucher, tick)) {
             removeBubble(bubble);
             return;
         }
         switch (contact) {
-            case ALLY_SHIELD -> {
-                boolean protectActive = ActionBattleProtectController.global().activeStance(
-                        session.battleId(), pokemonUUID, tick) != null;
-                effects.applyAquaShield(lifecycle.sessionId(), pokemonUUID, tick, waterTyped, protectActive);
-                resolveShieldEndEvents(lifecycle.sessionId(), pokemonUUID);
-            }
-            case ENEMY_WATER_HEALED -> heal(toucher.getPokemon());
-            case ENEMY_IMMOBILIZED -> {
+            case ENEMY_TRAPPED -> {
                 effects.applyImmobilized(lifecycle.sessionId(), pokemonUUID, tick);
-                session.addPokemonMovementCooldownPenalty(pokemonUUID, tick,
-                        ActionBattleWaterRules.MOVEMENT_PENALTY_TICKS);
                 toucher.getNavigation().stop();
             }
+            case IGNORED -> { }
         }
-        removeBubble(bubble);
+        if (contact == ActionBattleWaterContactRules.ActivationResult.ENEMY_TRAPPED) removeBubble(bubble);
+    }
+
+    public static boolean onPokemonDamaged(PokemonEntity damaged, int actualDamage) {
+        if (damaged == null || actualDamage <= 0) return false;
+        ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(damaged.getUUID());
+        return session != null && ActionBattleTypeEffectController.global().breakWaterTrapOnDamage(
+                session.dungeonSessionId(), damaged.getPokemon().getUuid(), actualDamage);
+    }
+
+    public static void home(AquaBubbleBlockEntity bubble) {
+        if (bubble == null || bubble.lifecycle() == null || !(bubble.getLevel() instanceof ServerLevel level)
+                || Math.floorMod(level.getGameTime() + bubble.lifecycle().creationSequence(), 10L) != 0L) return;
+        ActionBattleSession session = ActionBattleManager.findSessionForPokemon(bubble.lifecycle().ownerPokemonUUID());
+        if (session == null) return;
+        PokemonEntity nearest = level.getEntitiesOfClass(PokemonEntity.class,
+                new net.minecraft.world.phys.AABB(bubble.getBlockPos()).inflate(32.0D), candidate -> {
+                    UUID id = candidate.getPokemon().getUuid();
+                    ActionBattleFieldObject.OwnerSide side = session.isPlayerPokemon(id)
+                            ? ActionBattleFieldObject.OwnerSide.PLAYER
+                            : id.equals(session.trainerActivePokemonUUID())
+                            ? ActionBattleFieldObject.OwnerSide.TRAINER : null;
+                    return side != null && side != bubble.lifecycle().ownerSide() && candidate.isAlive();
+                }).stream().min(java.util.Comparator.comparingDouble(candidate ->
+                candidate.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(bubble.getBlockPos())))).orElse(null);
+        if (nearest == null) return;
+        BlockPos current = bubble.getBlockPos();
+        BlockPos preferred = current.offset(Integer.signum(nearest.blockPosition().getX() - current.getX()), 0,
+                Integer.signum(nearest.blockPosition().getZ() - current.getZ()));
+        java.util.List<BlockPos> candidates = new java.util.ArrayList<>();
+        candidates.add(preferred);
+        for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
+            if (x != 0 || z != 0) candidates.add(current.offset(x, 0, z));
+        }
+        BlockPos destination = candidates.stream().filter(pos -> validFloatingPlacement(level, pos))
+                .min(java.util.Comparator.comparingDouble(pos -> nearest.distanceToSqr(
+                        net.minecraft.world.phys.Vec3.atCenterOf(pos)))).orElse(null);
+        if (destination == null || destination.equals(current)) return;
+        var lifecycle = bubble.lifecycle();
+        BUBBLES.unregister(lifecycle.sessionId(), position(current));
+        level.removeBlock(current, false);
+        if (!level.setBlock(destination, ModBlocks.AQUA_BUBBLE.get().defaultBlockState(), 3)
+                || !(level.getBlockEntity(destination) instanceof AquaBubbleBlockEntity moved)) {
+            level.removeBlock(destination, false);
+            if (level.setBlock(current, ModBlocks.AQUA_BUBBLE.get().defaultBlockState(), 3)
+                    && level.getBlockEntity(current) instanceof AquaBubbleBlockEntity restored) {
+                restored.initialize(lifecycle);
+                BUBBLES.register(new ActionBattleFieldObject(lifecycle.sessionId(), lifecycle.ownerPokemonUUID(),
+                        lifecycle.ownerSide(), level.dimension().location().toString(), position(current),
+                        lifecycle.creationTick(), lifecycle.creationSequence(), lifecycle.expiryTick()));
+            }
+            return;
+        }
+        moved.initialize(lifecycle);
+        BUBBLES.register(new ActionBattleFieldObject(lifecycle.sessionId(), lifecycle.ownerPokemonUUID(),
+                lifecycle.ownerSide(), level.dimension().location().toString(), position(destination),
+                lifecycle.creationTick(), lifecycle.creationSequence(), lifecycle.expiryTick()));
     }
 
     public static void removeBubble(AquaBubbleBlockEntity bubble) {
@@ -191,49 +241,10 @@ public final class ActionBattleWaterController {
         }
     }
 
-    public static void tickSession(UUID sessionId) {
-        if (sessionId == null) return;
-        for (UUID pokemonUUID : ActionBattleTypeEffectController.global().trackedPokemonIds(sessionId)) {
-            resolveShieldEndEvents(sessionId, pokemonUUID);
-        }
-    }
-
     public static void clearSession(ServerLevel level, UUID sessionId) {
         for (ActionBattleFieldObject object : BUBBLES.clearSession(sessionId)) {
             if (level != null && level.dimension().location().toString().equals(object.dimensionId())) {
                 level.removeBlock(blockPos(object.position()), false);
-            }
-        }
-        POKEMON_REFS.clear();
-        BATTLE_REFS.clear();
-    }
-
-    public static void resolveShieldEndEvents(UUID sessionId, UUID pokemonUUID) {
-        Pokemon pokemon = POKEMON_REFS.get(pokemonUUID);
-        UUID battleId = BATTLE_REFS.get(pokemonUUID);
-        for (ActionBattleWaterState.ShieldEndEvent event : ActionBattleTypeEffectController.global()
-                .drainWaterShieldEndEvents(sessionId, pokemonUUID)) {
-            if (pokemon != null) ActionBattleWaterHealth.applyNonHitShieldEnd(healthAccess(pokemon), event);
-            if (event.reduceDeterioratingShield() && battleId != null) {
-                ActionBattleProtectController.global().reduceDeterioratingShieldLevel(battleId, pokemonUUID);
-            }
-        }
-    }
-
-    public static void resolveProtectedHitShieldEnd(UUID sessionId, UUID pokemonUUID, PokemonEntity target,
-                                                     int beforeHealth, int finalDamage) {
-        Pokemon pokemon = target != null ? target.getPokemon() : POKEMON_REFS.get(pokemonUUID);
-        UUID battleId = BATTLE_REFS.get(pokemonUUID);
-        for (ActionBattleWaterState.ShieldEndEvent event : ActionBattleTypeEffectController.global()
-                .drainWaterShieldEndEvents(sessionId, pokemonUUID)) {
-            if (event.reason() == ActionBattleWaterState.ShieldEndReason.PROTECTED_HIT && pokemon != null) {
-                ActionBattleWaterHealth.applyShieldHit(healthAccess(pokemon), beforeHealth,
-                        finalDamage, event.healEligible());
-            } else if (pokemon != null) {
-                ActionBattleWaterHealth.applyNonHitShieldEnd(healthAccess(pokemon), event);
-            }
-            if (event.reduceDeterioratingShield() && battleId != null) {
-                ActionBattleProtectController.global().reduceDeterioratingShieldLevel(battleId, pokemonUUID);
             }
         }
     }
@@ -245,39 +256,8 @@ public final class ActionBattleWaterController {
                 && level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), Direction.UP);
     }
 
-    private static void heal(Pokemon pokemon) {
-        if (pokemon == null) return;
-        ActionBattleSession session = ActionBattleManager.findSessionForPokemon(pokemon.getUuid());
-        long tick = pokemon.getEntity() != null ? pokemon.getEntity().level().getGameTime() : 0L;
-        boolean blocked = session != null && net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController
-                .global().blocksHealing(session.battleId(), pokemon.getUuid(), tick);
-        ActionBattleWaterHealth.heal(healthAccess(pokemon), blocked);
-    }
-
-    private static ActionBattleWaterHealth.Access healthAccess(Pokemon pokemon) {
-        PokemonEntity entity = pokemon.getEntity();
-        boolean deployed = entity != null && !entity.isRemoved();
-        return new ActionBattleWaterHealth.Access() {
-            @Override public int currentHealth() { return pokemon.getCurrentHealth(); }
-            @Override public int maxHealth() { return pokemon.getMaxHealth(); }
-            @Override public boolean deployed() { return deployed; }
-            @Override public float liveMaxHealth() { return deployed ? entity.getMaxHealth() : 0.0F; }
-            @Override public void setCurrentHealth(int value) { pokemon.setCurrentHealth(value); }
-            @Override public void setLiveHealth(float value) {
-                if (!deployed) return;
-                entity.setHealth(value);
-                if (value > 0.0F) {
-                    entity.deathTime = 0;
-                    ((ActionBattleLivingEntityAccessor) entity).cobblemonNml$setDead(false);
-                }
-            }
-        };
-    }
-
-    private static boolean hasType(Pokemon pokemon, String expected) {
-        return pokemon != null && (expected.equals(normalize(pokemon.getPrimaryType() != null
-                ? pokemon.getPrimaryType().getName() : null)) || expected.equals(normalize(
-                pokemon.getSecondaryType() != null ? pokemon.getSecondaryType().getName() : null)));
+    private static boolean validFloatingPlacement(ServerLevel level, BlockPos pos) {
+        return validPlacement(level, pos);
     }
 
     private static void removeTracked(ServerLevel level, ActionBattleFieldObject object) {

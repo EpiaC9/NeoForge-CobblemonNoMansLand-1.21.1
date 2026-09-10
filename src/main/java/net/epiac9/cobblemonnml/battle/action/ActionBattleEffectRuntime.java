@@ -19,10 +19,9 @@ import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentTi
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentType;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleProtectVisuals;
 import net.epiac9.cobblemonnml.battle.action.visual.ActionBattleStatusParticleController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectRuntime;
 import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleDrowsyController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsycUpController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsychicChannelRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
@@ -35,6 +34,9 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattlePropu
 import net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleWeightedKnockbackController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassFlowerRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.poison.ActionBattlePoisonSludgeRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyIllusionRuntime;
 import net.epiac9.cobblemonnml.battle.action.interrupt.ActionBattleInterruptController;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.util.DebugLog;
@@ -50,7 +52,7 @@ import java.util.UUID;
 
 final class ActionBattleEffectRuntime {
     private static final ActionBattleStatLinkCleanup STAT_LINK_CLEANUP = new ActionBattleStatLinkCleanup(
-            ActionBattleEffectController.global(), ActionBattlePsycUpController.global());
+            ActionBattleEffectController.global());
 
     private ActionBattleEffectRuntime() {}
 
@@ -62,6 +64,9 @@ final class ActionBattleEffectRuntime {
         ActionBattlePropulsionController.tickBattle(session, level);
         ActionBattleAerialMoveController.tickBattle(session, level, level.getGameTime());
         ActionBattleWeightedKnockbackController.tick(level);
+        ActionBattleGrassFlowerRuntime.tick(level, session.battleId(), level.getGameTime());
+        ActionBattlePoisonSludgeRuntime.tick(level, session.battleId(), level.getGameTime());
+        ActionBattlePsychicChannelRuntime.tickBattle(session, level);
 
         Set<UUID> activeProtectPokemon = new HashSet<>();
         for (UUID playerUUID : session.playerUUIDs()) {
@@ -85,8 +90,8 @@ final class ActionBattleEffectRuntime {
         }
         syncHazeBattleZone(session, level, currentTick);
         observeDamageFeedback(session, refs);
+        ActionBattleStatusDotRuntime.tickBattle(session, refs, currentTick);
         ActionBattleEffectController.global().tickBattle(session.battleId(), currentTick);
-        ActionBattlePsycUpController.global().tickBattle(session.battleId(), currentTick);
         ActionBattleRockController.global().tickBattle(session.battleId(), currentTick);
         ActionBattleSteelRuntime.tickBattle(session.battleId(), currentTick);
         List<ActionBattlePersistentTick> persistentTicks = ActionBattlePersistentController.global().tickBattle(session.battleId(), currentTick);
@@ -141,6 +146,10 @@ final class ActionBattleEffectRuntime {
         ActionBattleWeightedKnockbackController.clearBattle(battleId);
         ActionBattleInterruptController.clearBattle(battleId);
         ActionBattleSwapTransitionGuard.clearBattle(battleId);
+        ActionBattleGrassFlowerRuntime.clearBattle(battleId);
+        ActionBattlePoisonSludgeRuntime.clearBattle(battleId);
+        ActionBattleFairyIllusionRuntime.clearBattle(null, battleId);
+        ActionBattlePsychicChannelRuntime.clearBattle(battleId);
         net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleInfatuationController.clearBattle(battleId);
     }
 
@@ -160,6 +169,10 @@ final class ActionBattleEffectRuntime {
         ActionBattleWeightedKnockbackController.clearAll();
         ActionBattleInterruptController.clearAll();
         ActionBattleSwapTransitionGuard.clearAll();
+        ActionBattleGrassFlowerRuntime.clearAll();
+        ActionBattlePoisonSludgeRuntime.clearAll();
+        ActionBattleFairyIllusionRuntime.clearAll();
+        ActionBattlePsychicChannelRuntime.clearAll();
         net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleInfatuationController.clearAll();
     }
 
@@ -186,6 +199,7 @@ final class ActionBattleEffectRuntime {
         ActionBattleTargetTracker.global().clearPokemon(session.battleId(), pokemonId);
         ActionBattleSteelRuntime.clearPokemon(session.battleId(), pokemonId);
         ActionBattleWeightedKnockbackController.clearPokemon(pokemonId);
+        ActionBattlePsychicChannelRuntime.clearPokemon(pokemonId);
         ActionBattleInterruptController.clearPokemon(session.battleId(), pokemonId);
         net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleInfatuationController
                 .clearPokemon(session.battleId(), pokemonId);

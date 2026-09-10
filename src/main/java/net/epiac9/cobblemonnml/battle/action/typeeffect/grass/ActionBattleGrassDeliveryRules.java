@@ -10,4 +10,8 @@ public final class ActionBattleGrassDeliveryRules {
         if (caster == null) throw new IllegalArgumentException("Grass delivery requires a caster.");
         return affectedTarget != null ? affectedTarget : caster;
     }
+    public static <T> T anchorForTargetingMode(T caster, T affectedTarget, boolean targeted) {
+        if (caster == null) throw new IllegalArgumentException("Grass delivery requires a caster.");
+        return targeted && affectedTarget != null ? affectedTarget : caster;
+    }
 }

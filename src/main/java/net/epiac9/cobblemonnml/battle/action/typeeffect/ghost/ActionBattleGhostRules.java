@@ -25,6 +25,10 @@ public final class ActionBattleGhostRules {
 
     private ActionBattleGhostRules() {}
 
+    public static boolean qualifiesTargetedMechanic(boolean ghostIdentity, boolean targeted) {
+        return ghostIdentity && targeted;
+    }
+
     public static int safeSacrifice(int maximumHealth, int currentHealth, boolean ghostCaster) {
         if (maximumHealth <= 0 || currentHealth <= 1) return 0;
         int cost = roundedPercent(maximumHealth, ghostCaster ? 2 : 3);

@@ -13,7 +13,6 @@ import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatSource;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattlePokemonHealth;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.battle.action.health.ActionBattleHealthResolver;
 import net.epiac9.cobblemonnml.battle.action.health.ActionBattleDotExecutor;
@@ -121,7 +120,12 @@ public final class ActionBattleGhostRuntime {
 
     public void onDamageResolved(PokemonEntity damaged, int beforeHealth) {
         if (damaged == null) return;
-        transferHaunting(damaged, Math.max(0, beforeHealth - damaged.getPokemon().getCurrentHealth()));
+        int actualDamage = Math.max(0, beforeHealth - damaged.getPokemon().getCurrentHealth());
+        transferHaunting(damaged, actualDamage);
+        net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterController
+                .onPokemonDamaged(damaged, actualDamage);
+        net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRuntime
+                .onDamageTaken(damaged, actualDamage);
     }
 
     private void transferHaunting(PokemonEntity damaged, int actualDamage) {
@@ -318,8 +322,11 @@ public final class ActionBattleGhostRuntime {
     }
 
     public Optional<ActionBattleGhostCast> completeMove(PokemonEntity caster, Move move) {
-        if (caster == null || move == null
-                || !"ghost".equalsIgnoreCase(ActionBattleEffectiveMoveTypeResolver.resolve(caster, move))) return Optional.empty();
+        boolean targeted = move != null && !net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter
+                .isSelfOrAllyTargetCategory(net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter
+                        .moveTargetCategory(move));
+        if (caster == null || move == null || !ActionBattleGhostRules.qualifiesTargetedMechanic(
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(caster, "ghost"), targeted)) return Optional.empty();
         UUID battleId = ActionBattleManager.battleIdForPokemonEntity(caster.getUUID());
         if (battleId == null) return Optional.empty();
         Pokemon pokemon = caster.getPokemon();

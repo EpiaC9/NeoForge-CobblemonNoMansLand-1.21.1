@@ -7,10 +7,8 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleState;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattlePokemonHealth;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeMechanicActionContext;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
-import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldObject;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldObjectTracker;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.field.ActionBattleFieldPlacement;
@@ -21,11 +19,9 @@ import net.epiac9.cobblemonnml.mixin.ActionBattleLivingEntityAccessor;
 import net.epiac9.cobblemonnml.registry.ModBlocks;
 import net.epiac9.cobblemonnml.battle.action.projectile.lob.ActionBattleLobPayload;
 import net.epiac9.cobblemonnml.battle.action.projectile.lob.ActionBattleLobProjectileEntity;
-import net.epiac9.cobblemonnml.battle.action.projectile.wave.ActionBattleWaveServerRuntime;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import java.util.Locale;
 import java.util.UUID;
 import java.util.HashSet;
 import java.util.Set;
@@ -42,25 +38,22 @@ public final class ActionBattleGrassController {
                 move.getType() != null ? move.getType().getName() : null);
     }
 
-    public static ActionBattleGrassState.GrassMoveCommit commitMove(PokemonEntity caster, Move move) {
-        ActionBattleSession session = caster != null ? ActionBattleManager.findSessionForBattlePokemonEntity(caster.getUUID()) : null;
-        if (session == null || session.state() != ActionBattleState.ACTIVE) {
-            return new ActionBattleGrassState.GrassMoveCommit(1.0D, false);
-        }
-        return ActionBattleTypeEffectController.global().commitGrassMove(
-                session.dungeonSessionId(), caster.getPokemon().getUuid(), isQualifyingMove(move));
-    }
-
-    public static void restoreEmpower(PokemonEntity caster, ActionBattleGrassState.GrassMoveCommit commit) {
-        ActionBattleSession session = caster != null ? ActionBattleManager.findSessionForBattlePokemonEntity(caster.getUUID()) : null;
-        if (session != null && commit != null && commit.consumed()) {
-            ActionBattleTypeEffectController.global().applyGrassEmpower(
-                    session.dungeonSessionId(), caster.getPokemon().getUuid(), commit.capturedDamageMultiplier());
-        }
+    public static int onOwnedActionStarted(ActionBattleTypeMechanicActionContext context) {
+        if (context == null || context.pokemon() == null || context.move() == null) return 0;
+        PokemonEntity target = context.target() instanceof PokemonEntity pokemon ? pokemon : null;
+        PokemonEntity anchor = ActionBattleGrassDeliveryRules.anchorForTargetingMode(
+                context.pokemon(), target,
+                context.targetingMode() == ActionBattleTypeMechanicActionContext.TargetingMode.TARGET);
+        return launchSeeds(context.pokemon(), anchor == context.pokemon() ? null : anchor, context.move());
     }
 
     public static int onSuccessfulMoveResolved(PokemonEntity caster, PokemonEntity affectedPokemon, Move move) {
-        if (caster == null || !isQualifyingMove(move) || !(caster.level() instanceof ServerLevel level)) return 0;
+        if (caster == null || !ActionBattleTypeMechanicIdentity.hasMechanicBenefit(caster, "grass")) return 0;
+        return launchSeeds(caster, affectedPokemon, move);
+    }
+
+    private static int launchSeeds(PokemonEntity caster, PokemonEntity affectedPokemon, Move move) {
+        if (caster == null || move == null || !(caster.level() instanceof ServerLevel level)) return 0;
         PokemonEntity anchorEntity = ActionBattleGrassDeliveryRules.anchor(caster, affectedPokemon);
         ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(caster.getUUID());
         if (session == null || session.state() != ActionBattleState.ACTIVE
@@ -92,7 +85,10 @@ public final class ActionBattleGrassController {
 
     public static void touchSeed(GrassSeedBlockEntity seed, PokemonEntity toucher) {
         if (seed == null || toucher == null || seed.getLevel() == null || seed.lifecycle() == null
-                || !activeParticipant(toucher, seed.lifecycle().sessionId()) || !seed.lifecycle().consumeFirst()) return;
+                || !activeParticipant(toucher, seed.lifecycle().sessionId())
+                || !ActionBattleGrassContactRules.shouldTrampleSeed(
+                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(toucher, "grass"))
+                || !seed.lifecycle().consumeFirst()) return;
         removeSeed(seed);
     }
 
@@ -122,47 +118,10 @@ public final class ActionBattleGrassController {
         UUID toucherId = toucher.getPokemon().getUuid();
         ActionBattleFieldObject.OwnerSide toucherSide = side(session, toucherId);
         if (toucherSide == null) return;
-        boolean allied = toucherSide == life.ownerSide();
         boolean grassTyped = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(toucher, "grass");
         long tick = flower.getLevel().getGameTime();
-        ActionBattleTypeEffectController effects = ActionBattleTypeEffectController.global();
-        effects.guardSession(life.sessionId());
-        boolean seeded = effects.leechSeedView(life.sessionId(), toucherId, tick).isPresent();
-        ActionBattleGrassContactRules.Outcome contact = ActionBattleGrassContactRules.resolve(allied, grassTyped, seeded);
-        boolean newApplication = contact != ActionBattleGrassContactRules.Outcome.ENEMY_LEECH_REACTIVATION;
-        if (newApplication && !ActionBattleEffectApplicationGuard.allowsNewApplication(session, toucher, tick)) {
-            removeFlower(flower);
-            return;
-        }
-        switch (contact) {
-            case ALLY_EMPOWER_110 -> effects.applyGrassEmpower(life.sessionId(), toucherId, ActionBattleGrassRules.ALLY_EMPOWER);
-            case ALLY_EMPOWER_120 -> effects.applyGrassEmpower(life.sessionId(), toucherId, ActionBattleGrassRules.GRASS_ALLY_EMPOWER);
-            case ENEMY_MOVEMENT -> effects.applyGrassMovement(life.sessionId(), toucherId, tick);
-            case ENEMY_LEECH_SEED -> effects.applyLeechSeed(life.sessionId(), toucherId, tick);
-            case ENEMY_LEECH_REACTIVATION -> {
-                int beforeHealth = toucher.getPokemon().getCurrentHealth();
-                int actualDamage = ActionBattlePokemonHealth.damage(healthAccess(toucher.getPokemon()),
-                        ActionBattleGrassRules.reactivationDamage(toucher.getPokemon().getMaxHealth()));
-                ActionBattleGhostRuntime.global().onDamageResolved(toucher, beforeHealth);
-                int waveHeal = ActionBattleGrassRules.waveHealAmount(actualDamage);
-                if (waveHeal > 0) ActionBattleWaveServerRuntime.launchHealing(
-                        life.sessionId(), toucher.getPokemon().getUuid(), toucher.position(), waveHeal, tick);
-            }
-        }
+        if (grassTyped) ActionBattleGrassFlowerRuntime.consume(session.battleId(), toucher, tick);
         removeFlower(flower);
-    }
-
-    public static int onPokemonDamageResolved(PokemonEntity dealer, PokemonEntity seededTarget, int actualDamage) {
-        if (dealer == null || seededTarget == null || actualDamage <= 0) return 0;
-        ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(seededTarget.getUUID());
-        if (session == null || ActionBattleTypeEffectController.global().leechSeedView(session.dungeonSessionId(),
-                seededTarget.getPokemon().getUuid(), seededTarget.level().getGameTime()).isEmpty()) return 0;
-        int requested = ActionBattleGrassRules.leechHealAmount(actualDamage,
-                ActionBattleTypeMechanicIdentity.hasMechanicBenefit(dealer, "grass"));
-        boolean blocked = net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController.global()
-                .blocksHealing(session.battleId(), dealer.getPokemon().getUuid(), dealer.level().getGameTime());
-        return ActionBattlePokemonHealth.heal(healthAccess(dealer.getPokemon()),
-                net.epiac9.cobblemonnml.battle.action.health.ActionBattleHealingRules.adjust(requested, blocked));
     }
 
     public static int healPokemon(Pokemon pokemon, int requested) {
@@ -226,11 +185,6 @@ public final class ActionBattleGrassController {
         return session.isPlayerPokemon(pokemonId) ? ActionBattleFieldObject.OwnerSide.PLAYER
                 : pokemonId.equals(session.trainerActivePokemonUUID()) ? ActionBattleFieldObject.OwnerSide.TRAINER : null;
     }
-    private static boolean hasType(Pokemon pokemon, String type) {
-        return pokemon != null && (type.equals(normalize(pokemon.getPrimaryType() != null ? pokemon.getPrimaryType().getName() : null))
-                || type.equals(normalize(pokemon.getSecondaryType() != null ? pokemon.getSecondaryType().getName() : null)));
-    }
-    private static String normalize(String value) { return value == null ? "" : value.toLowerCase(Locale.ROOT); }
     private static ActionBattleFieldObject.Position position(BlockPos pos) { return new ActionBattleFieldObject.Position(pos.getX(), pos.getY(), pos.getZ()); }
     private static ActionBattleFieldPlacement.Position shared(BlockPos pos) { return new ActionBattleFieldPlacement.Position(pos.getX(), pos.getY(), pos.getZ()); }
     private static BlockPos blockPos(ActionBattleFieldPlacement.Position pos) { return new BlockPos(pos.x(), pos.y(), pos.z()); }

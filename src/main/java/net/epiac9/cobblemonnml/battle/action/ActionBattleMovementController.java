@@ -166,8 +166,6 @@ final class ActionBattleMovementController {
     static double movementSpeed(ActionBattleSession session, UUID pokemonUUID, long currentTick) {
         if (session == null || pokemonUUID == null || currentTick < 0L) return ACTION_MOVEMENT_SPEED;
         int stage = ActionBattleStatResolver.effectiveStage(session.battleId(), pokemonUUID, ActionBattleStat.SPEED, currentTick);
-        double grassMultiplier = ActionBattleTypeEffectController.global().grassMovementMultiplier(
-                session.dungeonSessionId(), pokemonUUID, currentTick);
         double groundMultiplier = ActionBattleTypeEffectController.global().groundMovementMultiplier(
                 session.dungeonSessionId(), pokemonUUID, currentTick);
         double exhaustedMultiplier = ActionBattleRampageController.global().movementMultiplier(
@@ -175,9 +173,13 @@ final class ActionBattleMovementController {
         double bugMultiplier = ActionBattleBugRuntime.locomotionMultiplier(session, pokemonUUID, currentTick);
         double paralysisMultiplier = ActionBattleParalysisRules.movementMultiplier(
                 ActionBattleParalysisController.active(session, pokemonUUID, currentTick));
+        com.cobblemon.mod.common.pokemon.Pokemon activePokemon = ActionBattleManager.findActivePokemon(pokemonUUID);
+        double chillingMultiplier = activePokemon != null && activePokemon.getEntity() != null
+                ? net.epiac9.cobblemonnml.battle.action.typeeffect.ice.ActionBattleChillingAuraRuntime.multiplier(
+                session.battleId(), activePokemon.getEntity().position(), currentTick) : 1.0D;
         return ActionBattleMovementActionRules.composeMovementSpeed(ACTION_MOVEMENT_SPEED,
-                ActionBattleStatRules.standardMultiplier(stage), grassMultiplier,
-                groundMultiplier * exhaustedMultiplier * bugMultiplier, paralysisMultiplier);
+                ActionBattleStatRules.standardMultiplier(stage), 1.0D,
+                groundMultiplier * exhaustedMultiplier * bugMultiplier * chillingMultiplier, paralysisMultiplier);
     }
 
     static void removeBattle(ActionBattleSession session) {

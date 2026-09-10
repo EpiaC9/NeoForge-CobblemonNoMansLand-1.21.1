@@ -17,10 +17,9 @@ public final class ActionBattleSteelRules {
 
     private ActionBattleSteelRules() {}
 
-    public static boolean qualifies(String moveType, String targetCategory, boolean selfBuffing) {
+    public static boolean qualifies(String targetCategory) {
         String target = normalize(targetCategory);
-        return "steel".equals(normalize(moveType)) && selfBuffing
-                && ("self".equals(target) || "user".equals(target));
+        return "self".equals(target) || "user".equals(target);
     }
 
     public static long durationTicks(int completedApplications) {
@@ -29,7 +28,7 @@ public final class ActionBattleSteelRules {
 
     public static Map<ActionBattleStat, Integer> statPlan(Branch branch, boolean steelTyped) {
         if (branch == null) return Map.of();
-        int amount = steelTyped ? 2 : 1;
+        int amount = 2;
         return branch == Branch.MAGNET_RISE
                 ? Map.of(ActionBattleStat.ATTACK, amount, ActionBattleStat.SPECIAL_ATTACK, amount,
                 ActionBattleStat.DEFENSE, -amount, ActionBattleStat.SPECIAL_DEFENSE, -amount)
@@ -43,9 +42,14 @@ public final class ActionBattleSteelRules {
     }
 
     public static double projectileSpeed(double baseSpeed, boolean magnetRiseActive,
-                                         boolean steelMove, boolean rangedProjectile) {
-        return magnetRiseActive && steelMove && rangedProjectile
+                                         boolean targetedDamagingProjectile) {
+        return magnetRiseActive && targetedDamagingProjectile
                 ? MAGNET_RISE_PROJECTILE_SPEED : baseSpeed;
+    }
+
+    public static boolean weightedMeleeQualifies(boolean weightedActive, boolean targeted,
+                                                  boolean damagingMelee) {
+        return weightedActive && targeted && damagingMelee;
     }
 
     private static String normalize(String value) {

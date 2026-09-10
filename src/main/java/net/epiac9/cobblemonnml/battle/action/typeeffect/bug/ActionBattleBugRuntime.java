@@ -16,8 +16,8 @@ import net.epiac9.cobblemonnml.battle.action.health.ActionBattleDamageSource;
 import net.epiac9.cobblemonnml.battle.action.health.ActionBattleHealthResolver;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionBattleProjectileEntity;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeMechanicActionContext;
 import net.epiac9.cobblemonnml.registry.ModBlocks;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import me.rufia.fightorflight.entity.PokemonAttackEffect;
@@ -41,8 +41,8 @@ public final class ActionBattleBugRuntime {
     private ActionBattleBugRuntime() {}
 
     public static Optional<ActionBattleBugCast> arm(PokemonEntity user, PokemonEntity target, Move move) {
-        if (user == null || move == null || user.level().isClientSide || !isBugMove(user, move)
-                || FightOrFlightAdapter.movePower(move) <= 0
+        if (user == null || move == null || user.level().isClientSide
+                || !ActionBattleTypeMechanicIdentity.hasMechanicBenefit(user, "bug")
                 || FightOrFlightAdapter.isSelfOrAllyTargetCategory(FightOrFlightAdapter.moveTargetCategory(move))) {
             return Optional.empty();
         }
@@ -50,12 +50,29 @@ public final class ActionBattleBugRuntime {
         if (session == null) return Optional.empty();
         UUID intendedTarget = target != null ? target.getPokemon().getUuid() : null;
         if (!isEnemy(session, user.getPokemon().getUuid(), intendedTarget)) return Optional.empty();
+        return activate(user, target, move, true, session);
+    }
+
+    public static void onOwnedActionStarted(ActionBattleTypeMechanicActionContext context) {
+        if (context == null || context.targetingMode()
+                != ActionBattleTypeMechanicActionContext.TargetingMode.SELF_OR_ALLY) return;
+        PokemonEntity user = context.pokemon();
+        ActionBattleSession session = user != null
+                ? ActionBattleManager.findSessionForBattlePokemonEntity(user.getUUID()) : null;
+        if (session != null) activate(user, null, context.move(), false, session);
+    }
+
+    private static Optional<ActionBattleBugCast> activate(PokemonEntity user, PokemonEntity target, Move move,
+                                                           boolean targeted, ActionBattleSession session) {
+        if (user == null || move == null || session == null
+                || !ActionBattleTypeMechanicIdentity.hasMechanicBenefit(user, "bug")) return Optional.empty();
         Pokemon pokemon = user.getPokemon();
+        UUID intendedTarget = target != null ? target.getPokemon().getUuid() : null;
         ActionBattleBugDiagnostics.TrainingTotals training = trainingTotals(pokemon);
-        EnumSet<ActionBattleBugTrainingStat> highest = ActionBattleBugRules.highest(
-                training.hp(), training.attack(), training.defense(), training.specialAttack(),
+        EnumSet<ActionBattleBugTrainingStat> highest = ActionBattleBugRules.highestForTargetingMode(
+                targeted, training.hp(), training.attack(), training.defense(), training.specialAttack(),
                 training.specialDefense(), training.speed());
-        boolean bugTyped = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(user, "bug");
+        boolean bugTyped = true;
         long tick = user.level().getGameTime();
         var trigger = ActionBattleBugController.global().trigger(session.battleId(), pokemon.getUuid(),
                 highest, bugTyped, pokemon.getMaxHealth(), tick);
@@ -68,6 +85,7 @@ public final class ActionBattleBugRuntime {
             spawnCarapace((ServerLevel) user.level(), session, user, tick);
         }
         if (trigger.activated().contains(ActionBattleBugTrainingStat.SPEED)) dash(session, user, bugTyped);
+        if (!targeted) return Optional.empty();
         ActionBattleBugCast cast = new ActionBattleBugCast(UUID.randomUUID(), session.battleId(),
                 pokemon.getUuid(), intendedTarget, bugTyped, trigger.activated(), move.getName(),
                 FightOrFlightAdapter.isRangedMove(move));
@@ -326,9 +344,6 @@ public final class ActionBattleBugRuntime {
                 before, target.getPokemon().getCurrentHealth(), feedbackCategory);
     }
 
-    private static boolean isBugMove(PokemonEntity user, Move move) {
-        return "bug".equalsIgnoreCase(ActionBattleEffectiveMoveTypeResolver.resolve(user, move));
-    }
     private static boolean isEnemy(ActionBattleSession session, UUID user, UUID target) {
         return user != null && target != null && session.isPlayerPokemon(user) != session.isPlayerPokemon(target)
                 && (session.isPlayerPokemon(target) || target.equals(session.trainerActivePokemonUUID()));

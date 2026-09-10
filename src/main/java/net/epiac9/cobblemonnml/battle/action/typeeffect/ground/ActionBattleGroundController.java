@@ -34,8 +34,7 @@ public final class ActionBattleGroundController {
     }
 
     public static boolean isQualifyingMove(PokemonEntity attacker, Move move) {
-        return move != null && qualifies(ActionBattleEffectiveMoveTypeResolver.resolve(attacker, move),
-                ActionProjectileProfile.deliveryType(move.getName()));
+        return false;
     }
 
     public static int depthPercent(PokemonEntity target, long currentTick) {

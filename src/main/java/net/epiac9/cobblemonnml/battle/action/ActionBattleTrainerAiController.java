@@ -1,7 +1,5 @@
 package net.epiac9.cobblemonnml.battle.action;
 
-import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
-
 import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.cobblemon.mod.common.pokemon.Pokemon;
@@ -14,8 +12,6 @@ import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandl
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleRampageController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRuntime;
@@ -23,6 +19,8 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattlePropu
 import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleParalysisController;
 import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleParalysisRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricController;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.BlockPos;
@@ -148,6 +146,7 @@ final class ActionBattleTrainerAiController {
         if (!onCooldown && ActionBattleBalefulBunkerHandler.isBalefulBunker(move)) {
             trainerPokemonEntity.getNavigation().stop();
             ActionBattleBalefulBunkerHandler.StartResult result = ActionBattleBalefulBunkerHandler.tryStart(session, trainerPokemonEntity, move);
+            if (result == ActionBattleBalefulBunkerHandler.StartResult.STARTED) dispatchOwnedMechanics(trainerPokemonEntity, trainerPokemonEntity, move);
             finishTrainerMove(session, trainerPokemon, move, currentTick, result == ActionBattleBalefulBunkerHandler.StartResult.STARTED, () -> {});
             DebugLog.log("[CobblemonNML] Trainer Baleful Bunker ACTION start result. Battle=" + session.battleId() + ", result=" + result);
             return;
@@ -157,6 +156,7 @@ final class ActionBattleTrainerAiController {
                     ActionBattleParalysisController.active(session, trainerPokemon.getUuid(), currentTick), currentTick)) return;
             trainerPokemonEntity.getNavigation().stop();
             ActionBattleHailHandler.StartResult result = ActionBattleHailHandler.tryStart(session, level, trainerPokemonEntity, playerPokemonEntity, move);
+            if (result == ActionBattleHailHandler.StartResult.STARTED) dispatchOwnedMechanics(trainerPokemonEntity, playerPokemonEntity, move);
             session.clearTrainerMoveState();
             DebugLog.log("[CobblemonNML] Trainer Hail ACTION start result. Battle=" + session.battleId() + ", result=" + result);
             return;
@@ -166,6 +166,7 @@ final class ActionBattleTrainerAiController {
                     ActionBattleParalysisController.active(session, trainerPokemon.getUuid(), currentTick), currentTick)) return;
             trainerPokemonEntity.getNavigation().stop();
             ActionBattleToxicSpikesHandler.StartResult result = ActionBattleToxicSpikesHandler.tryStart(session, level, trainerPokemonEntity, playerPokemonEntity, move);
+            if (result == ActionBattleToxicSpikesHandler.StartResult.STARTED) dispatchOwnedMechanics(trainerPokemonEntity, playerPokemonEntity, move);
             finishTrainerMove(session, trainerPokemon, move, currentTick, result == ActionBattleToxicSpikesHandler.StartResult.STARTED, () -> ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), trainerPokemon.getUuid()));
             DebugLog.log("[CobblemonNML] Trainer Toxic Spikes ACTION start result. Battle=" + session.battleId() + ", result=" + result);
             return;
@@ -181,7 +182,6 @@ final class ActionBattleTrainerAiController {
                 ActionBattleCommandController.cancelPendingOrders(session, ActionBattleCommandController.Side.TRAINER, ActionBattleCommandController.InterruptReason.MOVE_FAILED);
                 return;
             }
-            var grassCommit = ActionBattleGrassController.commitMove(trainerPokemonEntity, move);
             if (ActionBattleParalysisRules.failsAction(
                     ActionBattleParalysisController.active(session, trainerPokemon.getUuid(), currentTick),
                     trainerPokemonEntity.getRandom().nextDouble())) {
@@ -193,10 +193,23 @@ final class ActionBattleTrainerAiController {
                 return;
             }
             ActionBattleCommittedMove committedMove = captureCommittedMove(session, trainerPokemonEntity, move);
-            if (FightOrFlightAdapter.execute(trainerPokemonEntity, playerPokemonEntity, move,
-                    grassCommit.capturedDamageMultiplier(), committedMove)) {
-                ActionBattleRockRuntime.onMoveCommitted(trainerPokemonEntity, move);
-                net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime.onSuccessfulSelfBuffCommit(trainerPokemonEntity, move);
+            BlockPos plasmaTarget = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(trainerPokemonEntity, "electric")
+                    && !ActionBattleTypeMechanicIdentity.hasMechanicBenefit(trainerPokemonEntity, "psychic")
+                    && FightOrFlightAdapter.isRangedMove(move) && FightOrFlightAdapter.movePower(move) > 0
+                    && ActionBattleElectricController.activeCount(session.dungeonSessionId()) > 3
+                    ? ActionBattleElectricController.nearestPlasmaBallTo(
+                    session.dungeonSessionId(), playerPokemonEntity.blockPosition()) : null;
+            boolean executed = plasmaTarget != null
+                    ? FightOrFlightAdapter.executeRangedAtPoint(trainerPokemonEntity, playerPokemonEntity, move,
+                    net.minecraft.world.phys.Vec3.atCenterOf(plasmaTarget), 1.0D, committedMove)
+                    : FightOrFlightAdapter.execute(trainerPokemonEntity, playerPokemonEntity, move, 1.0D, committedMove);
+            if (executed) {
+                if (plasmaTarget != null) {
+                    DebugLog.log("[CobblemonNML] Electric trainer AI aimed at Plasma Ball. Battle="
+                            + session.battleId() + ", ball=" + plasmaTarget + ", enemy="
+                            + playerPokemonEntity.blockPosition());
+                }
+                net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime.onSuccessfulSelfMoveCommit(trainerPokemonEntity, move);
                 long cooldownTicks = ActionBattleGhostRuntime.global().applyAbilityCooldown(
                         session, trainerPokemonEntity, session.trainerMoveSlot(), currentTick).sharedTicks();
                 ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), trainerPokemon.getUuid());
@@ -206,7 +219,6 @@ final class ActionBattleTrainerAiController {
                         + ", move=" + move.getName() + ", cooldownTicks=" + cooldownTicks);
             } else {
                 FightOrFlightAdapter.refundOnePp(move);
-                ActionBattleGrassController.restoreEmpower(trainerPokemonEntity, grassCommit);
                 if (commitMode == ActionBattlePropulsionRules.CommitMode.PROPULSION) {
                     repositionPendingMove(session, trainerPokemon, trainerPokemonEntity,
                             playerPokemonEntity, move, false, currentTick);
@@ -248,7 +260,6 @@ final class ActionBattleTrainerAiController {
         session.resetTrainerRepositionState();
         if (kind == ActionBattleConfusionRules.CommandKind.PROTECT) {
             if (!FightOrFlightAdapter.consumeOnePp(trainerEntity, move)) return true;
-            ActionBattleGrassController.commitMove(trainerEntity, move);
             ActionBattleGhostRuntime.global().applyAbilityCooldown(session,
                     trainerEntity, session.trainerMoveSlot(), currentTick);
             ActionBattleProtectController.global().recordFailedProtectAttempt(session.battleId(),
@@ -258,7 +269,6 @@ final class ActionBattleTrainerAiController {
         }
         if (kind == ActionBattleConfusionRules.CommandKind.SUPPORT) {
             if (!FightOrFlightAdapter.consumeOnePp(trainerEntity, move)) return true;
-            ActionBattleGrassController.commitMove(trainerEntity, move);
             ActionBattleGhostRuntime.global().applyAbilityCooldown(session,
                     trainerEntity, session.trainerMoveSlot(), currentTick);
             Pokemon enemyPokemon = ActionBattleManager.findActivePokemon(
@@ -268,12 +278,12 @@ final class ActionBattleTrainerAiController {
                     trainerEntity, enemy, move, plan.supportCorruption())) {
                 ActionBattleControlController.global().recordSuccessfulMove(
                         session.battleId(), trainerPokemon.getUuid(), move);
+                dispatchOwnedMechanics(trainerEntity, enemy, move);
             }
             return true;
         }
         if (kind == ActionBattleConfusionRules.CommandKind.RANGED) {
             if (!FightOrFlightAdapter.consumeOnePp(trainerEntity, move)) return true;
-            var grassCommit = ActionBattleGrassController.commitMove(trainerEntity, move);
             ActionBattleGhostRuntime.global().applyAbilityCooldown(session,
                     trainerEntity, session.trainerMoveSlot(), currentTick);
             ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), trainerPokemon.getUuid(), move);
@@ -284,38 +294,44 @@ final class ActionBattleTrainerAiController {
                     trainerEntity, confusedTarget, plan.rangedCorruption());
             ActionBattleCommittedMove committedMove = captureCommittedMove(session, trainerEntity, move);
             FightOrFlightAdapter.executeConfusedRanged(trainerEntity, move, redirectedDirection,
-                    grassCommit.capturedDamageMultiplier(), committedMove);
-            ActionBattleRockRuntime.onMoveCommitted(trainerEntity, move);
-            net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime.onSuccessfulSelfBuffCommit(trainerEntity, move);
+                    1.0D, committedMove);
+            net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime.onSuccessfulSelfMoveCommit(trainerEntity, move);
             DebugLog.log("[CobblemonNML] Trainer Confusion fired ranged move in random direction. Battle=" + session.battleId() + ", move=" + move.getName());
             return true;
         }
         if (kind == ActionBattleConfusionRules.CommandKind.MELEE) {
             if (!FightOrFlightAdapter.consumeOnePp(trainerEntity, move)) return true;
-            var grassCommit = ActionBattleGrassController.commitMove(trainerEntity, move);
             ActionBattleGhostRuntime.global().applyAbilityCooldown(session,
                     trainerEntity, session.trainerMoveSlot(), currentTick);
             ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), trainerPokemon.getUuid(), move);
             ActionBattleCommittedMove committedMove = captureCommittedMove(session, trainerEntity, move);
             ActionBattleConfusionController.startMeleeDash(session, level, trainerEntity, move, currentTick,
-                    grassCommit.capturedDamageMultiplier(), committedMove);
-            ActionBattleRockRuntime.onMoveCommitted(trainerEntity, move);
-            net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime.onSuccessfulSelfBuffCommit(trainerEntity, move);
+                    1.0D, committedMove);
+            dispatchOwnedMechanics(trainerEntity, null, move);
+            net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime.onSuccessfulSelfMoveCommit(trainerEntity, move);
             DebugLog.log("[CobblemonNML] Trainer Confusion started uncontrolled melee dash. Battle=" + session.battleId() + ", move=" + move.getName());
             return true;
         }
         if (kind == ActionBattleConfusionRules.CommandKind.CHANNEL) {
             if (ActionBattleHailHandler.isHail(move)) {
                 var result = ActionBattleHailHandler.tryStart(session, level, trainerEntity, null, move, plan.channelBonusTicks(), plan.channelSelfCancel());
+                if (result == ActionBattleHailHandler.StartResult.STARTED) dispatchOwnedMechanics(trainerEntity, null, move);
             } else {
                 var result = ActionBattleToxicSpikesHandler.tryStart(session, level, trainerEntity, null, move, plan.channelBonusTicks(), plan.channelSelfCancel());
                 if (result == ActionBattleToxicSpikesHandler.StartResult.STARTED) {
                     ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), trainerPokemon.getUuid(), move);
+                    dispatchOwnedMechanics(trainerEntity, null, move);
                 }
             }
             return true;
         }
         return false;
+    }
+
+    private static void dispatchOwnedMechanics(PokemonEntity pokemon, LivingEntity target, Move move) {
+        net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeMechanicRuntime.onActionStarted(
+                net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeMechanicActionContext.started(
+                        pokemon, target, move));
     }
 
     private static ActionBattleCommittedMove captureCommittedMove(ActionBattleSession session,
@@ -472,13 +488,33 @@ final class ActionBattleTrainerAiController {
         }
         if (usableSlots.isEmpty()) return -1;
         int tier = aiTier();
-        if (tier <= 1) return usableSlots.get(ThreadLocalRandom.current().nextInt(usableSlots.size()));
+        List<Integer> plasmaPreferredSlots = usableSlots.stream().filter(slot -> {
+            Move move = trainerPokemon.getMoveSet().get(slot);
+            boolean validInteraction = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(trainerEntity, "electric")
+                    && !ActionBattleTypeMechanicIdentity.hasMechanicBenefit(trainerEntity, "psychic")
+                    && FightOrFlightAdapter.isRangedMove(move) && FightOrFlightAdapter.movePower(move) > 0
+                    && ActionBattleElectricController.nearestPlasmaBallTo(
+                    session.dungeonSessionId(), targetEntity.blockPosition()) != null;
+            return ActionBattleElectricController.trainerPrefersPlasma(
+                    session.dungeonSessionId(), validInteraction, false);
+        }).toList();
+        if (tier <= 1) {
+            List<Integer> pool = !plasmaPreferredSlots.isEmpty() ? plasmaPreferredSlots : usableSlots;
+            return pool.get(ThreadLocalRandom.current().nextInt(pool.size()));
+        }
         int bestScore = Integer.MIN_VALUE;
         List<Integer> bestSlots = new ArrayList<>(4);
         double hpRatio = hpRatio(trainerPokemon);
         for (int slot : usableSlots) {
             Move move = trainerPokemon.getMoveSet().get(slot);
             int score = scoreTrainerMoveChoice(tier, trainerPokemon, targetPokemon, trainerEntity, targetEntity, move, hpRatio);
+            boolean plasmaInteraction = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(trainerEntity, "electric")
+                    && !ActionBattleTypeMechanicIdentity.hasMechanicBenefit(trainerEntity, "psychic")
+                    && FightOrFlightAdapter.isRangedMove(move) && FightOrFlightAdapter.movePower(move) > 0
+                    && ActionBattleElectricController.nearestPlasmaBallTo(
+                    session.dungeonSessionId(), targetEntity.blockPosition()) != null;
+            if (ActionBattleElectricController.trainerPrefersPlasma(
+                    session.dungeonSessionId(), plasmaInteraction, false)) score += 1_000;
             if (score > bestScore) {
                 bestScore = score;
                 bestSlots.clear();

@@ -23,10 +23,8 @@ public final class ActionBattleStatusVisualRegistry {
     private static final StatusVisual POISON = visual("confusion", 0xFF70C968);
     private static final StatusVisual TOXIC = visual("confusion", 0xFF7139A3);
     private static final StatusVisual PARALYSIS = visual("paralysis", 0xFFFFB300);
-    private static final StatusVisual TYPE_AQUA_SHIELD = typeEffectVisual("aqua_shield", 0xFF42C7E8);
     private static final StatusVisual TYPE_IMMOBILIZED = typeEffectVisual("immobilized", 0xFF2488C9);
     private static final StatusVisual TYPE_GRASS_EMPOWER = typeEffectVisual("grass_empower", 0xFF79D64A);
-    private static final StatusVisual TYPE_LEECH_SEED = typeEffectVisual("leech_seed", 0xFF4E9E3D);
     private static final StatusVisual TYPE_GRASS_MOVEMENT = typeEffectVisual("grass_movement", 0xFF9EEA74);
     private static final StatusVisual TYPE_ROCK_STOCKPILE = typeEffectVisual("stockpile", 0xFF9C8975);
     private static final StatusVisual TYPE_ROCK_ENDURANCE = typeEffectVisual("endurance", 0xFF6F737C);
@@ -97,10 +95,8 @@ public final class ActionBattleStatusVisualRegistry {
             case "POISON" -> POISON;
             case "TOXIC" -> TOXIC;
             case "PARALYSIS" -> PARALYSIS;
-            case "TYPE_AQUA_SHIELD" -> TYPE_AQUA_SHIELD;
             case "TYPE_IMMOBILIZED" -> TYPE_IMMOBILIZED;
             case "TYPE_GRASS_EMPOWER" -> TYPE_GRASS_EMPOWER;
-            case "TYPE_LEECH_SEED" -> TYPE_LEECH_SEED;
             case "TYPE_GRASS_MOVEMENT" -> TYPE_GRASS_MOVEMENT;
             case "TYPE_ROCK_STOCKPILE" -> TYPE_ROCK_STOCKPILE;
             case "TYPE_ROCK_ENDURANCE" -> TYPE_ROCK_ENDURANCE;

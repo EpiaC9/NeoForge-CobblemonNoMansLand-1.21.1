@@ -41,11 +41,11 @@ public final class ActionBattleEarthquakeHandler {
         return session != null && session.state() == ActionBattleState.ACTIVE;
     }
 
-    public static boolean launch(PokemonEntity attacker, Move move, double committedGrassMultiplier) {
-        return launch(attacker, move, committedGrassMultiplier, ActionBattleCommittedMove.none());
+    public static boolean launch(PokemonEntity attacker, Move move, double committedDamageMultiplier) {
+        return launch(attacker, move, committedDamageMultiplier, ActionBattleCommittedMove.none());
     }
 
-    public static boolean launch(PokemonEntity attacker, Move move, double committedGrassMultiplier,
+    public static boolean launch(PokemonEntity attacker, Move move, double committedDamageMultiplier,
                                  ActionBattleCommittedMove committedMove) {
         if (!isEarthquake(move) || !canLaunch(attacker)
                 || !(attacker.level() instanceof ServerLevel level)) return false;
@@ -58,7 +58,7 @@ public final class ActionBattleEarthquakeHandler {
                 attacker.position(), level.getGameTime(), waveParameters(),
                 (waveLevel, origin, target) -> hasClearGroundPath(waveLevel, attacker, origin, target),
                 (waveLevel, target) -> FightOrFlightAdapter.resolveRangedNativePokemonHit(
-                        attacker, target, move, committedGrassMultiplier, committedMove));
+                        attacker, target, move, committedDamageMultiplier, committedMove));
         return true;
     }
 

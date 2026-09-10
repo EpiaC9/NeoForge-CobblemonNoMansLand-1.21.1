@@ -6,6 +6,8 @@ import com.cobblemon.mod.common.api.storage.party.PlayerPartyStore;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveDescriptor;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveMetadataResolver;
 import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
 import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlEffect;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
@@ -19,18 +21,16 @@ import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentCo
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentType;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeEffectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.water.ActionBattleWaterVisuals;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassRules;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassVisuals;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockVisualRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleBoostedMoveRules;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.dark.ActionBattleDarkRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugTrainingStat;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugVisuals;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeMechanicHudProjection;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.dimension.DungeonSession;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -83,8 +83,8 @@ public final class ActionBattleHudSync {
                 true,
                 playerPokemon.getSpecies().getName(), playerPokemon.getUuid().toString(), playerPokemon.getLevel(), currentHealth(playerPokemon), maxHealth(playerPokemon), session.playerActivePartyIndex(player.getUUID()),
                 trainerPokemon.getSpecies().getName(), trainerPokemon.getUuid().toString(), trainerPokemon.getLevel(), currentHealth(trainerPokemon), maxHealth(trainerPokemon), session.trainerActivePartyIndex(),
-                statusStates(session.battleId(), session.dungeonSessionId(), playerPokemon.getUuid(), currentTick),
-                statusStates(session.battleId(), session.dungeonSessionId(), trainerPokemon.getUuid(), currentTick),
+                activeStates(session, playerPokemon, currentTick),
+                activeStates(session, trainerPokemon, currentTick),
                 statStages(session.battleId(), playerPokemon.getUuid(), currentTick),
                 statStages(session.battleId(), trainerPokemon.getUuid(), currentTick),
                 damageStates(ActionBattleDamageFeedbackController.global().drain(session.battleId(), playerPokemon.getUuid())),
@@ -133,6 +133,96 @@ public final class ActionBattleHudSync {
         return new ActionBattleHudPayload.PartyState(entries);
     }
 
+    private static List<ActionBattleHudPayload.StatusState> activeStates(ActionBattleSession session,
+                                                                          Pokemon pokemon, long currentTick) {
+        List<ActionBattleHudPayload.StatusState> states = new ArrayList<>(mechanicStates(session, pokemon, currentTick));
+        states.addAll(statusStates(session.battleId(), session.dungeonSessionId(), pokemon.getUuid(), currentTick));
+        return List.copyOf(states);
+    }
+
+    private static List<ActionBattleHudPayload.StatusState> mechanicStates(ActionBattleSession session,
+                                                                            Pokemon pokemon, long currentTick) {
+        if (session == null || pokemon == null || pokemon.getEntity() == null || pokemon.getEntity().isRemoved()) {
+            return List.of();
+        }
+        List<String> actual = new ArrayList<>(2);
+        if (pokemon.getPrimaryType() != null) actual.add(pokemon.getPrimaryType().getName());
+        if (pokemon.getSecondaryType() != null) actual.add(pokemon.getSecondaryType().getName());
+        List<String> adaptive = new ArrayList<>(ActionBattleTypeMechanicIdentity.adaptiveTypes(pokemon.getEntity()));
+        List<String> identities = ActionBattleTypeMechanicHudProjection.identities(true, actual, adaptive);
+        List<ActionBattleHudPayload.StatusState> states = new ArrayList<>(identities.size());
+        for (String identity : identities) {
+            String id = "MECHANIC_" + identity.toUpperCase(java.util.Locale.ROOT);
+            long value = 1L;
+            long maximum = 1L;
+            if ("normal".equals(identity) && !adaptive.isEmpty()) {
+                id += "__" + adaptive.stream().sorted().map(valueType -> valueType.toUpperCase(java.util.Locale.ROOT))
+                        .collect(java.util.stream.Collectors.joining("_"));
+            } else if ("fire".equals(identity)) {
+                var view = net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRuntime
+                        .view(session.battleId(), pokemon.getUuid(), currentTick);
+                id += view.inferno() ? "_INFERNO" : "_PRESSURE";
+                value = view.amount();
+                maximum = net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFirePressureState.MAX_PRESSURE;
+            } else if ("flying".equals(identity)) {
+                value = net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRuntime
+                        .momentum(session, pokemon.getUuid());
+                maximum = net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRules.MAX_MOMENTUM;
+            } else if ("bug".equals(identity)) {
+                var bug = ActionBattleBugController.global().state(session.battleId(), pokemon.getUuid()).orElse(null);
+                if (bug != null) {
+                    for (ActionBattleBugTrainingStat branch : ActionBattleBugTrainingStat.values()) {
+                        if (bug.lockRemaining(branch, currentTick) > 0L) {
+                            id += "_" + branch.name();
+                            break;
+                        }
+                    }
+                }
+            } else if ("dragon".equals(identity)) {
+                if (net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime
+                        .dragonSleep(session, pokemon.getUuid(), currentTick)) {
+                    id += "_SLEEP";
+                    value = controllerStatusRemaining(session.dungeonSessionId(), pokemon.getUuid(),
+                            ActionBattleStatus.SLEEP, currentTick);
+                    maximum = controllerStatusDuration(session.dungeonSessionId(), pokemon.getUuid(),
+                            ActionBattleStatus.SLEEP, currentTick);
+                } else {
+                    var dragon = net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonController
+                            .global().view(session.dungeonSessionId(), pokemon.getUuid(), currentTick).orElse(null);
+                    if (dragon != null) {
+                        id += "_" + dragon.phase().name();
+                        value = dragon.phase() == net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonState.Phase.BUILDUP
+                                ? Math.max(0L, net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRules.ACTIVATION_DURATION_TICKS
+                                - dragon.activationRemainingTicks()) : dragon.phaseRemainingTicks();
+                        maximum = dragon.phase() == net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonState.Phase.BUILDUP
+                                ? net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRules.ACTIVATION_DURATION_TICKS
+                                : Math.max(1L, net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRules.ACTIVE_DURATION_TICKS);
+                    }
+                }
+            } else if ("steel".equals(identity)) {
+                var steel = net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime
+                        .view(session.battleId(), pokemon.getUuid(), currentTick).orElse(null);
+                if (steel != null) {
+                    id += "_" + steel.branch().name();
+                    value = steel.remainingTicks();
+                    maximum = steel.totalTicks();
+                }
+            }
+            states.add(new ActionBattleHudPayload.StatusState(id, value, Math.max(1L, maximum)));
+        }
+        return List.copyOf(states);
+    }
+
+    private static long controllerStatusRemaining(UUID scope, UUID pokemonId,
+                                                   ActionBattleStatus status, long tick) {
+        return ActionBattleEffectController.global().statusRemainingTicks(scope, pokemonId, status, tick);
+    }
+
+    private static long controllerStatusDuration(UUID scope, UUID pokemonId,
+                                                  ActionBattleStatus status, long tick) {
+        return Math.max(1L, ActionBattleEffectController.global().statusDurationTicks(scope, pokemonId, status, tick));
+    }
+
     private static List<ActionBattleHudPayload.StatusState> statusStates(UUID battleId, UUID dungeonSessionId, UUID pokemonUUID, long currentTick) {
         ActionBattleEffectController controller = ActionBattleEffectController.global();
         ActionBattleProtectController protect = ActionBattleProtectController.global();
@@ -175,13 +265,6 @@ public final class ActionBattleHudSync {
                 .remainingTicks(battleId, pokemonUUID, currentTick);
         if (infatuationRemaining > 0L) states.add(new ActionBattleHudPayload.StatusState("INFATUATION",
                 infatuationRemaining, net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleInfatuationRules.DURATION_TICKS));
-        net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRuntime
-                .view(battleId, pokemonUUID, currentTick).ifPresent(view -> states.add(
-                        new ActionBattleHudPayload.StatusState(
-                                view.branch() == net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelRules.Branch.MAGNET_RISE
-                                        ? net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelVisuals.MAGNET_RISE_STATUS_ID
-                                        : net.epiac9.cobblemonnml.battle.action.typeeffect.steel.ActionBattleSteelVisuals.WEIGHTED_STATUS_ID,
-                                view.remainingTicks(), view.totalTicks())));
         ActionBattleRockController rock = ActionBattleRockController.global();
         rock.stockpileView(battleId, pokemonUUID, currentTick).ifPresent(view ->
                 states.add(new ActionBattleHudPayload.StatusState(ActionBattleRockVisualRules.STOCKPILE_STATUS_ID,
@@ -195,19 +278,8 @@ public final class ActionBattleHudSync {
                     view.remainingTicks(), view.totalTicks()));
         }
         ActionBattleTypeEffectController typeEffects = ActionBattleTypeEffectController.global();
-        typeEffects.aquaShieldView(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view ->
-                states.add(new ActionBattleHudPayload.StatusState(ActionBattleWaterVisuals.AQUA_SHIELD_STATUS_ID,
-                        view.remainingTicks(), view.totalDurationTicks())));
         typeEffects.immobilizedView(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view ->
                 states.add(new ActionBattleHudPayload.StatusState(ActionBattleWaterVisuals.IMMOBILIZED_STATUS_ID,
-                        view.remainingTicks(), view.totalDurationTicks())));
-        typeEffects.grassEmpowerView(dungeonSessionId, pokemonUUID).ifPresent(view ->
-                states.add(new ActionBattleHudPayload.StatusState(ActionBattleGrassVisuals.EMPOWER_STATUS_ID, 1L, 1L)));
-        typeEffects.leechSeedView(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view ->
-                states.add(new ActionBattleHudPayload.StatusState(ActionBattleGrassVisuals.LEECH_SEED_STATUS_ID,
-                        view.remainingTicks(), ActionBattleGrassRules.LEECH_SEED_DURATION_TICKS)));
-        typeEffects.grassMovementView(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view ->
-                states.add(new ActionBattleHudPayload.StatusState(ActionBattleGrassVisuals.MOVEMENT_STATUS_ID,
                         view.remainingTicks(), view.totalDurationTicks())));
         net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleRampageController.global()
                 .view(battleId, pokemonUUID, currentTick).ifPresent(view -> {
@@ -216,20 +288,6 @@ public final class ActionBattleHudSync {
                     else if (view.exhausted()) states.add(new ActionBattleHudPayload.StatusState("EXHAUSTED",
                             view.exhaustedRemainingTicks(), net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleRampageState.EXHAUSTED_DURATION_TICKS));
                 });
-        net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonController.global()
-                .view(dungeonSessionId, pokemonUUID, currentTick).ifPresent(view -> {
-            if (view.phase() == net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonState.Phase.BUILDUP) {
-                states.add(new ActionBattleHudPayload.StatusState(
-                        net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonVisuals.BUILDUP_STATUS_ID,
-                        view.maintenanceRemainingTicks(),
-                        net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRules.MAINTENANCE_DURATION_TICKS));
-            } else if (view.phase() == net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonState.Phase.ACTIVE) {
-                states.add(new ActionBattleHudPayload.StatusState(
-                        net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonVisuals.ACTIVE_STATUS_ID,
-                        view.phaseRemainingTicks(),
-                        net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRules.ACTIVE_DURATION_TICKS));
-            }
-        });
         ActionBattleBugController.global().state(battleId, pokemonUUID).ifPresent(bug -> {
             addBugLock(states, bug, ActionBattleBugTrainingStat.HP,
                     ActionBattleBugVisuals.SHEDDING_STATUS_ID, currentTick);
@@ -308,14 +366,13 @@ public final class ActionBattleHudSync {
         boolean dragonAllowed = !net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime
                 .blocksTrainerCommands(session, pokemon.getUuid(), currentTick);
         PokemonEntity entity = pokemon.getEntity();
-        String effectiveType = ActionBattleEffectiveMoveTypeResolver.resolve(entity, move);
-        boolean boosted = ActionBattleBoostedMoveRules.isMechanicallyBoosted(entity, move);
+        ActionBattleMoveDescriptor descriptor = ActionBattleMoveMetadataResolver.resolve(entity, move);
         return new ActionBattleHudPayload.MoveState(
-                move.getName(), effectiveType, FightOrFlightAdapter.currentPp(move), FightOrFlightAdapter.maxPp(move), FightOrFlightAdapter.supports(move) && controlAllowed && fightingAllowed && dragonAllowed,
+                move.getName(), descriptor.effectiveType(), descriptor.currentPp(), descriptor.maxPp(), FightOrFlightAdapter.supports(move) && controlAllowed && fightingAllowed && dragonAllowed,
                 session.pokemonAbilitySlotCooldownRemainingTicks(pokemon.getUuid(), slot, currentTick),
                 session.pokemonAbilitySlotCooldownDurationTicks(pokemon.getUuid(), slot, currentTick),
                 net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRuntime
-                        .momentum(session, pokemon.getUuid()), boosted
+                        .momentum(session, pokemon.getUuid())
         );
     }
 

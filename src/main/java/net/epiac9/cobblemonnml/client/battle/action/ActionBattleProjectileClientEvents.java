@@ -19,5 +19,7 @@ public final class ActionBattleProjectileClientEvents {
         event.registerEntityRenderer(ModEntities.ACTION_BATTLE_LOB_PROJECTILE.get(), NoopRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.ACTION_BATTLE_BUG_CARAPACE.get(),
                 ActionBattleBugCarapaceRenderer::new);
+        event.registerBlockEntityRenderer(ModBlockEntities.ACTION_BATTLE_FAIRY_ILLUSION.get(),
+                ActionBattleFairyIllusionRenderer::new);
     }
 }

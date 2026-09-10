@@ -12,8 +12,8 @@ import net.minecraft.server.level.ServerPlayer;
 import java.util.concurrent.Callable;
 
 public final class ActionBattlePokemonControlGuard {
-    private static final Component RECALL_WARNING = Component.literal("You can't recall at the moment.");
-    private static final Component SEND_OUT_WARNING = Component.literal("Use Swap Out during an action battle.");
+    private static final Component RECALL_WARNING = Component.translatable("action.cobblemonnml.warning.recall_blocked");
+    private static final Component SEND_OUT_WARNING = Component.translatable("action.cobblemonnml.warning.use_swap");
     private static final ThreadLocal<Integer> INTERNAL_DEPTH = ThreadLocal.withInitial(() -> 0);
     private static boolean registered;
 

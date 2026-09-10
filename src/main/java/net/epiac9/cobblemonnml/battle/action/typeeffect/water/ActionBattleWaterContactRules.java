@@ -1,34 +1,16 @@
 package net.epiac9.cobblemonnml.battle.action.typeeffect.water;
 
-import java.util.Locale;
-
 public final class ActionBattleWaterContactRules {
-    public enum ActivationResult { ALLY_SHIELD, ENEMY_WATER_HEALED, ENEMY_IMMOBILIZED }
+    public enum ActivationResult { IGNORED, ENEMY_TRAPPED }
 
     private ActionBattleWaterContactRules() {}
 
     public static ActivationResult resolveContact(boolean allied, boolean waterTyped) {
-        if (allied) return ActivationResult.ALLY_SHIELD;
-        return waterTyped ? ActivationResult.ENEMY_WATER_HEALED : ActivationResult.ENEMY_IMMOBILIZED;
-    }
-
-    public static int clampedHeal(int currentHealth, int maxHealth) {
-        int maximum = Math.max(1, maxHealth);
-        return Math.min(maximum, Math.max(0, currentHealth) + ActionBattleWaterRules.healAmount(maximum));
+        return allied ? ActivationResult.IGNORED : ActivationResult.ENEMY_TRAPPED;
     }
 
     public static boolean isQualifyingInteraction(String moveType, boolean damaging, int movePower,
                                                    String targetCategory) {
-        return "water".equals(normalize(moveType));
-    }
-
-    private static boolean enemyTargetCategory(String targetCategory) {
-        String normalized = normalize(targetCategory).replace("_", "").replace("-", "");
-        return normalized.contains("foe") || normalized.contains("enemy") || normalized.contains("opponent")
-                || normalized.equals("normal") || normalized.equals("adjacentpokemon");
-    }
-
-    private static String normalize(String value) {
-        return value != null ? value.toLowerCase(Locale.ROOT) : "";
+        return true;
     }
 }

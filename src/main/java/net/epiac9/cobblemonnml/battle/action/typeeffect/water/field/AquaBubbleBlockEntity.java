@@ -28,11 +28,13 @@ public final class AquaBubbleBlockEntity extends BlockEntity {
     }
 
     public AquaBubbleLifecycle lifecycle() { return lifecycle; }
+    public void initialize(AquaBubbleLifecycle lifecycle) { this.lifecycle = lifecycle; setChanged(); }
 
     public void serverTick() {
         if (level == null || level.isClientSide || lifecycle == null) return;
         if (!DungeonSession.isActive() || !lifecycle.sessionId().equals(DungeonSession.getSessionId())
                 || !lifecycle.activeAt(level.getGameTime())) ActionBattleWaterController.removeBubble(this);
+        else ActionBattleWaterController.home(this);
     }
 
     public void onPokemonTouch(PokemonEntity pokemon) {

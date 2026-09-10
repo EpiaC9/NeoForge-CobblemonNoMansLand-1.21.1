@@ -4,11 +4,9 @@ import com.cobblemon.mod.common.api.moves.Move;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
-import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectResolver;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatApplicationService;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatSource;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
 import net.epiac9.cobblemonnml.util.DebugLog;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -23,15 +21,14 @@ public final class ActionBattleSteelRuntime {
 
     private ActionBattleSteelRuntime() {}
 
-    public static boolean isQualifyingSelfBuffMove(Move move) {
-        return move != null && move.getType() != null && ActionBattleSteelRules.qualifies(
-                move.getType().getName(), FightOrFlightAdapter.moveTargetCategory(move),
-                ActionBattleMoveEffectResolver.isSelfBuffingMove(move));
+    public static boolean isQualifyingSelfMove(Move move) {
+        return move != null && ActionBattleSteelRules.qualifies(
+                FightOrFlightAdapter.moveTargetCategory(move));
     }
 
     public static ActivationPlan plan(ActivationInput input) {
         if (input == null || !input.successfullyResolved()
-                || !ActionBattleSteelRules.qualifies(input.moveType(), input.targetCategory(), input.selfBuffing())) {
+                || !ActionBattleSteelRules.qualifies(input.targetCategory())) {
             return ActivationPlan.NOT_QUALIFYING;
         }
         ActionBattleSteelWeight.Override itemOverride = ActionBattleSteelWeight.overrideForItem(input.heldItemId());
@@ -39,15 +36,16 @@ public final class ActionBattleSteelRuntime {
         return new ActivationPlan(true, new ActionBattleSteelState.Selection(branch, input.staticWeight()), itemOverride);
     }
 
-    public static ActionBattleSteelState.ApplyResult onSuccessfulSelfBuffCommit(PokemonEntity caster, Move move) {
+    public static ActionBattleSteelState.ApplyResult onSuccessfulSelfMoveCommit(PokemonEntity caster, Move move) {
         ActionBattleSession session = caster != null ? ActionBattleManager.findSessionForBattlePokemonEntity(caster.getUUID()) : null;
-        if (session == null || move == null || caster.level().isClientSide) return ActionBattleSteelState.ApplyResult.INVALID;
-        String type = ActionBattleEffectiveMoveTypeResolver.resolve(caster, move);
+        if (session == null || move == null || caster.level().isClientSide
+                || !ActionBattleTypeMechanicIdentity.hasMechanicBenefit(caster, "steel")) {
+            return ActionBattleSteelState.ApplyResult.INVALID;
+        }
         String held = caster.getPokemon().heldItem().isEmpty() ? ""
                 : BuiltInRegistries.ITEM.getKey(caster.getPokemon().heldItem().getItem()).toString();
-        ActivationPlan plan = plan(new ActivationInput(type, FightOrFlightAdapter.moveTargetCategory(move),
-                ActionBattleMoveEffectResolver.isSelfBuffingMove(move), true,
-                caster.getPokemon().getForm().getWeight(), held));
+        ActivationPlan plan = plan(new ActivationInput(FightOrFlightAdapter.moveTargetCategory(move),
+                true, caster.getPokemon().getForm().getWeight(), held));
         if (!plan.qualifies()) return ActionBattleSteelState.ApplyResult.INVALID;
         long tick = caster.level().getGameTime();
         Key key = new Key(session.battleId(), caster.getPokemon().getUuid());
@@ -58,7 +56,7 @@ public final class ActionBattleSteelRuntime {
             ActionBattleStatApplicationService.global().applyBatch(session.battleId(), caster.getPokemon().getUuid(),
                     ActionBattleSteelRules.statPlan(plan.selection().branch(), steelTyped), tick,
                     ActionBattleStatSource.STEEL_WEIGHT, true);
-            DebugLog.log("[CobblemonNML] Steel self-buff committed. Pokemon=" + caster.getPokemon().getUuid()
+            DebugLog.log("[CobblemonNML] Steel self move committed. Pokemon=" + caster.getPokemon().getUuid()
                     + ", weight=" + plan.selection().staticWeight() + ", itemOverride=" + plan.itemOverride()
                     + ", branch=" + plan.selection().branch() + ", duration=" + state.view(tick).orElseThrow().totalTicks());
         }
@@ -83,16 +81,20 @@ public final class ActionBattleSteelRuntime {
     }
 
     public static double projectileSpeed(PokemonEntity attacker, Move move, double baseSpeed, long tick) {
-        boolean steelMove = "steel".equalsIgnoreCase(ActionBattleEffectiveMoveTypeResolver.resolve(attacker, move));
+        boolean targetedDamagingProjectile = move != null && FightOrFlightAdapter.movePower(move) > 0
+                && FightOrFlightAdapter.isRangedMove(move)
+                && !FightOrFlightAdapter.isSelfOrAllyTargetCategory(FightOrFlightAdapter.moveTargetCategory(move));
         return ActionBattleSteelRules.projectileSpeed(baseSpeed,
-                isActive(attacker, ActionBattleSteelRules.Branch.MAGNET_RISE, tick), steelMove,
-                FightOrFlightAdapter.isRangedMove(move));
+                isActive(attacker, ActionBattleSteelRules.Branch.MAGNET_RISE, tick), targetedDamagingProjectile);
     }
 
     public static boolean qualifiesWeightedMelee(PokemonEntity attacker, Move move, long tick) {
-        return move != null && "steel".equalsIgnoreCase(ActionBattleEffectiveMoveTypeResolver.resolve(attacker, move))
-                && FightOrFlightAdapter.isMeleeMove(move)
-                && isActive(attacker, ActionBattleSteelRules.Branch.WEIGHTED, tick);
+        boolean targeted = move != null && !FightOrFlightAdapter.isSelfOrAllyTargetCategory(
+                FightOrFlightAdapter.moveTargetCategory(move));
+        boolean damagingMelee = move != null && FightOrFlightAdapter.movePower(move) > 0
+                && FightOrFlightAdapter.isMeleeMove(move);
+        return ActionBattleSteelRules.weightedMeleeQualifies(
+                isActive(attacker, ActionBattleSteelRules.Branch.WEIGHTED, tick), targeted, damagingMelee);
     }
 
     public static double effectiveWeight(UUID battleId, UUID pokemonId, double fallback, long tick) {
@@ -109,8 +111,8 @@ public final class ActionBattleSteelRuntime {
     public static void clearBattle(UUID battleId) { if (battleId != null) STATES.keySet().removeIf(key -> key.battleId().equals(battleId)); }
     public static void clearAll() { STATES.clear(); }
 
-    public record ActivationInput(String moveType, String targetCategory, boolean selfBuffing,
-                                  boolean successfullyResolved, double staticWeight, String heldItemId) {}
+    public record ActivationInput(String targetCategory, boolean successfullyResolved,
+                                  double staticWeight, String heldItemId) {}
     public record ActivationPlan(boolean qualifies, ActionBattleSteelState.Selection selection,
                                  ActionBattleSteelWeight.Override itemOverride) {
         public static final ActivationPlan NOT_QUALIFYING = new ActivationPlan(false, null, ActionBattleSteelWeight.Override.NONE);

@@ -18,7 +18,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class AquaBubbleBlock extends Block implements EntityBlock {
-    private static final VoxelShape SHAPE = Block.box(2.0D, 0.0D, 2.0D, 14.0D, 14.0D, 14.0D);
+    private static final VoxelShape SHAPE = Block.box(0.0D, 2.0D, 0.0D, 16.0D, 16.0D, 16.0D);
     public AquaBubbleBlock(Properties properties) { super(properties); }
 
     @Override

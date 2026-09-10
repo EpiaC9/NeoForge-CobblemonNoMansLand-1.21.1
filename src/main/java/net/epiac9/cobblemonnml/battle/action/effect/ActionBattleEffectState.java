@@ -111,6 +111,17 @@ public final class ActionBattleEffectState {
         return ActionBattleStatusApplication.APPLIED;
     }
 
+    boolean convertPoisonToToxic(long currentTick) {
+        ActionBattleTimedStatusState poison = timedStatuses.get(ActionBattleStatus.POISON);
+        if (poison == null || !poison.active(currentTick)) return false;
+        long remaining = poison.remainingTicks(currentTick);
+        timedStatuses.remove(ActionBattleStatus.POISON);
+        ActionBattleTimedStatusState toxic = timedStatuses.get(ActionBattleStatus.TOXIC);
+        if (toxic != null && toxic.active(currentTick)) return true;
+        timedStatuses.put(ActionBattleStatus.TOXIC, new ActionBattleTimedStatusState(currentTick, Math.max(1L, remaining)));
+        return true;
+    }
+
     ActionBattleStatusApplication applyEvasion(long currentTick) {
         if (currentTick < 0L) return null;
         if (evasion == null) evasion = new ActionBattleEvasionState();

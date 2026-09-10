@@ -9,6 +9,10 @@ public final class ActionBattleGroundRules {
     public static final long GROUND_STAGE_TICKS = 180L;
     public static final long OVERALL_TICKS = 360L;
     public static final double RADIAL_DAMAGE_FRACTION = 0.05D;
+    public static final int SINK_PER_SECOND = 3;
+    public static final int SWAP_LOCK_PERCENT = 60;
+    public static final int KO_PERCENT = 100;
+    public static final int SHOCKWAVE_HALF_WIDTH = 2;
 
     private ActionBattleGroundRules() {}
 
@@ -28,24 +32,11 @@ public final class ActionBattleGroundRules {
     }
 
     public static double movementMultiplier(int depthPercent, boolean groundTyped) {
-        if (groundTyped || depthPercent <= 0) return 1.0D;
-        return switch (depthPercent) {
-            case 30 -> 0.70D;
-            case 60 -> 0.40D;
-            case 90 -> 0.00D;
-            default -> throw new IllegalArgumentException("Unsupported non-Ground Sink depth: " + depthPercent);
-        };
+        return 1.0D - Math.clamp(depthPercent, 0, 100) / 100.0D;
     }
 
     public static double collisionScale(int depthPercent) {
-        if (depthPercent <= 0) return 1.0D;
-        return switch (depthPercent) {
-            case 30 -> 0.70D;
-            case 45 -> 0.55D;
-            case 60 -> 0.40D;
-            case 90 -> 0.10D;
-            default -> throw new IllegalArgumentException("Unsupported buried depth: " + depthPercent);
-        };
+        return 1.0D - Math.clamp(depthPercent, 0, 99) / 100.0D;
     }
 
     public static double expelDamageMultiplier(boolean attackerGroundTyped) {

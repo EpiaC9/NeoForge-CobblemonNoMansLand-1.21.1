@@ -11,7 +11,6 @@ import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectApplicationGuard;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.flying.ActionBattleFlyingRules;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleTypeMechanicIdentity;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -31,12 +30,11 @@ public final class ActionBattleDarkRuntime {
         }
         if (!ActionBattleEffectApplicationGuard.allowsNewApplication(
                 session, target, attacker.level().getGameTime())) return ActionBattleDarkState.HitResult.IGNORED;
-        boolean darkMove = "dark".equalsIgnoreCase(ActionBattleEffectiveMoveTypeResolver.resolve(attacker, move));
         boolean attackerDark = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(attacker, "dark");
         boolean targetDark = ActionBattleTypeMechanicIdentity.hasSameMechanicImmunity(target, "dark");
         boolean targetPsychic = ActionBattleTypeMechanicIdentity.hasActualType(target.getPokemon(), "psychic");
         ActionBattleDarkRules.HitPlan plan = ActionBattleDarkRules.planHit(
-                connected, darkMove, attackerDark, targetDark, targetPsychic,
+                connected, attackerDark, targetDark, targetPsychic,
                 FightOrFlightAdapter.movePower(move) > 0);
         if (!plan.qualifies()) return ActionBattleDarkState.HitResult.IGNORED;
         long currentTick = attacker.level().getGameTime();

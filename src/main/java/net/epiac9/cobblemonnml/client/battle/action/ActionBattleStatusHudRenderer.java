@@ -43,32 +43,42 @@ public final class ActionBattleStatusHudRenderer {
                                List<ActionBattleHudPayload.StatusState> statuses,
                                boolean ally, boolean grayscale) {
         if (statuses == null || statuses.isEmpty()) return;
-        List<ActionBattleStatusHudEntry> entries = new ArrayList<>();
+        List<RenderEntry> entries = new ArrayList<>();
         for (ActionBattleHudPayload.StatusState state : statuses) {
             if (state == null || !ActionBattleStatusHudRules.shouldDisplay(
                     state.statusId(), state.remainingTicks())) continue;
-            ActionBattleStatusVisualRegistry.StatusVisual visual = ActionBattleStatusVisualRegistry.visualFor(state.statusId());
-            if (visual != null) entries.add(new ActionBattleStatusHudEntry(state, visual));
+            ActionBattleTypeMechanicVisualRegistry.MechanicVisual mechanic =
+                    ActionBattleTypeMechanicVisualRegistry.visualFor(state.statusId());
+            ActionBattleStatusVisualRegistry.StatusVisual status =
+                    ActionBattleStatusVisualRegistry.visualFor(state.statusId());
+            if (mechanic != null || status != null) entries.add(new RenderEntry(state, status, mechanic));
         }
         entries.sort(java.util.Comparator.comparingInt(entry -> priorityFor(entry.state().statusId())));
         for (int i = 0; i < entries.size(); i++) {
-            ActionBattleStatusHudEntry entry = entries.get(i);
+            RenderEntry entry = entries.get(i);
             int x = statusX(panel, i, ally);
             int y = statusY(panel);
-            ActionBattleEffectIconRenderer.render(graphics, x, y, ICON_SIZE,
-                    entry.state(), entry.visual(), grayscale);
+            if (entry.mechanic() != null) ActionBattleTypeMechanicIconRenderer.render(
+                    graphics, x, y, ICON_SIZE, entry.state(), entry.mechanic(), grayscale);
+            else ActionBattleEffectIconRenderer.render(graphics, x, y, ICON_SIZE,
+                    entry.state(), entry.status(), grayscale);
         }
     }
 
     private static int priorityFor(String statusId) {
         if (statusId == null) return Integer.MAX_VALUE;
-        if (statusId.startsWith("DETERIORATING_SHIELD_")) return 0;
-        return statusId.startsWith("TYPE_") ? 200 : 100;
+        if (statusId.startsWith("MECHANIC_")) return 0;
+        if (statusId.startsWith("DETERIORATING_SHIELD_")) return 100;
+        return statusId.startsWith("TYPE_") ? 300 : 200;
     }
 
     static int visibleBuildupSegments(ActionBattleHudPayload.StatusState state) {
         if (state == null || !"RAMPAGE".equals(state.statusId())) return 0;
         return Math.clamp((int) state.remainingTicks(), 0, 2);
     }
+
+    private record RenderEntry(ActionBattleHudPayload.StatusState state,
+                               ActionBattleStatusVisualRegistry.StatusVisual status,
+                               ActionBattleTypeMechanicVisualRegistry.MechanicVisual mechanic) {}
 
 }

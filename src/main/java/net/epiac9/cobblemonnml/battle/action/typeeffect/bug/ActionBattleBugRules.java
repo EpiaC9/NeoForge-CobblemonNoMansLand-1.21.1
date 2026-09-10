@@ -14,7 +14,7 @@ public final class ActionBattleBugRules {
     private ActionBattleBugRules() {}
 
     public static boolean qualifies(String moveType, int power, boolean validEnemyTarget) {
-        return moveType != null && "bug".equalsIgnoreCase(moveType) && power > 0 && validEnemyTarget;
+        return validEnemyTarget;
     }
 
     public static boolean effectZoneProtects(boolean allied, boolean zoneActive, double distanceSquared) {
@@ -35,16 +35,31 @@ public final class ActionBattleBugRules {
         return result;
     }
 
+    public static EnumSet<ActionBattleBugTrainingStat> highestForTargetingMode(
+            boolean targeted, int hp, int attack, int defense,
+            int specialAttack, int specialDefense, int speed) {
+        int[] scores = {hp, attack, defense, specialAttack, specialDefense, speed};
+        for (int score : scores) if (score < 0) return EnumSet.noneOf(ActionBattleBugTrainingStat.class);
+        EnumSet<ActionBattleBugTrainingStat> eligible = targeted
+                ? EnumSet.of(ActionBattleBugTrainingStat.ATTACK,
+                ActionBattleBugTrainingStat.SPECIAL_ATTACK, ActionBattleBugTrainingStat.SPEED)
+                : EnumSet.of(ActionBattleBugTrainingStat.HP,
+                ActionBattleBugTrainingStat.DEFENSE, ActionBattleBugTrainingStat.SPECIAL_DEFENSE);
+        int maximum = eligible.stream().mapToInt(stat -> scores[stat.ordinal()]).max().orElse(0);
+        eligible.removeIf(stat -> scores[stat.ordinal()] != maximum);
+        return eligible;
+    }
+
     public static int sheddingHp(int maxHp, boolean bugTyped) {
-        return ceilPercent(maxHp, bugTyped ? 0.20D : 0.10D);
+        return ceilPercent(maxHp, 0.20D);
     }
 
     public static int secondaryDamage(int actualMoveDamage, boolean bugTyped) {
-        return ceilPercent(actualMoveDamage, bugTyped ? 0.70D : 0.50D);
+        return ceilPercent(actualMoveDamage, 0.70D);
     }
 
     public static int delayedDotTotal(int absorbed, boolean bugTyped) {
-        return ceilPercent(absorbed, bugTyped ? 0.50D : 0.70D);
+        return ceilPercent(absorbed, 0.50D);
     }
 
     public static List<Integer> delayedDotTicks(int total) {
@@ -56,9 +71,9 @@ public final class ActionBattleBugRules {
         return List.copyOf(ticks);
     }
 
-    public static double dashDistance(boolean bugTyped) { return bugTyped ? 2.0D : 1.0D; }
-    public static int penaltyStages(boolean bugTyped) { return bugTyped ? -1 : -2; }
-    public static double slowdownMultiplier(boolean bugTyped) { return bugTyped ? 0.80D : 0.70D; }
+    public static double dashDistance(boolean bugTyped) { return 2.0D; }
+    public static int penaltyStages(boolean bugTyped) { return -1; }
+    public static double slowdownMultiplier(boolean bugTyped) { return 0.80D; }
 
     private static int ceilPercent(int amount, double fraction) {
         return amount <= 0 ? 0 : (int) Math.ceil(amount * fraction);

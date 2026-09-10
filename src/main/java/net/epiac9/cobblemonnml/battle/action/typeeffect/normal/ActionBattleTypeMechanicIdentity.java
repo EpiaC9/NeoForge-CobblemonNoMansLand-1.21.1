@@ -27,6 +27,19 @@ public final class ActionBattleTypeMechanicIdentity {
                 actualTypes(entity.getPokemon()), adaptiveTypes(entity), type);
     }
 
+    public static List<String> getTypeMechanicIdentities(PokemonEntity entity) {
+        if (entity == null) return List.of();
+        return ActionBattleTypeMechanicRules.mechanicIdentities(
+                actualTypes(entity.getPokemon()), adaptiveTypes(entity));
+    }
+
+    public static List<String> getTypeMechanicIdentities(Pokemon pokemon) {
+        if (pokemon == null) return List.of();
+        PokemonEntity entity = pokemon.getEntity();
+        return ActionBattleTypeMechanicRules.mechanicIdentities(
+                actualTypes(pokemon), entity != null ? adaptiveTypes(entity) : Set.of());
+    }
+
     public static boolean hasMechanicBenefit(Pokemon pokemon, String type) {
         if (pokemon == null) return false;
         PokemonEntity entity = pokemon.getEntity();

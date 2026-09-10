@@ -79,6 +79,9 @@ public class ModBlockStateProvider extends BlockStateProvider {
         registerSpecialRoomMarker();
         // VILLAGE ENTRANCE MARKER
         registerVillageEntranceMarker();
+
+        // ACTION BATTLE RUNTIME VISUAL BLOCKS
+        registerActionBattleRuntimeVisuals();
     }
     // REGISTER PORTAL BLOCK
     private void registerPortalBlock(
@@ -336,5 +339,56 @@ public class ModBlockStateProvider extends BlockStateProvider {
 
         simpleBlockItem( ModBlocks.VILLAGE_ENTRANCE_MARKER.get(), model );
     }
+
+
+    // ACTION BATTLE RUNTIME VISUALS
+    private void registerActionBattleRuntimeVisuals() {
+        // Rock construct
+        ModelFile rockConstruct = models()
+                .cubeAll("action_battle_rock_construct", ResourceLocation.withDefaultNamespace("block/stone"));
+        simpleBlock(ModBlocks.ACTION_BATTLE_ROCK_CONSTRUCT.get(), rockConstruct);
+
+        // Aqua bubble: oversized translucent cube, matching the existing runtime silhouette.
+        ResourceLocation aquaTexture = modLoc("block/aqua_bubble");
+        BlockModelBuilder aquaBubble = models()
+                .getBuilder("aqua_bubble")
+                .texture("particle", aquaTexture)
+                .texture("all", aquaTexture)
+                .renderType("minecraft:translucent")
+                .ao(false);
+        aquaBubble.element()
+                .from(-2.0F, 2.0F, -2.0F)
+                .to(18.0F, 18.0F, 18.0F)
+                .allFaces((direction, face) -> face.texture("#all"))
+                .end();
+        simpleBlock(ModBlocks.AQUA_BUBBLE.get(), aquaBubble);
+
+        // Grass seed / flower
+        ModelFile grassSeed = models()
+                .cross("grass_seed", modLoc("block/grass_seed"))
+                .renderType("minecraft:cutout");
+        simpleBlock(ModBlocks.GRASS_SEED.get(), grassSeed);
+
+        ModelFile grassFlower = models()
+                .cross("grass_flower", modLoc("block/grass_flower"))
+                .renderType("minecraft:cutout");
+        simpleBlock(ModBlocks.GRASS_FLOWER.get(), grassFlower);
+
+        // Plasma ball: compact glowing cube using the real mod texture.
+        ResourceLocation plasmaTexture = modLoc("block/plasma_ball");
+        BlockModelBuilder plasmaBall = models()
+                .getBuilder("plasma_ball")
+                .texture("particle", plasmaTexture)
+                .texture("all", plasmaTexture)
+                .renderType("minecraft:translucent")
+                .ao(false);
+        plasmaBall.element()
+                .from(4.0F, 4.0F, 4.0F)
+                .to(12.0F, 12.0F, 12.0F)
+                .allFaces((direction, face) -> face.texture("#all"))
+                .end();
+        simpleBlock(ModBlocks.PLASMA_BALL.get(), plasmaBall);
+    }
+
 
 }

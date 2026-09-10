@@ -38,8 +38,14 @@ public final class ActionBattleDamageFeedbackController {
         if (damage <= 0) return;
         state.queuedByPokemon.computeIfAbsent(pokemonUUID, ignored -> new ArrayList<>())
                 .add(new ActionBattleDamageFeedbackEvent(nextEventId++, pokemonUUID, damage, category));
+        if (category == ActionBattleDamageFeedbackCategory.DOT) return;
         net.epiac9.cobblemonnml.battle.action.typeeffect.dragon.ActionBattleDragonRuntime
                 .onDamageTaken(battleId, pokemonUUID);
+        var pokemon = net.epiac9.cobblemonnml.battle.action.ActionBattleManager.findActivePokemon(pokemonUUID);
+        if (pokemon != null && pokemon.getEntity() != null) {
+            net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRuntime
+                    .onDamageTaken(pokemon.getEntity(), damage);
+        }
     }
     private static final class BattleState {
         private final Map<UUID, Integer> hpByPokemon = new HashMap<>();

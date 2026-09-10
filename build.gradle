@@ -146,6 +146,18 @@ tasks.named('test') {
     failOnNoDiscoveredTests = false
 }
 
+tasks.register('typeActivationContinuationTest', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeActivationContinuationTest'
+}
+
+tasks.register('typeActivationRegressionTest', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.epiac9.cobblemonnml.battle.action.typeeffect.ActionBattleTypeActivationRegressionSuite'
+}
+
 var generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
     var replaceProperties = [
             minecraft_version      : minecraft_version,

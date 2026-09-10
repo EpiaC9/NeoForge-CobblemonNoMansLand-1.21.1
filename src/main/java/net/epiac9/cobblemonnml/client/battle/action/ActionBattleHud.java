@@ -6,9 +6,7 @@ import com.cobblemon.mod.common.client.render.models.blockbench.FloatingState;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.epiac9.cobblemonnml.battle.action.network.ActionBattleHudPayload;
-import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleBoostedMoveRules;
 import net.epiac9.cobblemonnml.dimension.DungeonDimension;
-import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -34,7 +32,6 @@ public final class ActionBattleHud {
     private static final int TYPE_ICON_SIZE = 36;
     private static final int TYPE_ATLAS_WIDTH = 648;
     private static final int TYPE_ATLAS_HEIGHT = 36;
-    private static final String[] KEYS = {"Z", "X", "C", "B"};
     private static final ResourceLocation ENCHANTMENT_FONT =
             ResourceLocation.fromNamespaceAndPath("minecraft", "alt");
 
@@ -69,12 +66,26 @@ public final class ActionBattleHud {
                 obscurity.stage(ActionBattleObscurityProjection.Side.ALLY, 0));
         ActionBattleDamageHudRenderer.renderFloating(graphics, font, trainerPanel, true, trainerDamage,
                 obscurity.stage(ActionBattleObscurityProjection.Side.ENEMY, 0));
-        renderCommand(graphics, font, layout.commandButton(0), "Swap", "G", state.playerSwapCooldownRemainingTicks(), state.playerSwapCooldownDurationTicks(), obscurity.commandStage(6), 6);
-        renderCommand(graphics, font, layout.commandButton(1), "Move Here", "V", state.playerMoveHereCooldownRemainingTicks(), state.playerMoveHereCooldownDurationTicks(), obscurity.commandStage(7), 7);
+        renderCommand(graphics, font, layout.commandButton(0), Component.translatable("action.cobblemonnml.hud.command.swap").getString(), keyLabel(ActionBattleKeyMappings.SWAP_OUT), state.playerSwapCooldownRemainingTicks(), state.playerSwapCooldownDurationTicks(), obscurity.commandStage(6), 6);
+        renderCommand(graphics, font, layout.commandButton(1), Component.translatable("action.cobblemonnml.hud.command.move_here").getString(), keyLabel(ActionBattleKeyMappings.MOVE_HERE), state.playerMoveHereCooldownRemainingTicks(), state.playerMoveHereCooldownDurationTicks(), obscurity.commandStage(7), 7);
         for (int slot = 0; slot < 4; slot++) renderMove(graphics, font, layout.moveButton(slot), slot, state.move(slot), obscurity.commandStage(8 + slot));
     }
 
     public static ActionBattleHudLayout layoutForScreen(int width, int height) { return ActionBattleHudLayout.forScreen(width, height); }
+
+    private static String moveKeyLabel(int slot) {
+        return switch (slot) {
+            case 0 -> keyLabel(ActionBattleKeyMappings.MOVE_1);
+            case 1 -> keyLabel(ActionBattleKeyMappings.MOVE_2);
+            case 2 -> keyLabel(ActionBattleKeyMappings.MOVE_3);
+            case 3 -> keyLabel(ActionBattleKeyMappings.MOVE_4);
+            default -> "";
+        };
+    }
+
+    private static String keyLabel(net.minecraft.client.KeyMapping mapping) {
+        return mapping == null ? "" : mapping.getTranslatedKeyMessage().getString();
+    }
 
     private static void renderPokemonPanel(GuiGraphics graphics, Font font, ActionBattleHudLayout.Rect rect,
                                            boolean flipped, String rawName, String pokemonUuid, int level,
@@ -98,7 +109,7 @@ public final class ActionBattleHud {
         drawScaled(graphics, font, obscuredText(name, nameStage), infoX, y + 7, 0.75F,
                 ActionBattleObscurityHudRules.presentationColor(TEXT, nameStage), false);
         if (!ActionBattleObscurityHudRules.hideInformation(nameStage)) {
-            String levelText = "Lv. " + Math.max(1, level);
+            String levelText = Component.translatable("action.cobblemonnml.hud.level", Math.max(1, level)).getString();
             drawScaledRight(graphics, font, obscuredText(levelText, nameStage), flipped ? x + 100 : x + 137, y + 7, 0.70F,
                     ActionBattleObscurityHudRules.presentationColor(TEXT, nameStage));
         }
@@ -319,7 +330,7 @@ public final class ActionBattleHud {
         if (!ActionBattleObscurityHudRules.hideInformation(obscurityStage)) {
             drawScaledCentered(graphics, font, obscuredText(pp, obscurityStage), x + 75, y + 15, 0.58F,
                     ActionBattleObscurityHudRules.presentationColor(ppColor, obscurityStage));
-            drawScaledRight(graphics, font, obscuredText(KEYS[slot], obscurityStage), x + 89, y + 3, 0.55F,
+            drawScaledRight(graphics, font, obscuredText(moveKeyLabel(slot), obscurityStage), x + 89, y + 3, 0.55F,
                     ActionBattleObscurityHudRules.presentationColor(disabled ? MUTED : TEXT, obscurityStage));
         }
         String momentum = ActionBattleFlyingHudRules.label(move.type(), move.flyingMomentum(), obscurityStage);
@@ -331,52 +342,17 @@ public final class ActionBattleHud {
             }
         }
         graphics.disableScissor();
-        if (disabled) graphics.fill(x, y, x + rect.width(), y + rect.height(), DISABLED);
+        if (disabled) renderDisabledMoveSurface(graphics, rect);
         if (!ActionBattleObscurityHudRules.hideInformation(obscurityStage) && move.cooldownRemainingTicks() > 0L && move.cooldownDurationTicks() > 0L) {
             double elapsedFraction = 1.0D - Math.clamp((double) move.cooldownRemainingTicks() / move.cooldownDurationTicks(), 0.0D, 1.0D);
             renderCooldownFill(graphics, rect, elapsedFraction);
         }
         if (ActionBattleObscurityHudRules.showsAuxiliaryIcon(obscurityStage)) {
-            if (ActionBattleBoostedMoveRules.shouldRender(move.mechanicallyBoosted(), obscurityStage)) {
-                renderBoostedMoveAura(graphics, x - 9, y + 2, move.type(), obscurityStage,
-                        Util.getMillis());
-            }
             renderTypeIcon(graphics, x - 9, y + 2, move.type(), disabled ? 0.55F : 1.0F,
                     obscurityStage);
         }
         ActionBattleObscurityHudRenderer.renderMaskedSurface(graphics, rect, obscurityStage, 8 + slot,
                 ActionBattleObscuritySurfaceMask.Shape.MOVE);
-    }
-
-    private static void renderBoostedMoveAura(GuiGraphics graphics, int x, int y, String type,
-                                               int obscurityStage, long animationMillis) {
-        ActionBattleBoostedAuraVisualRules.AnimationFrame frame =
-                ActionBattleBoostedAuraVisualRules.animationFrame(animationMillis);
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        renderBoostedAuraLayer(graphics, x, y, type, obscurityStage,
-                ActionBattleBoostedAuraVisualRules.outerSpans(), frame.outerAlpha(), frame.outerScale());
-        renderBoostedAuraLayer(graphics, x, y, type, obscurityStage,
-                ActionBattleBoostedAuraVisualRules.innerSpans(), frame.innerAlpha(), 1.0F);
-        RenderSystem.disableBlend();
-    }
-
-    private static void renderBoostedAuraLayer(GuiGraphics graphics, int x, int y, String type,
-                                                int obscurityStage,
-                                                java.util.List<ActionBattleBoostedAuraVisualRules.Span> spans,
-                                                int layerAlpha, float scale) {
-        graphics.pose().pushPose();
-        graphics.pose().translate(x + ActionBattleBoostedAuraVisualRules.ICON_CENTER,
-                y + ActionBattleBoostedAuraVisualRules.ICON_CENTER, 0.0F);
-        graphics.pose().scale(scale, scale, 1.0F);
-        graphics.pose().translate(-x - ActionBattleBoostedAuraVisualRules.ICON_CENTER,
-                -y - ActionBattleBoostedAuraVisualRules.ICON_CENTER, 0.0F);
-        for (ActionBattleBoostedAuraVisualRules.Span span : spans) {
-            int alpha = ActionBattleBoostedAuraVisualRules.scaledAlpha(span.alpha(), layerAlpha);
-            graphics.fill(x + span.startX(), y + span.y(), x + span.endX(), y + span.y() + 1,
-                    ActionBattleBoostedAuraVisualRules.color(type, alpha, obscurityStage));
-        }
-        graphics.pose().popPose();
     }
 
     private static void renderMomentumReticle(GuiGraphics graphics, int x, int y) {
@@ -398,6 +374,18 @@ public final class ActionBattleHud {
         graphics.blit(TYPES, 0, 0, (float) (index * TYPE_ICON_SIZE), 0.0F, TYPE_ICON_SIZE, TYPE_ICON_SIZE, TYPE_ATLAS_WIDTH, TYPE_ATLAS_HEIGHT);
         graphics.pose().popPose();
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    private static void renderDisabledMoveSurface(GuiGraphics graphics, ActionBattleHudLayout.Rect rect) {
+        float alpha = ((DISABLED >>> 24) & 255) / 255.0F;
+        float gray = 96.0F / 255.0F;
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.setShaderColor(gray, gray, gray, alpha);
+        graphics.blit(BATTLE_MOVE, rect.x(), rect.y(), 0.0F, 0.0F,
+                rect.width(), rect.height(), rect.width(), rect.height() * 2);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderSystem.disableBlend();
     }
 
     private static void renderCooldownFill(GuiGraphics graphics, ActionBattleHudLayout.Rect rect, double fraction) {
@@ -425,7 +413,14 @@ public final class ActionBattleHud {
     }
 
     private static float[] typeTint(String type) {
-        int rgb = ActionBattleBoostedAuraVisualRules.rgb(type);
+        int rgb = switch (normalize(type)) {
+            case "fire" -> 0xE66A39; case "water" -> 0x4F86E8; case "grass" -> 0x55A94F;
+            case "electric" -> 0xE4C13A; case "ice" -> 0x58BFC8; case "fighting" -> 0xB4473D;
+            case "poison" -> 0xA257A9; case "ground" -> 0xC99C55; case "flying" -> 0x8098DF;
+            case "psychic" -> 0xE45C93; case "bug" -> 0x9CAD3A; case "rock" -> 0xB09A58;
+            case "ghost" -> 0x6E5A9D; case "dragon" -> 0x6652C9; case "dark" -> 0x62554F;
+            case "steel" -> 0x8795A5; case "fairy" -> 0xD889C3; default -> 0x8D8D8D;
+        };
         return new float[]{((rgb >> 16) & 255) / 255.0F, ((rgb >> 8) & 255) / 255.0F, (rgb & 255) / 255.0F};
     }
 

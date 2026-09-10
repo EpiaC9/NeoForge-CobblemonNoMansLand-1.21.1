@@ -240,12 +240,11 @@ public record ActionBattleHudPayload(
         buf.writeLong(value.cooldownRemainingTicks());
         buf.writeLong(value.cooldownDurationTicks());
         buf.writeInt(value.flyingMomentum());
-        buf.writeBoolean(value.mechanicallyBoosted());
     }
 
     private static MoveState readMove(ByteBuf buf) {
         return new MoveState(readString(buf), readString(buf), buf.readInt(), buf.readInt(), buf.readBoolean(),
-                buf.readLong(), buf.readLong(), buf.readInt(), buf.readBoolean());
+                buf.readLong(), buf.readLong(), buf.readInt());
     }
 
 
@@ -319,12 +318,11 @@ public record ActionBattleHudPayload(
     }
 
     public record MoveState(String name, String type, int currentPp, int maxPp, boolean supported,
-                            long cooldownRemainingTicks, long cooldownDurationTicks, int flyingMomentum,
-                            boolean mechanicallyBoosted) {
+                            long cooldownRemainingTicks, long cooldownDurationTicks, int flyingMomentum) {
         public MoveState {
             flyingMomentum = Math.max(0, Math.min(6, flyingMomentum));
         }
 
-        public static MoveState empty() { return new MoveState("", "normal", 0, 0, false, 0L, 0L, 0, false); }
+        public static MoveState empty() { return new MoveState("", "normal", 0, 0, false, 0L, 0L, 0); }
     }
 }

@@ -10,10 +10,10 @@ public final class ActionBattleDragonState {
     private boolean dragonHolder;
     private boolean statSuppressedByHaze;
 
-    public CommitResult onAbilityCommitted(boolean dragonMove, long currentTick) {
+    public CommitResult onAbilityCommitted(boolean qualifyingOwnedAction, long currentTick) {
         if (currentTick < 0L) return CommitResult.IGNORED;
         expireFailedBuildup(currentTick);
-        if (phase == Phase.IDLE && dragonMove) {
+        if (phase == Phase.IDLE && qualifyingOwnedAction) {
             phase = Phase.BUILDUP;
             maintenanceUntil = ActionBattleDragonRules.add(currentTick,
                     ActionBattleDragonRules.MAINTENANCE_DURATION_TICKS);

@@ -11,7 +11,8 @@ public final class ActionBattleStatusHudRules {
     private ActionBattleStatusHudRules() {}
 
     public static boolean shouldDisplay(String statusId, long remainingTicks) {
-        return remainingTicks > 0L || "TYPE_ICE_FREEZE".equals(statusId)
+        return remainingTicks > 0L || ActionBattleTypeMechanicVisualRegistry.isMechanic(statusId)
+                || "TYPE_ICE_FREEZE".equals(statusId)
                 || PRESENCE_ONLY.contains(statusId);
     }
 

@@ -3,6 +3,7 @@ package net.epiac9.cobblemonnml.battle.action.effect;
 import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleSleepState;
 import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleDrowsyRules;
 import net.epiac9.cobblemonnml.battle.action.effect.status.ActionBattleDrowsyTracker;
+import net.epiac9.cobblemonnml.battle.action.ActionBattleStatusDotRuntime;
 
 import java.util.HashMap;
 import java.util.ArrayList;
@@ -113,8 +114,32 @@ public final class ActionBattleEffectController {
     public ActionBattleStatusApplication applyStatus(UUID battleId, UUID pokemonUUID,
                                                       ActionBattleStatus status, long currentTick,
                                                       long durationTicks) {
+        return applyStatus(battleId, null, pokemonUUID, status, currentTick, durationTicks);
+    }
+
+    public ActionBattleStatusApplication applyStatus(UUID battleId, UUID sourcePokemonUUID, UUID pokemonUUID,
+                                                      ActionBattleStatus status, long currentTick,
+                                                      long durationTicks) {
         if (!validIds(battleId, pokemonUUID)) return ActionBattleStatusApplication.REJECTED_INVALID;
-        return state(battleId, pokemonUUID).applyStatus(status, currentTick, durationTicks);
+        ActionBattleStatusApplication result = state(battleId, pokemonUUID)
+                .applyStatus(status, currentTick, durationTicks);
+        if (result == ActionBattleStatusApplication.APPLIED) {
+            ActionBattleStatusDotRuntime.onStatusApplied(battleId, sourcePokemonUUID, pokemonUUID,
+                    status, currentTick, durationTicks);
+        }
+        return result;
+    }
+
+    public boolean convertPoisonToToxic(UUID battleId, UUID pokemonUUID, long currentTick) {
+        ActionBattleEffectState state = existingState(battleId, pokemonUUID);
+        if (state == null || currentTick < 0L) return false;
+        long remaining = state.statusRemainingTicks(ActionBattleStatus.POISON, currentTick);
+        boolean converted = state.convertPoisonToToxic(currentTick);
+        if (converted && remaining > 0L) {
+            ActionBattleStatusDotRuntime.onPoisonConvertedToToxic(
+                    battleId, pokemonUUID, currentTick, remaining);
+        }
+        return converted;
     }
 
     public boolean applyDrowsy(UUID battleId, UUID pokemonUUID, long currentTick,
@@ -224,6 +249,7 @@ public final class ActionBattleEffectController {
         ActionBattleEffectState state = existingState(battleId, pokemonUUID);
         if (state == null) return;
         state.clearStatuses(currentTick);
+        ActionBattleStatusDotRuntime.clearTarget(battleId, pokemonUUID);
         removeIfEmpty(state, currentTick);
     }
 
@@ -244,11 +270,14 @@ public final class ActionBattleEffectController {
     }
 
     public void clearBattle(UUID battleId) {
-        if (battleId != null) statesByBattle.remove(battleId);
+        if (battleId == null) return;
+        statesByBattle.remove(battleId);
+        ActionBattleStatusDotRuntime.clearBattle(battleId);
     }
 
     public void clearAll() {
         statesByBattle.clear();
+        ActionBattleStatusDotRuntime.clearAll();
     }
 
     public int trackedPokemonCount(UUID battleId) {

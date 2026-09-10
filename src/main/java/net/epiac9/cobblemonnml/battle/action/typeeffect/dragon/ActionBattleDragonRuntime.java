@@ -27,6 +27,7 @@ public final class ActionBattleDragonRuntime {
             ActionBattleStat.DEFENSE, ActionBattleStat.SPECIAL_DEFENSE);
     private static final Map<Key, ActionBattleDragonRoarState> ROARS = new HashMap<>();
     private static final Map<Key, Integer> APPLIED_STAT_LEVELS = new HashMap<>();
+    private static final Set<Key> DRAGON_SLEEP = new java.util.HashSet<>();
 
     private ActionBattleDragonRuntime() {}
 
@@ -36,10 +37,9 @@ public final class ActionBattleDragonRuntime {
         if (session == null || pokemon == null || move == null) return;
         long currentTick = pokemon.getEntity() != null ? pokemon.getEntity().level().getGameTime() : -1L;
         if (currentTick < 0L) return;
-        boolean dragonMove = move.getType() != null && "dragon".equalsIgnoreCase(move.getType().getName());
         boolean dragonHolder = ActionBattleTypeMechanicIdentity.hasMechanicBenefit(pokemon, "dragon");
         ActionBattleDragonController.global().onAbilityCommitted(
-                session.dungeonSessionId(), pokemonId, dragonMove, dragonHolder, currentTick);
+                session.dungeonSessionId(), pokemonId, dragonHolder, dragonHolder, currentTick);
     }
 
     public static void onDamageTaken(UUID battleId, UUID pokemonId, long currentTick) {
@@ -59,6 +59,7 @@ public final class ActionBattleDragonRuntime {
                                    PokemonEntity entity, long currentTick) {
         if (session == null || level == null || entity == null || entity.isRemoved()) return;
         UUID pokemonId = entity.getPokemon().getUuid();
+        dragonSleep(session, pokemonId, currentTick);
         ActionBattleDragonController controller = ActionBattleDragonController.global();
         ActionBattleDragonState.View before = controller.view(
                 session.dungeonSessionId(), pokemonId, currentTick).orElse(null);
@@ -109,6 +110,15 @@ public final class ActionBattleDragonRuntime {
         return view != null && view.phase() == ActionBattleDragonState.Phase.ACTIVE;
     }
 
+    public static boolean dragonSleep(ActionBattleSession session, UUID pokemonId, long currentTick) {
+        if (session == null || pokemonId == null) return false;
+        Key key = new Key(session.dungeonSessionId(), pokemonId);
+        if (!DRAGON_SLEEP.contains(key)) return false;
+        if (ActionBattleSleepController.isSleeping(session, pokemonId, currentTick)) return true;
+        DRAGON_SLEEP.remove(key);
+        return false;
+    }
+
     public static CooldownPlan cooldownPlan(ActionBattleSession session, PokemonEntity caster,
                                              int moveSlot, long currentTick) {
         if (session == null || caster == null || !active(session, caster.getPokemon().getUuid(), currentTick)) {
@@ -143,6 +153,7 @@ public final class ActionBattleDragonRuntime {
     public static void onBattleEnded(UUID sessionId, long currentTick) {
         ActionBattleDragonController.global().onBattleEnded(sessionId, currentTick);
         APPLIED_STAT_LEVELS.keySet().removeIf(key -> key.sessionId.equals(sessionId));
+        DRAGON_SLEEP.removeIf(key -> key.sessionId.equals(sessionId));
     }
 
     public static void clearSession(UUID sessionId) {
@@ -155,12 +166,14 @@ public final class ActionBattleDragonRuntime {
         ActionBattleDragonController.global().clearPokemon(sessionId, pokemonId);
         ROARS.remove(new Key(sessionId, pokemonId));
         APPLIED_STAT_LEVELS.remove(new Key(sessionId, pokemonId));
+        DRAGON_SLEEP.remove(new Key(sessionId, pokemonId));
     }
 
     public static void clearAll() {
         ActionBattleDragonController.global().clearAll();
         ROARS.clear();
         APPLIED_STAT_LEVELS.clear();
+        DRAGON_SLEEP.clear();
     }
 
     private static void beginRoar(ActionBattleSession session, PokemonEntity owner, long currentTick) {
@@ -242,8 +255,10 @@ public final class ActionBattleDragonRuntime {
     }
 
     private static void applySleep(ServerLevel level, ActionBattleSession session, UUID pokemonId, long currentTick) {
-        ActionBattleSleepController.applySleep(level, session.dungeonSessionId(), pokemonId, currentTick,
-                ActionBattleSleepController.rollSleepDurationTicks(level.random));
+        if (ActionBattleSleepController.applySleep(level, session.dungeonSessionId(), pokemonId, currentTick,
+                ActionBattleSleepController.rollSleepDurationTicks(level.random))) {
+            DRAGON_SLEEP.add(new Key(session.dungeonSessionId(), pokemonId));
+        }
     }
 
     private static void stop(PokemonEntity pokemon) {

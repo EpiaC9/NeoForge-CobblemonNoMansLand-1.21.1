@@ -16,9 +16,9 @@ public final class ActionBattlePropulsionRules {
         return ActionBattleFlyingRules.propulsionBlocksPerSecond(true, true, momentum) / 20.0D;
     }
 
-    public static CommitMode commitMode(boolean flyingMove, boolean meleeMove, int momentum,
+    public static CommitMode commitMode(boolean flyingIdentity, boolean meleeMove, int momentum,
                                         boolean normalCanCommit, boolean propulsionCanLaunch) {
-        return commitMode(ActionBattleFlyingRules.usesPropulsion(flyingMove, meleeMove, momentum),
+        return commitMode(ActionBattleFlyingRules.usesPropulsion(flyingIdentity, meleeMove, momentum),
                 normalCanCommit, propulsionCanLaunch);
     }
 

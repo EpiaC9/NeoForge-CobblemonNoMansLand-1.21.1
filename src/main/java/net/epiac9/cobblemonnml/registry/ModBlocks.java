@@ -14,6 +14,9 @@ import net.epiac9.cobblemonnml.battle.action.typeeffect.water.field.AquaBubbleBl
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.field.GrassSeedBlock;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.field.GrassFlowerBlock;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.bug.ActionBattleBugCarapaceBlock;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.field.PlasmaBallBlock;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.rock.ActionBattleRockConstructBlock;
+import net.epiac9.cobblemonnml.battle.action.typeeffect.fairy.ActionBattleFairyIllusionBlock;
 
 import net.minecraft.world.item.BlockItem;
 
@@ -33,6 +36,9 @@ public final class ModBlocks {
             () -> new AquaBubbleBlock(BlockBehaviour.Properties.of()
                     .noCollission().noOcclusion().strength(-1.0F).noLootTable().lightLevel(state -> 6))
     );
+    public static final DeferredBlock<PlasmaBallBlock> PLASMA_BALL = BLOCKS.register("plasma_ball",
+            () -> new PlasmaBallBlock(BlockBehaviour.Properties.of().noCollission().noOcclusion()
+                    .strength(-1.0F).noLootTable().lightLevel(state -> 12)));
     public static final DeferredBlock<GrassSeedBlock> GRASS_SEED = BLOCKS.register("grass_seed",
             () -> new GrassSeedBlock(BlockBehaviour.Properties.of().noCollission().noOcclusion()
                     .strength(-1.0F).noLootTable()));
@@ -42,6 +48,12 @@ public final class ModBlocks {
     public static final DeferredBlock<ActionBattleBugCarapaceBlock> ACTION_BATTLE_BUG_CARAPACE = BLOCKS.register(
             "action_battle_bug_carapace", () -> new ActionBattleBugCarapaceBlock(
                     BlockBehaviour.Properties.of().noCollission().noOcclusion().strength(-1.0F).noLootTable()));
+    public static final DeferredBlock<ActionBattleRockConstructBlock> ACTION_BATTLE_ROCK_CONSTRUCT = BLOCKS.register(
+            "action_battle_rock_construct", () -> new ActionBattleRockConstructBlock(
+                    BlockBehaviour.Properties.of().strength(-1.0F).noLootTable().sound(SoundType.STONE)));
+    public static final DeferredBlock<ActionBattleFairyIllusionBlock> ACTION_BATTLE_FAIRY_ILLUSION = BLOCKS.register(
+            "action_battle_fairy_illusion", () -> new ActionBattleFairyIllusionBlock(
+                    BlockBehaviour.Properties.of().noCollission().noOcclusion().strength(-1.0F).noLootTable().lightLevel(state -> 5)));
     // DUNGEON PORTAL CORE
     public static final DeferredBlock<DungeonPortalCoreBlock>
             DUNGEON_PORTAL_CORE = BLOCKS.register( "dungeon_portal_core", DungeonPortalCoreBlock::new );

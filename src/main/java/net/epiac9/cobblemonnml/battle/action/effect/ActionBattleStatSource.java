@@ -3,7 +3,6 @@ package net.epiac9.cobblemonnml.battle.action.effect;
 public enum ActionBattleStatSource {
     NORMAL_MOVE,
     TYPE_EFFECT,
-    PSYC_UP_DERIVED,
     ROCK_STOCKPILE,
     GHOST_CURSE,
     GHOST_FRAILTY,
@@ -14,6 +13,9 @@ public enum ActionBattleStatSource {
     BUG_SPECIAL_DEFENSE,
     DRAGON_UPROAR,
     STEEL_WEIGHT,
+    FIRE_INFERNO,
+    GRASS_FLOWER,
+    POISON_SLUDGE,
     ABILITY,
     OTHER_ACTION
 }

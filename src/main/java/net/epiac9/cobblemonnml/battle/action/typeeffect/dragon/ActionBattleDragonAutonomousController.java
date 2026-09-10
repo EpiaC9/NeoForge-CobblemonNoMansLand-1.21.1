@@ -36,9 +36,10 @@ public final class ActionBattleDragonAutonomousController {
                               boolean enemyVisible) {
         boolean[] usable = new boolean[4];
         boolean[] damaging = new boolean[4];
+        PokemonEntity pokemonEntity = pokemon.getEntity();
         for (int slot = 0; slot < 4; slot++) {
             Move move = pokemon.getMoveSet().get(slot);
-            if (move == null || !FightOrFlightAdapter.supports(move) || !FightOrFlightAdapter.hasPp(move)
+            if (move == null || !FightOrFlightAdapter.supportsForUser(pokemonEntity, move) || !FightOrFlightAdapter.hasPp(move)
                     || session.isPokemonAbilitySlotOnCooldown(pokemon.getUuid(), slot, currentTick)
                     || !ActionBattleControlController.global().canUseMove(
                             session.battleId(), pokemon.getUuid(), move, currentTick)

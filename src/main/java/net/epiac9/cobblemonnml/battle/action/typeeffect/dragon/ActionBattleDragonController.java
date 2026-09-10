@@ -12,14 +12,14 @@ public final class ActionBattleDragonController {
     public static ActionBattleDragonController global() { return GLOBAL; }
 
     public ActionBattleDragonState.CommitResult onAbilityCommitted(UUID sessionId, UUID pokemonId,
-                                                                    boolean dragonMove, boolean dragonHolder,
+                                                                    boolean qualifyingOwnedAction, boolean dragonHolder,
                                                                     long currentTick) {
         if (!valid(sessionId, pokemonId, currentTick)) return ActionBattleDragonState.CommitResult.IGNORED;
         ActionBattleDragonState state = existing(sessionId, pokemonId);
-        if (state == null && !dragonMove) return ActionBattleDragonState.CommitResult.IGNORED;
+        if (state == null && !qualifyingOwnedAction) return ActionBattleDragonState.CommitResult.IGNORED;
         if (state == null) state = state(sessionId, pokemonId);
         state.setDragonHolder(dragonHolder);
-        ActionBattleDragonState.CommitResult result = state.onAbilityCommitted(dragonMove, currentTick);
+        ActionBattleDragonState.CommitResult result = state.onAbilityCommitted(qualifyingOwnedAction, currentTick);
         prune(sessionId, pokemonId, state, currentTick);
         return result;
     }
