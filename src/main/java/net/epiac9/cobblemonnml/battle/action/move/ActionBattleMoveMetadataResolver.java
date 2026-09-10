@@ -6,10 +6,7 @@ import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionProjectileProfile;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.normal.ActionBattleEffectiveMoveTypeResolver;
 
-import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 
 public final class ActionBattleMoveMetadataResolver {
     private ActionBattleMoveMetadataResolver() {}
@@ -30,7 +27,7 @@ public final class ActionBattleMoveMetadataResolver {
                 normalizeType(effectiveType),
                 ActionBattleMoveMetadataRules.damageCategory(damageCategory, power),
                 ActionBattleMoveMetadataRules.nonNegative(power),
-                rawDouble(move, "getAccuracy"),
+                rawDouble(move, "accuracy"),
                 FightOrFlightAdapter.movePriority(move),
                 ActionBattleMoveMetadataRules.nonNegative(FightOrFlightAdapter.currentPp(move)),
                 ActionBattleMoveMetadataRules.nonNegative(FightOrFlightAdapter.maxPp(move)),
@@ -38,7 +35,7 @@ public final class ActionBattleMoveMetadataResolver {
                 ActionBattleMoveMetadataRules.targetingMode(targetCategory),
                 ActionProjectileProfile.deliveryType(move.getName()),
                 ActionBattleMoveMetadataRules.normalizeFlags(rawFlags(move)),
-                rawTemplateDouble(move, "getCritRatio", 0.0D)
+                rawTemplateDouble(move, "critRatio", 0.0D)
         );
     }
 
@@ -51,48 +48,34 @@ public final class ActionBattleMoveMetadataResolver {
     }
 
     private static String rawDamageCategory(Move move) {
-        Object category = invoke(move, "getDamageCategory");
-        if (category == null) category = invoke(move, "getCategory");
-        Object template = invoke(move, "getTemplate");
-        if (category == null) category = invoke(template, "getDamageCategory");
-        if (category == null) category = invoke(template, "getCategory");
-        return category != null ? category.toString() : "";
+        Object category = ActionBattleMoveReflection.property(move, "damageCategory", "category");
+        Object template = ActionBattleMoveReflection.property(move, "template");
+        if (category == null) category = ActionBattleMoveReflection.property(template, "damageCategory", "category");
+        Object name = ActionBattleMoveReflection.property(category, "name");
+        return name != null ? name.toString() : (category != null ? category.toString() : "");
     }
 
     private static Collection<?> rawFlags(Move move) {
-        Object template = invoke(move, "getTemplate");
-        Object flags = invoke(template, "getFlags");
-        if (flags instanceof Collection<?> collection) return collection;
-        if (flags instanceof Iterable<?> iterable) {
-            List<Object> copy = new ArrayList<>();
-            for (Object flag : iterable) copy.add(flag);
-            return copy;
-        }
-        return List.of();
+        Object template = ActionBattleMoveReflection.property(move, "template");
+        Collection<?> flags = ActionBattleMoveReflection.collectionProperty(template,
+                "flags", "moveFlags", "properties", "moveProperties");
+        if (!flags.isEmpty()) return flags;
+        return ActionBattleMoveReflection.collectionProperty(move,
+                "flags", "moveFlags", "properties", "moveProperties");
     }
 
-    private static double rawDouble(Object target, String getter) {
-        Object value = invoke(target, getter);
+    private static double rawDouble(Object target, String property) {
+        Object value = ActionBattleMoveReflection.property(target, property);
         if (value instanceof Number number) return number.doubleValue();
-        Object template = invoke(target, "getTemplate");
-        value = invoke(template, getter);
+        Object template = ActionBattleMoveReflection.property(target, "template");
+        value = ActionBattleMoveReflection.property(template, property);
         return value instanceof Number number ? number.doubleValue() : Double.NaN;
     }
 
-    private static double rawTemplateDouble(Object target, String getter, double fallback) {
-        Object template = invoke(target, "getTemplate");
-        Object value = invoke(template, getter);
+    private static double rawTemplateDouble(Object target, String property, double fallback) {
+        Object template = ActionBattleMoveReflection.property(target, "template");
+        Object value = ActionBattleMoveReflection.property(template, property);
         return value instanceof Number number ? number.doubleValue() : fallback;
-    }
-
-    private static Object invoke(Object target, String methodName) {
-        if (target == null || methodName == null) return null;
-        try {
-            Method method = target.getClass().getMethod(methodName);
-            return method.invoke(target);
-        } catch (ReflectiveOperationException ignored) {
-            return null;
-        }
     }
 
     private static String normalizeType(String value) {

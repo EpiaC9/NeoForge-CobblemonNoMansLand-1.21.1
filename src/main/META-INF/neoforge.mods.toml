@@ -116,6 +116,13 @@ ordering = "AFTER"
 side = "BOTH"
 
 [[dependencies.${mod_id}]]
+modId = "mr_extra_moveanimscobblemon"
+type = "required"
+versionRange = "[1.7v1.0.2]"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.${mod_id}]]
 modId = "yagm"
 type = "required"
 versionRange = "[0.1,)"

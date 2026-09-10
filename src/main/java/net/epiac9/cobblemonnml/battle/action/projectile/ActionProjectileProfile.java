@@ -24,7 +24,15 @@ public final class ActionProjectileProfile {
     }
 
     public static ActionMoveDeliveryType deliveryType(String moveName) {
-        String id = normalize(moveName);
+        ActionMoveDeliveryType explicit = explicitDeliveryType(normalize(moveName));
+        return explicit != null ? explicit : ActionMoveDeliveryType.NORMAL_PROJECTILE;
+    }
+
+    public static boolean hasExplicitDeliveryProfile(String moveName) {
+        return explicitDeliveryType(normalize(moveName)) != null;
+    }
+
+    private static ActionMoveDeliveryType explicitDeliveryType(String id) {
         return switch (id) {
             case "icebeam", "inferno", "scald", "steameruption", "flamethrower", "iceburn" -> ActionMoveDeliveryType.BEAM_BOLT;
             case "lavaplume", "searingshot", "matchagotcha", "heatwave" -> ActionMoveDeliveryType.WAVE_AREA;
@@ -33,7 +41,7 @@ public final class ActionProjectileProfile {
             case "earthquake", "scorchingsands", "sandsearstorm" -> ActionMoveDeliveryType.GROUND_HUGGING_WAVE;
             case "firepunch", "firefang", "blazekick" -> ActionMoveDeliveryType.PHYSICAL_CONTACT;
             case "sizzlyslide", "blazingtorque", "flamewheel", "flareblitz" -> ActionMoveDeliveryType.DASH_RUSH;
-            default -> ActionMoveDeliveryType.NORMAL_PROJECTILE;
+            default -> null;
         };
     }
 
