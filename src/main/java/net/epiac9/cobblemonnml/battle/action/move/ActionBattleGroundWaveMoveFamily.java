@@ -9,6 +9,7 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleState;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleCommittedMove;
+import net.epiac9.cobblemonnml.battle.action.projectile.ActionProjectileProfile;
 import net.epiac9.cobblemonnml.battle.action.projectile.wave.ActionBattleWaveParameters;
 import net.epiac9.cobblemonnml.battle.action.projectile.wave.ActionBattleWaveServerRuntime;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ground.ActionBattleGroundController;
@@ -19,11 +20,18 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
-public final class ActionBattleEarthquakeHandler {
-    private ActionBattleEarthquakeHandler() {}
+public final class ActionBattleGroundWaveMoveFamily {
+    private static final double EARTHQUAKE_MAX_RADIUS = 10.0D;
+
+    private ActionBattleGroundWaveMoveFamily() {}
 
     public static boolean isEarthquakeName(String moveName) {
-        return ActionBattleEarthquakeRules.isEarthquakeName(moveName);
+        if (moveName == null) return false;
+        String normalized = moveName.toLowerCase(java.util.Locale.ROOT)
+                .replace("-", "")
+                .replace("_", "")
+                .replace(" ", "");
+        return "earthquake".equals(normalized);
     }
 
     public static boolean isEarthquake(Move move) {
@@ -31,7 +39,9 @@ public final class ActionBattleEarthquakeHandler {
     }
 
     public static ActionBattleWaveParameters waveParameters() {
-        return ActionBattleEarthquakeRules.waveParameters();
+        return new ActionBattleWaveParameters(
+                ActionProjectileProfile.GROUND_HUGGING_WAVE_SPEED,
+                EARTHQUAKE_MAX_RADIUS);
     }
 
     public static boolean canLaunch(PokemonEntity attacker) {

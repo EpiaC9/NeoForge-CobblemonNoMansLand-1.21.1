@@ -1,5 +1,6 @@
 package net.epiac9.cobblemonnml.battle.action.typeeffect;
 
+import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectDataManager;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.grass.ActionBattleGrassController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.electric.ActionBattleElectricController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.fire.ActionBattleFireRuntime;
@@ -18,9 +19,11 @@ public final class ActionBattleTypeMechanicRuntime {
 
     public static int onActionStarted(ActionBattleTypeMechanicActionContext context) {
         if (context == null || context.pokemon() == null || context.move() == null || !context.committed()) return 0;
+        java.util.List<String> identities = ActionBattleTypeMechanicIdentity.getTypeMechanicIdentities(context.pokemon());
+        java.util.Set<String> routed = ActionBattleMoveEffectDataManager.typeEffectRoutes(context.move().getName());
+        if (!routed.isEmpty()) identities = identities.stream().filter(routed::contains).toList();
         return ActionBattleTypeMechanicDispatcher.dispatch(
-                ActionBattleTypeMechanicIdentity.getTypeMechanicIdentities(context.pokemon()),
-                context.mechanicSecondary(), identity -> apply(identity, context));
+                identities, context.mechanicSecondary(), identity -> apply(identity, context));
     }
 
     private static void apply(String identity, ActionBattleTypeMechanicActionContext context) {

@@ -5,7 +5,7 @@ import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleManager;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleSession;
 import net.epiac9.cobblemonnml.battle.action.area.ActionBattlePersistentAreaController;
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleFieldSideMoveFamily;
 
 import java.util.Locale;
 
@@ -34,7 +34,7 @@ public final class ActionBattleEffectiveMoveTypeResolver {
         ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(user.getUUID());
         if (session != null) {
             boolean hail = ActionBattlePersistentAreaController.global().statesForBattle(session.battleId()).stream()
-                    .anyMatch(area -> ActionBattleHailHandler.MOVE_ID.equals(area.effectId())
+                    .anyMatch(area -> ActionBattleFieldSideMoveFamily.MOVE_ID_HAIL.equals(area.effectId())
                             && area.contains(user.getX(), user.getY(), user.getZ()));
             if (hail) return Condition.HAIL;
         }

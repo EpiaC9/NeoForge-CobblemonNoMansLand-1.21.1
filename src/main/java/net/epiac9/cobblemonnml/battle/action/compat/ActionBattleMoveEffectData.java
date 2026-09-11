@@ -1,24 +1,26 @@
 package net.epiac9.cobblemonnml.battle.action.compat;
 
-public record ActionBattleMoveEffectData(String effect, String trigger, String target, float chance, boolean secondary) {
-    public boolean isSupportedFlinchOnHit() {
-        return "flinch".equals(effect)
-                && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
+import java.util.LinkedHashSet;
+import java.util.Locale;
+import java.util.Set;
+
+/** NML-owned extension metadata for ACTION/type-mechanic routing only. */
+public record ActionBattleMoveEffectData(Set<String> typeEffects) {
+    public ActionBattleMoveEffectData {
+        if (typeEffects == null || typeEffects.isEmpty()) {
+            typeEffects = Set.of();
+        } else {
+            LinkedHashSet<String> normalized = new LinkedHashSet<>();
+            for (String value : typeEffects) {
+                String token = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+                if (!token.isEmpty()) normalized.add(token);
+            }
+            typeEffects = Set.copyOf(normalized);
+        }
     }
 
-    public boolean isSupportedConfusionOnHit() {
-        return ("confusion".equals(effect) || "confuse".equals(effect) || "confused".equals(effect))
-                && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
+    public boolean routesTypeEffect(String identity) {
+        if (identity == null) return false;
+        return typeEffects.contains(identity.trim().toLowerCase(Locale.ROOT));
     }
-
-    public boolean isExplicitWakeOnHit() {
-        return ("wake".equals(effect) || "wakeup".equals(effect) || "wake_up".equals(effect))
-                && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
-    }
-
-    public boolean isSupportedParalysisOnHit() {
-        return ("paralysis".equals(effect) || "paralyze".equals(effect) || "paralyzed".equals(effect))
-                && "on_hit".equals(trigger) && "target".equals(target) && chance > 0.0F;
-    }
-
 }

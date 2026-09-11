@@ -98,11 +98,13 @@ public final class ActionBattleMoveAuditExporter {
         ActionMoveDeliveryType delivery = ActionProjectileProfile.deliveryType(id);
         List<String> nativeEffects = ActionProjectileProfile.nativeCobblemonEffects(id);
         boolean explicitDelivery = ActionProjectileProfile.hasExplicitDeliveryProfile(id);
-        boolean nmlEffectMetadata = !ActionBattleMoveEffectDataManager.getAll(id).isEmpty();
+        boolean nmlTypeEffectRoutingMetadata = !ActionBattleMoveEffectDataManager.typeEffectRoutes(id).isEmpty();
         boolean executable = move != null && FightOrFlightAdapter.supports(move);
         String explicitHandler = ActionBattleExplicitMoveHandlerAudit.handlerFor(id);
         Map<String, JsonElement> effectMetadata = canonicalEffectMetadata(showdown, template, move);
-        String support = supportClassification(executable, explicitDelivery, nmlEffectMetadata,
+        String support = "triattack".equals(id)
+                ? (executable ? "BESPOKE_REQUIRED" : "PARTIAL")
+                : supportClassification(executable, explicitDelivery, false,
                 !nativeEffects.isEmpty(), !explicitHandler.isBlank(), flags, effectMetadata);
         ActionBattleMoveVisualClassifier.Classification visual = ActionBattleMoveVisualClassifier.classify(
                 type, category, target, flags, effectMetadata, delivery, explicitDelivery
@@ -110,22 +112,23 @@ public final class ActionBattleMoveAuditExporter {
         ActionBattleMoveHandlingGroup handlingGroup = ActionBattleMoveHandlingGroup.classify(
                 support, category, target, visual.family().name(), flags, effectMetadata
         );
-        List<String> visualAssetSources = visualAssetSources(nativeEffects, addonVisuals, nmlEffectMetadata, explicitDelivery);
+        String moveFamily = moveFamily(id, handlingGroup.name(), delivery.name());
+        List<String> visualAssetSources = visualAssetSources(nativeEffects, addonVisuals, false, explicitDelivery);
         String preferredVisualAssetSource = visualAssetSources.getFirst();
 
         return new MoveAuditEntry(
                 id, translationKey(template, move), type, category, power, finiteOrNull(accuracy), accuracyMode.name(),
                 canonicalAccuracyProjectileSpeedMultiplier, priority, neutralSpeedStartupTicks, pp, target,
                 finiteOrNull(critRatio), flags.stream().sorted().toList(), typedFlags, effectMetadata,
-                executable, nmlEffectMetadata, !explicitHandler.isBlank(), explicitHandler, explicitDelivery, delivery.name(), nativeEffects,
-                addonVisuals, visualAssetSources, preferredVisualAssetSource, support, handlingGroup.name(),
+                executable, nmlTypeEffectRoutingMetadata, !explicitHandler.isBlank(), explicitHandler, explicitDelivery, delivery.name(), nativeEffects,
+                addonVisuals, visualAssetSources, preferredVisualAssetSource, support, handlingGroup.name(), moveFamily,
                 visual.family().name(), visual.source(), visual.confidence().name()
         );
     }
 
     private static JsonObject toJson(List<MoveAuditEntry> entries, Catalog catalog, ActionBattleAddonVisualAudit.Catalog addonVisuals) {
         JsonObject root = new JsonObject();
-        root.addProperty("schema", 10);
+        root.addProperty("schema", 12);
         root.addProperty("cobblemonVersion", COBBLEMON_VERSION);
         root.addProperty("catalogDiscovery", catalog.discoverySource());
         root.addProperty("metadataEnrichment", "ShowdownService.service.getRegistryData(move)");
@@ -412,6 +415,7 @@ public final class ActionBattleMoveAuditExporter {
         summary.addProperty("extraMoveAnimationsCoveredMoves", entries.stream().filter(entry -> entry.extraMoveAnimationsResources() != null && entry.extraMoveAnimationsResources().hasVisuals()).count());
         summary.add("support", countBy(entries.stream().map(MoveAuditEntry::support).toList()));
         summary.add("handlingGroups", countBy(entries.stream().map(MoveAuditEntry::handlingGroup).toList()));
+        summary.add("moveFamilies", countBy(entries.stream().map(MoveAuditEntry::moveFamily).toList()));
         summary.add("visualFamilies", countBy(entries.stream().map(MoveAuditEntry::visualFamily).toList()));
         summary.add("visualConfidence", countBy(entries.stream().map(MoveAuditEntry::visualConfidence).toList()));
         summary.add("visualSources", countBy(entries.stream().map(MoveAuditEntry::visualClassificationSource).toList()));
@@ -435,6 +439,7 @@ public final class ActionBattleMoveAuditExporter {
         summary.add("unmappedCanonicalFlags", GSON.toJsonTree(unmappedCanonicalFlags.stream().sorted().toList()));
         summary.add("typedFlagUsage", countBy(typedFlagUsage));
         summary.addProperty("movesWithCanonicalEffectMetadata", entries.stream().filter(entry -> !entry.canonicalEffectMetadata().isEmpty()).count());
+        summary.addProperty("movesWithNmlTypeEffectRoutingMetadata", entries.stream().filter(MoveAuditEntry::nmlTypeEffectRoutingMetadata).count());
         summary.addProperty("movesWithExplicitHandlers", entries.stream().filter(MoveAuditEntry::explicitHandlerPresent).count());
         summary.add("explicitHandlers", countBy(entries.stream().filter(MoveAuditEntry::explicitHandlerPresent).map(MoveAuditEntry::explicitHandler).toList()));
         summary.addProperty("movesWithExplicitDelivery", entries.stream().filter(MoveAuditEntry::explicitDeliveryProfile).count());
@@ -503,13 +508,22 @@ public final class ActionBattleMoveAuditExporter {
                                                 boolean effectMetadata, boolean nativeVisual,
                                                 boolean explicitHandler, Set<String> flags,
                                                 Map<String, JsonElement> canonicalEffects) {
-        boolean explicitSignal = explicitDelivery || effectMetadata || nativeVisual || explicitHandler;
         if (explicitHandler) return executable ? "EXPLICIT" : "PARTIAL";
-        if (executable && explicitSignal) return "EXPLICIT";
         if (executable && requiresBespokeHandling(flags, canonicalEffects)) return "BESPOKE_REQUIRED";
         if (executable) return "GENERIC";
-        if (explicitSignal) return "PARTIAL";
         return "UNCLASSIFIED";
+    }
+
+    private static String moveFamily(String id, String handlingGroup, String delivery) {
+        String moveId = id != null ? id : "";
+        if (moveId.equals("banefulbunker") || "BESPOKE_PROTECT_SPECIAL".equals(handlingGroup)) return "PROTECT";
+        if (moveId.equals("hail") || moveId.equals("toxicspikes") || "BESPOKE_FIELD_SIDE".equals(handlingGroup)) return "FIELD_SIDE";
+        if (moveId.equals("earthquake") || "GROUND_HUGGING_WAVE".equals(delivery)) return "GROUND_WAVE";
+        if ("BESPOKE_CHARGE_RECHARGE".equals(handlingGroup)) return "CHARGE_RECHARGE";
+        if ("BESPOKE_MULTI_HIT".equals(handlingGroup)) return "MULTI_HIT";
+        if ("BESPOKE_SWITCH_PIVOT".equals(handlingGroup)) return "SWITCH_PIVOT";
+        if ("BESPOKE_CRIT_OHKO".equals(handlingGroup)) return "CRIT_OHKO";
+        return "ORDINARY";
     }
 
     private static boolean requiresBespokeHandling(Set<String> flags, Map<String, JsonElement> canonicalEffects) {
@@ -584,7 +598,7 @@ public final class ActionBattleMoveAuditExporter {
             List<String> typedFlags,
             Map<String, JsonElement> canonicalEffectMetadata,
             boolean actionExecutable,
-            boolean nmlMoveEffectMetadata,
+            boolean nmlTypeEffectRoutingMetadata,
             boolean explicitHandlerPresent,
             String explicitHandler,
             boolean explicitDeliveryProfile,
@@ -595,6 +609,7 @@ public final class ActionBattleMoveAuditExporter {
             String preferredVisualAssetSource,
             String support,
             String handlingGroup,
+            String moveFamily,
             String visualFamily,
             String visualClassificationSource,
             String visualConfidence

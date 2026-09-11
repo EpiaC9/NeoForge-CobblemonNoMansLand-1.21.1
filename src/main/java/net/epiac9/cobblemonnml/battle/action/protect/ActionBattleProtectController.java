@@ -13,14 +13,14 @@ public final class ActionBattleProtectController {
 
     public static ActionBattleProtectController global() { return GLOBAL; }
 
-    public ActionBattleProtectStance startBalefulBunker(UUID battleId, UUID pokemonUUID, long currentTick) {
-        if (battleId == null || pokemonUUID == null || currentTick < 0L) return null;
+    public ActionBattleProtectStance startProtect(UUID battleId, UUID pokemonUUID, long currentTick, ActionBattleProtectVariant variant) {
+        if (battleId == null || pokemonUUID == null || currentTick < 0L || variant == null) return null;
         Key key = new Key(battleId, pokemonUUID);
         ActionBattleDeterioratingShieldState shield = deterioration.computeIfAbsent(key, ignored -> new ActionBattleDeterioratingShieldState());
         int level = shield.increaseLevel();
         ActionBattleProtectStance stance = new ActionBattleProtectStance(
                 battleId, pokemonUUID, currentTick, currentTick + STANCE_TICKS, level,
-                shield.damageTakenMultiplier(), shield.timedEffectDurationMultiplier()
+                shield.damageTakenMultiplier(), shield.timedEffectDurationMultiplier(), variant
         );
         stances.put(key, stance);
         return stance;

@@ -1,7 +1,6 @@
 package net.epiac9.cobblemonnml.battle.action;
 
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleFieldSideMoveFamily;
 import java.util.UUID;
 
 public final class ActionBattleCommandController {
@@ -34,8 +33,7 @@ public final class ActionBattleCommandController {
 
     public static void onMovementCommandIssued(ActionBattleSession session, UUID pokemonUUID) {
         if (!isActivePokemon(session, pokemonUUID) || pokemonUUID == null) return;
-        ActionBattleHailHandler.onCommand(pokemonUUID);
-        ActionBattleToxicSpikesHandler.onCommand(pokemonUUID);
+        ActionBattleFieldSideMoveFamily.onCommand(pokemonUUID);
         net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsychicChannelRuntime
                 .onMovementCommand(pokemonUUID);
     }
@@ -54,8 +52,7 @@ public final class ActionBattleCommandController {
     }
 
     public static boolean isChanneling(UUID pokemonUUID) {
-        return pokemonUUID != null && (ActionBattleHailHandler.isChanneling(pokemonUUID)
-                || ActionBattleToxicSpikesHandler.isChanneling(pokemonUUID)
+        return pokemonUUID != null && (ActionBattleFieldSideMoveFamily.isChanneling(pokemonUUID)
                 || net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsychicChannelRuntime
                 .isChanneling(pokemonUUID));
     }
@@ -74,18 +71,16 @@ public final class ActionBattleCommandController {
 
     private static void applyCommandHooks(UUID pokemonUUID) {
         if (pokemonUUID == null) return;
-        ActionBattleHailHandler.onCommand(pokemonUUID);
+        ActionBattleFieldSideMoveFamily.onCommand(pokemonUUID);
         net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsychicChannelRuntime
                 .onCommand(pokemonUUID);
-        ActionBattleToxicSpikesHandler.onCommand(pokemonUUID);
     }
 
     private static void applyControlHooks(UUID pokemonUUID) {
         if (pokemonUUID == null) return;
-        ActionBattleHailHandler.onControlEffect(pokemonUUID);
+        ActionBattleFieldSideMoveFamily.onControlEffect(pokemonUUID);
         net.epiac9.cobblemonnml.battle.action.typeeffect.psychic.ActionBattlePsychicChannelRuntime
                 .onControlEffect(pokemonUUID);
-        ActionBattleToxicSpikesHandler.onControlEffect(pokemonUUID);
     }
 
     public static void onExplicitInterrupt(UUID pokemonUUID) { applyControlHooks(pokemonUUID); }

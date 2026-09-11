@@ -37,9 +37,9 @@ public final class ActionBattleConfusionRules {
 
     public static CommandKind commandKindFor(Move move) {
         if (move == null) return CommandKind.SUPPORT;
-        if (net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandler.isBalefulBunker(move)) return CommandKind.PROTECT;
-        if (net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler.isHail(move)
-                || net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler.isToxicSpikes(move)) return CommandKind.CHANNEL;
+        if (net.epiac9.cobblemonnml.battle.action.move.ActionBattleProtectMoveFamily.isBalefulBunker(move)) return CommandKind.PROTECT;
+        if (net.epiac9.cobblemonnml.battle.action.move.ActionBattleFieldSideMoveFamily.isHail(move)
+                || net.epiac9.cobblemonnml.battle.action.move.ActionBattleFieldSideMoveFamily.isToxicSpikes(move)) return CommandKind.CHANNEL;
         if (net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter.isMeleeMove(move)) return CommandKind.MELEE;
         if (net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter.isRangedMove(move)) return CommandKind.RANGED;
         return CommandKind.SUPPORT;

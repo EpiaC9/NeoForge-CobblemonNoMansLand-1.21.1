@@ -10,8 +10,7 @@ import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCa
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleEffectController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStatLinkCleanup;
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleFieldSideMoveFamily;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentEvent;
@@ -58,8 +57,7 @@ final class ActionBattleEffectRuntime {
 
     static void tickBattle(ActionBattleSession session, ServerLevel level, ActionBattlePokemonRefs refs) {
         if (session == null || level == null) return;
-        ActionBattleHailHandler.tickBattle(session, level);
-        ActionBattleToxicSpikesHandler.tickBattle(session, level);
+        ActionBattleFieldSideMoveFamily.tickBattle(session, level);
         ActionBattleGhostRuntime.global().tickBattle(session, level);
         ActionBattlePropulsionController.tickBattle(session, level);
         ActionBattleAerialMoveController.tickBattle(session, level, level.getGameTime());
@@ -127,8 +125,7 @@ final class ActionBattleEffectRuntime {
 
     static void clearBattle(UUID battleId) {
         if (battleId == null) return;
-        ActionBattleHailHandler.clearBattle(battleId);
-        ActionBattleToxicSpikesHandler.clearBattle(battleId);
+        ActionBattleFieldSideMoveFamily.clearBattle(battleId);
         ActionBattleProtectController.global().clearBattle(battleId);
         STAT_LINK_CLEANUP.clearBattle(battleId);
         ActionBattlePersistentController.global().clearBattle(battleId);

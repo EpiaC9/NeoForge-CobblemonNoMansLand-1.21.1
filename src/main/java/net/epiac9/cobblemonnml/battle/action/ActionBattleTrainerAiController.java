@@ -9,10 +9,9 @@ import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectResolv
 import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleConfusionRules;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandler;
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleProtectMoveFamily;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleFieldSideMoveFamily;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveTimingRules;
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
 import net.epiac9.cobblemonnml.battle.action.effect.control.ActionBattleRampageController;
@@ -145,15 +144,15 @@ final class ActionBattleTrainerAiController {
         }
         boolean onCooldown = session.isPokemonAbilitySlotOnCooldown(
                 trainerPokemon.getUuid(), session.trainerMoveSlot(), currentTick);
-        if (!onCooldown && ActionBattleBalefulBunkerHandler.isBalefulBunker(move)) {
+        if (!onCooldown && ActionBattleProtectMoveFamily.isBalefulBunker(move)) {
             trainerPokemonEntity.getNavigation().stop();
-            ActionBattleBalefulBunkerHandler.StartResult result = ActionBattleBalefulBunkerHandler.tryStart(session, trainerPokemonEntity, move);
-            if (result == ActionBattleBalefulBunkerHandler.StartResult.STARTED) dispatchOwnedMechanics(trainerPokemonEntity, trainerPokemonEntity, move);
-            finishTrainerMove(session, trainerPokemon, move, currentTick, result == ActionBattleBalefulBunkerHandler.StartResult.STARTED, () -> {});
+            ActionBattleProtectMoveFamily.StartResult result = ActionBattleProtectMoveFamily.tryStart(session, trainerPokemonEntity, move);
+            if (result == ActionBattleProtectMoveFamily.StartResult.STARTED) dispatchOwnedMechanics(trainerPokemonEntity, trainerPokemonEntity, move);
+            finishTrainerMove(session, trainerPokemon, move, currentTick, result == ActionBattleProtectMoveFamily.StartResult.STARTED, () -> {});
             DebugLog.log("[CobblemonNML] Trainer Baleful Bunker ACTION start result. Battle=" + session.battleId() + ", result=" + result);
             return;
         }
-        if (!onCooldown && ActionBattleHailHandler.isHail(move) && FightOrFlightAdapter.canCommit(trainerPokemonEntity, playerPokemonEntity, move)) {
+        if (!onCooldown && ActionBattleFieldSideMoveFamily.isHail(move) && FightOrFlightAdapter.canCommit(trainerPokemonEntity, playerPokemonEntity, move)) {
             if (!trainerMoveStartupReady(session, trainerPokemonEntity, move, currentTick)) {
                 trainerPokemonEntity.getNavigation().stop();
                 return;
@@ -161,13 +160,13 @@ final class ActionBattleTrainerAiController {
             if (!ActionBattleParalysisController.executionReady(trainerPokemonEntity,
                     ActionBattleParalysisController.active(session, trainerPokemon.getUuid(), currentTick), currentTick)) return;
             trainerPokemonEntity.getNavigation().stop();
-            ActionBattleHailHandler.StartResult result = ActionBattleHailHandler.tryStart(session, level, trainerPokemonEntity, playerPokemonEntity, move);
-            if (result == ActionBattleHailHandler.StartResult.STARTED) dispatchOwnedMechanics(trainerPokemonEntity, playerPokemonEntity, move);
+            ActionBattleFieldSideMoveFamily.StartResult result = ActionBattleFieldSideMoveFamily.tryStart(session, level, trainerPokemonEntity, playerPokemonEntity, move);
+            if (result == ActionBattleFieldSideMoveFamily.StartResult.STARTED) dispatchOwnedMechanics(trainerPokemonEntity, playerPokemonEntity, move);
             session.clearTrainerMoveState();
             DebugLog.log("[CobblemonNML] Trainer Hail ACTION start result. Battle=" + session.battleId() + ", result=" + result);
             return;
         }
-        if (!onCooldown && ActionBattleToxicSpikesHandler.isToxicSpikes(move) && FightOrFlightAdapter.canCommit(trainerPokemonEntity, playerPokemonEntity, move)) {
+        if (!onCooldown && ActionBattleFieldSideMoveFamily.isToxicSpikes(move) && FightOrFlightAdapter.canCommit(trainerPokemonEntity, playerPokemonEntity, move)) {
             if (!trainerMoveStartupReady(session, trainerPokemonEntity, move, currentTick)) {
                 trainerPokemonEntity.getNavigation().stop();
                 return;
@@ -175,9 +174,9 @@ final class ActionBattleTrainerAiController {
             if (!ActionBattleParalysisController.executionReady(trainerPokemonEntity,
                     ActionBattleParalysisController.active(session, trainerPokemon.getUuid(), currentTick), currentTick)) return;
             trainerPokemonEntity.getNavigation().stop();
-            ActionBattleToxicSpikesHandler.StartResult result = ActionBattleToxicSpikesHandler.tryStart(session, level, trainerPokemonEntity, playerPokemonEntity, move);
-            if (result == ActionBattleToxicSpikesHandler.StartResult.STARTED) dispatchOwnedMechanics(trainerPokemonEntity, playerPokemonEntity, move);
-            finishTrainerMove(session, trainerPokemon, move, currentTick, result == ActionBattleToxicSpikesHandler.StartResult.STARTED, () -> ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), trainerPokemon.getUuid()));
+            ActionBattleFieldSideMoveFamily.StartResult result = ActionBattleFieldSideMoveFamily.tryStart(session, level, trainerPokemonEntity, playerPokemonEntity, move);
+            if (result == ActionBattleFieldSideMoveFamily.StartResult.STARTED) dispatchOwnedMechanics(trainerPokemonEntity, playerPokemonEntity, move);
+            finishTrainerMove(session, trainerPokemon, move, currentTick, result == ActionBattleFieldSideMoveFamily.StartResult.STARTED, () -> ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), trainerPokemon.getUuid()));
             DebugLog.log("[CobblemonNML] Trainer Toxic Spikes ACTION start result. Battle=" + session.battleId() + ", result=" + result);
             return;
         }
@@ -338,12 +337,12 @@ final class ActionBattleTrainerAiController {
             return true;
         }
         if (kind == ActionBattleConfusionRules.CommandKind.CHANNEL) {
-            if (ActionBattleHailHandler.isHail(move)) {
-                var result = ActionBattleHailHandler.tryStart(session, level, trainerEntity, null, move, plan.channelBonusTicks(), plan.channelSelfCancel());
-                if (result == ActionBattleHailHandler.StartResult.STARTED) dispatchOwnedMechanics(trainerEntity, null, move);
+            if (ActionBattleFieldSideMoveFamily.isHail(move)) {
+                var result = ActionBattleFieldSideMoveFamily.tryStart(session, level, trainerEntity, null, move, plan.channelBonusTicks(), plan.channelSelfCancel());
+                if (result == ActionBattleFieldSideMoveFamily.StartResult.STARTED) dispatchOwnedMechanics(trainerEntity, null, move);
             } else {
-                var result = ActionBattleToxicSpikesHandler.tryStart(session, level, trainerEntity, null, move, plan.channelBonusTicks(), plan.channelSelfCancel());
-                if (result == ActionBattleToxicSpikesHandler.StartResult.STARTED) {
+                var result = ActionBattleFieldSideMoveFamily.tryStart(session, level, trainerEntity, null, move, plan.channelBonusTicks(), plan.channelSelfCancel());
+                if (result == ActionBattleFieldSideMoveFamily.StartResult.STARTED) {
                     ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), trainerPokemon.getUuid(), move);
                     dispatchOwnedMechanics(trainerEntity, null, move);
                 }

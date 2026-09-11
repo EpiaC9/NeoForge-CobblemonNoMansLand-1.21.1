@@ -16,10 +16,9 @@ import net.epiac9.cobblemonnml.battle.action.ActionBattleSwapTransitionGuard;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleEvasionController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleStatResolver;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackCategory;
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandler;
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleEarthquakeHandler;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleProtectMoveFamily;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleFieldSideMoveFamily;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleGroundWaveMoveFamily;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveDescriptor;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveMetadataResolver;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
@@ -65,13 +64,13 @@ public final class FightOrFlightAdapter {
     private FightOrFlightAdapter() {}
 
     public static boolean supports(Move move) {
-        return move != null && (ActionBattleBalefulBunkerHandler.isBalefulBunker(move) || ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || ActionBattleSteelRuntime.isQualifyingSelfMove(move) || ActionBattleWaterController.isQualifyingInteraction(move) || ActionBattleGrassController.isQualifyingMove(move) || (movePower(move) == 0 && ActionBattleMoveEffectResolver.hasSupportedActionStatusMetadata(move)));
+        return move != null && (ActionBattleProtectMoveFamily.isBalefulBunker(move) || ActionBattleFieldSideMoveFamily.isHail(move) || ActionBattleFieldSideMoveFamily.isToxicSpikes(move) || PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move) || ActionBattleSteelRuntime.isQualifyingSelfMove(move) || ActionBattleWaterController.isQualifyingInteraction(move) || ActionBattleGrassController.isQualifyingMove(move) || (movePower(move) == 0 && ActionBattleMoveEffectResolver.hasSupportedActionStatusMetadata(move)));
     }
 
     public static boolean supportsForUser(PokemonEntity attacker, Move move) {
         if (attacker == null || move == null) return false;
-        if (ActionBattleBalefulBunkerHandler.isBalefulBunker(move) || ActionBattleHailHandler.isHail(move)
-                || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isMeleeAttackMove(move)
+        if (ActionBattleProtectMoveFamily.isBalefulBunker(move) || ActionBattleFieldSideMoveFamily.isHail(move)
+                || ActionBattleFieldSideMoveFamily.isToxicSpikes(move) || PokemonUtils.isMeleeAttackMove(move)
                 || PokemonUtils.isRangeAttackMove(move)
                 || (movePower(move) == 0 && ActionBattleMoveEffectResolver.hasSupportedActionStatusMetadata(move))) {
             return true;
@@ -91,7 +90,7 @@ public final class FightOrFlightAdapter {
     public static boolean isMeleeMove(Move move) { return move != null && PokemonUtils.isMeleeAttackMove(move); }
 
     public static boolean isRangedMove(Move move) {
-        return move != null && (ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move) || PokemonUtils.isRangeAttackMove(move) || (!PokemonUtils.isMeleeAttackMove(move) && ActionBattleWaterController.isQualifyingInteraction(move)) || (movePower(move) == 0 && ActionBattleMoveEffectResolver.hasSupportedActionStatusMetadata(move)));
+        return move != null && (ActionBattleFieldSideMoveFamily.isHail(move) || ActionBattleFieldSideMoveFamily.isToxicSpikes(move) || PokemonUtils.isRangeAttackMove(move) || (!PokemonUtils.isMeleeAttackMove(move) && ActionBattleWaterController.isQualifyingInteraction(move)) || (movePower(move) == 0 && ActionBattleMoveEffectResolver.hasSupportedActionStatusMetadata(move)));
     }
 
     public static boolean isNativeDamageMove(Move move) {
@@ -266,13 +265,13 @@ public final class FightOrFlightAdapter {
 
     public static boolean canCommit(PokemonEntity attacker, LivingEntity target, Move move) {
         if (attacker == null || move == null || !supports(move)) return false;
-        if (ActionBattleEarthquakeHandler.isEarthquake(move)) {
-            return ActionBattleEarthquakeHandler.canLaunch(attacker);
+        if (ActionBattleGroundWaveMoveFamily.isEarthquake(move)) {
+            return ActionBattleGroundWaveMoveFamily.canLaunch(attacker);
         }
         LivingEntity executionTarget = resolveMoveTarget(attacker, target, move);
         if (executionTarget == null || !executionTarget.isAlive()) return false;
         target = executionTarget;
-        if (ActionBattleHailHandler.isHail(move) || ActionBattleToxicSpikesHandler.isToxicSpikes(move)) return canCommitHail(attacker, target);
+        if (ActionBattleFieldSideMoveFamily.isHail(move) || ActionBattleFieldSideMoveFamily.isToxicSpikes(move)) return canCommitHail(attacker, target);
         if (!isSelfOrAllyTargetCategory(moveTargetCategory(move)) && !hasActionLineOfSight(attacker, target)) return false;
         if (PokemonUtils.isMeleeAttackMove(move)) {
             net.minecraft.world.phys.AABB targetBox = target instanceof PokemonEntity pokemonTarget
@@ -502,8 +501,8 @@ public final class FightOrFlightAdapter {
                                            ActionBattleCommittedMove committedMove,
                                            boolean allowPropulsion, boolean validateCommit,
                                            boolean allowPsychicChannel, boolean psychicDirectCompletion) {
-        if (ActionBattleEarthquakeHandler.isEarthquake(move)) {
-            return ActionBattleEarthquakeHandler.launch(attacker, move, committedDamageMultiplier, committedMove);
+        if (ActionBattleGroundWaveMoveFamily.isEarthquake(move)) {
+            return ActionBattleGroundWaveMoveFamily.launch(attacker, move, committedDamageMultiplier, committedMove);
         }
         LivingEntity executionTarget = resolveMoveTarget(attacker, target, move);
         int momentum = committedMove != null ? committedMove.flyingMomentum() : 0;
@@ -692,12 +691,12 @@ public final class FightOrFlightAdapter {
         synchronized (MoveData.moveData) {
             List<MoveData> original = MoveData.moveData.get(move.getName());
             if (original == null || original.stream().noneMatch(entry -> entry instanceof StatChangeMoveData
-                    || entry instanceof StatusEffectMoveData status && ActionBattleMoveEffectResolver.isOwnedActionStatus(status))) {
+                    || entry instanceof StatusEffectMoveData)) {
                 return operation.run();
             }
             List<MoveData> filtered = new ArrayList<>(original.size());
             for (MoveData entry : original) {
-                if (entry instanceof StatusEffectMoveData status && ActionBattleMoveEffectResolver.isOwnedActionStatus(status)) continue;
+                if (entry instanceof StatusEffectMoveData) continue;
                 if (entry instanceof StatChangeMoveData) continue;
                 filtered.add(entry);
             }

@@ -11,10 +11,9 @@ import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectResolv
 import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleConfusionRules;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandler;
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleProtectMoveFamily;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleFieldSideMoveFamily;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveTimingRules;
-import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentType;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
@@ -292,15 +291,15 @@ public final class ActionBattleManager {
         if (handleConfusedPlayerMove(session, level, refs, move, moveSlot, pokemonEntity, currentTick)) {
             return true;
         }
-        if (ActionBattleBalefulBunkerHandler.isBalefulBunker(move)) {
+        if (ActionBattleProtectMoveFamily.isBalefulBunker(move)) {
             clearPlayerMoveAttempt(session, ownerUUID, pokemonEntity);
-            ActionBattleBalefulBunkerHandler.StartResult result = ActionBattleBalefulBunkerHandler.tryStart(session, pokemonEntity, move);
-            if (result == ActionBattleBalefulBunkerHandler.StartResult.STARTED) {
+            ActionBattleProtectMoveFamily.StartResult result = ActionBattleProtectMoveFamily.tryStart(session, pokemonEntity, move);
+            if (result == ActionBattleProtectMoveFamily.StartResult.STARTED) {
                 ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), playerPokemon.getUuid(), move);
                 dispatchOwnedMechanics(pokemonEntity, pokemonEntity, move);
             }
             DebugLog.log("[CobblemonNML] Baleful Bunker ACTION start result. Battle=" + session.battleId() + ", result=" + result);
-            return result == ActionBattleBalefulBunkerHandler.StartResult.STARTED;
+            return result == ActionBattleProtectMoveFamily.StartResult.STARTED;
         }
         UUID targetEntityId = session.trainerActiveEntityUUID();
         if (targetEntityId == null) return rejectMove(session, moveSlot, "missing_target_entity_id");
@@ -378,19 +377,19 @@ public final class ActionBattleManager {
             return true;
         }
         if (confusionKind == ActionBattleConfusionRules.CommandKind.CHANNEL) {
-            if (ActionBattleHailHandler.isHail(move)) {
-                var result = ActionBattleHailHandler.tryStart(session, level, pokemonEntity, null, move, confusionPlan.channelBonusTicks(), confusionPlan.channelSelfCancel());
-                if (result == ActionBattleHailHandler.StartResult.STARTED) dispatchOwnedMechanics(pokemonEntity, null, move);
+            if (ActionBattleFieldSideMoveFamily.isHail(move)) {
+                var result = ActionBattleFieldSideMoveFamily.tryStart(session, level, pokemonEntity, null, move, confusionPlan.channelBonusTicks(), confusionPlan.channelSelfCancel());
+                if (result == ActionBattleFieldSideMoveFamily.StartResult.STARTED) dispatchOwnedMechanics(pokemonEntity, null, move);
                 DebugLog.log("[CobblemonNML] Confused Hail ACTION start result. Battle=" + session.battleId() + ", result=" + result);
-                return result == ActionBattleHailHandler.StartResult.STARTED;
+                return result == ActionBattleFieldSideMoveFamily.StartResult.STARTED;
             }
-            var result = ActionBattleToxicSpikesHandler.tryStart(session, level, pokemonEntity, null, move, confusionPlan.channelBonusTicks(), confusionPlan.channelSelfCancel());
-            if (result == ActionBattleToxicSpikesHandler.StartResult.STARTED) {
+            var result = ActionBattleFieldSideMoveFamily.tryStart(session, level, pokemonEntity, null, move, confusionPlan.channelBonusTicks(), confusionPlan.channelSelfCancel());
+            if (result == ActionBattleFieldSideMoveFamily.StartResult.STARTED) {
                 ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), pokemonEntity.getPokemon().getUuid(), move);
                 dispatchOwnedMechanics(pokemonEntity, null, move);
             }
             DebugLog.log("[CobblemonNML] Confused Toxic Spikes ACTION start result. Battle=" + session.battleId() + ", result=" + result);
-            return result == ActionBattleToxicSpikesHandler.StartResult.STARTED;
+            return result == ActionBattleFieldSideMoveFamily.StartResult.STARTED;
         }
         return false;
     }
@@ -617,7 +616,7 @@ public final class ActionBattleManager {
                 DebugLog.log("[CobblemonNML] Action move rejected. Battle=" + session.battleId() + ", slot=" + (session.playerMoveSlot(ownerUUID) + 1) + ", reason=cooldown");
                 return;
             }
-            if (ActionBattleHailHandler.isHail(move)) {
+            if (ActionBattleFieldSideMoveFamily.isHail(move)) {
                 if (!FightOrFlightAdapter.canCommit(pokemonEntity, targetEntity, move)) {
                     session.resetPlayerMoveCommitReady(ownerUUID);
                     ActionBattleMovementController.pursuePlayerPendingMove(session, ownerUUID, pokemonEntity, targetEntity);
@@ -630,13 +629,13 @@ public final class ActionBattleManager {
                 if (!ActionBattleParalysisController.executionReady(pokemonEntity,
                         ActionBattleParalysisController.active(session, pokemonUUID, currentTick), currentTick)) return;
                 pokemonEntity.getNavigation().stop();
-                ActionBattleHailHandler.StartResult hailResult = ActionBattleHailHandler.tryStart(session, level, pokemonEntity, targetEntity, move);
-                if (hailResult == ActionBattleHailHandler.StartResult.STARTED) dispatchOwnedMechanics(pokemonEntity, targetEntity, move);
+                ActionBattleFieldSideMoveFamily.StartResult hailResult = ActionBattleFieldSideMoveFamily.tryStart(session, level, pokemonEntity, targetEntity, move);
+                if (hailResult == ActionBattleFieldSideMoveFamily.StartResult.STARTED) dispatchOwnedMechanics(pokemonEntity, targetEntity, move);
                 session.clearPlayerMoveCommand(ownerUUID);
                 DebugLog.log("[CobblemonNML] Hail ACTION start result. Battle=" + session.battleId() + ", result=" + hailResult);
                 return;
             }
-            if (ActionBattleToxicSpikesHandler.isToxicSpikes(move)) {
+            if (ActionBattleFieldSideMoveFamily.isToxicSpikes(move)) {
                 if (!FightOrFlightAdapter.canCommit(pokemonEntity, targetEntity, move)) {
                     session.resetPlayerMoveCommitReady(ownerUUID);
                     ActionBattleMovementController.pursuePlayerPendingMove(session, ownerUUID, pokemonEntity, targetEntity);
@@ -649,9 +648,9 @@ public final class ActionBattleManager {
                 if (!ActionBattleParalysisController.executionReady(pokemonEntity,
                         ActionBattleParalysisController.active(session, pokemonUUID, currentTick), currentTick)) return;
                 pokemonEntity.getNavigation().stop();
-                ActionBattleToxicSpikesHandler.StartResult result = ActionBattleToxicSpikesHandler.tryStart(session, level, pokemonEntity, targetEntity, move);
+                ActionBattleFieldSideMoveFamily.StartResult result = ActionBattleFieldSideMoveFamily.tryStart(session, level, pokemonEntity, targetEntity, move);
                 session.clearPlayerMoveCommand(ownerUUID);
-                if (result == ActionBattleToxicSpikesHandler.StartResult.STARTED) {
+                if (result == ActionBattleFieldSideMoveFamily.StartResult.STARTED) {
                     ActionBattleProtectController.global().onSuccessfulNonProtectMove(session.battleId(), pokemonUUID);
                     ActionBattleControlController.global().recordSuccessfulMove(session.battleId(), pokemonUUID, move);
                     dispatchOwnedMechanics(pokemonEntity, targetEntity, move);
