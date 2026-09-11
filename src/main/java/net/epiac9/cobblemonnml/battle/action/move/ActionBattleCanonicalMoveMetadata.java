@@ -23,6 +23,7 @@ public final class ActionBattleCanonicalMoveMetadata {
 
     private final String id;
     private final Set<String> flags;
+    private final Set<ActionBattleMoveFlag> typedFlags;
     private final String status;
     private final String volatileStatus;
     private final Map<String, Integer> boosts;
@@ -76,6 +77,7 @@ public final class ActionBattleCanonicalMoveMetadata {
     ) {
         this.id = id != null ? id : "";
         this.flags = flags != null ? Set.copyOf(flags) : Set.of();
+        this.typedFlags = ActionBattleMoveMetadataRules.typedFlags(this.flags);
         this.status = status != null ? status : "";
         this.volatileStatus = volatileStatus != null ? volatileStatus : "";
         this.boosts = boosts != null ? Map.copyOf(boosts) : Map.of();
@@ -151,6 +153,7 @@ public final class ActionBattleCanonicalMoveMetadata {
 
     public String id() { return id; }
     public Set<String> flags() { return flags; }
+    public Set<ActionBattleMoveFlag> typedFlags() { return typedFlags; }
     public String status() { return status; }
     public String volatileStatus() { return volatileStatus; }
     public Map<String, Integer> boosts() { return boosts; }
@@ -180,8 +183,12 @@ public final class ActionBattleCanonicalMoveMetadata {
         return flags.contains(ActionBattleMoveMetadataRules.normalizeToken(flag));
     }
 
-    public boolean chargeMove() { return hasFlag("charge"); }
-    public boolean rechargeMove() { return hasFlag("recharge") || "mustrecharge".equals(volatileStatus); }
+    public boolean hasFlag(ActionBattleMoveFlag flag) {
+        return typedFlags.contains(flag);
+    }
+
+    public boolean chargeMove() { return hasFlag(ActionBattleMoveFlag.CHARGE); }
+    public boolean rechargeMove() { return hasFlag(ActionBattleMoveFlag.RECHARGE) || "mustrecharge".equals(volatileStatus); }
     public boolean multiHitMove() { return multiHit != null; }
     public boolean fieldOrSideEffect() {
         return !weather.isBlank() || !terrain.isBlank() || !sideCondition.isBlank()

@@ -39,6 +39,7 @@ public record ActionBattleMoveDescriptor(
     public boolean selfOrAllyTargeted() { return targetingMode == TargetingMode.SELF_OR_ALLY; }
     public boolean targeted() { return targetingMode == TargetingMode.TARGET; }
     public boolean hasFlag(String flag) { return flags.contains(ActionBattleMoveMetadataRules.normalizeToken(flag)); }
+    public Set<ActionBattleMoveFlag> typedFlags() { return ActionBattleMoveMetadataRules.typedFlags(flags); }
     public boolean hasFlag(ActionBattleMoveFlag flag) { return ActionBattleMoveMetadataRules.hasCanonicalFlag(flags, flag); }
     public boolean contact() { return hasFlag(ActionBattleMoveFlag.CONTACT); }
     public boolean sound() { return hasFlag(ActionBattleMoveFlag.SOUND); }

@@ -1,6 +1,8 @@
 package net.epiac9.cobblemonnml.battle.action.audit;
 
 import com.google.gson.JsonElement;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveFlag;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveMetadataRules;
 
 import java.util.Map;
 import java.util.Set;
@@ -42,12 +44,12 @@ public enum ActionBattleMoveHandlingGroup {
             if (hasEffect(canonicalEffects, "multihit", "multiaccuracy")) {
                 return BESPOKE_MULTI_HIT;
             }
-            if (hasFlag(flags, "charge", "recharge", "cantusetwice")
+            if (hasFlag(flags, ActionBattleMoveFlag.CHARGE, ActionBattleMoveFlag.RECHARGE, ActionBattleMoveFlag.CANNOT_USE_TWICE)
                     || hasVolatile(canonicalEffects, "mustrecharge")) {
                 return BESPOKE_CHARGE_RECHARGE;
             }
             if (hasEffect(canonicalEffects, "forceSwitch", "selfSwitch")
-                    || hasFlag(flags, "futuremove", "pledgecombo")) {
+                    || hasFlag(flags, ActionBattleMoveFlag.FUTURE_MOVE, ActionBattleMoveFlag.PLEDGE_COMBO)) {
                 return BESPOKE_SWITCH_PIVOT;
             }
             if (hasEffect(canonicalEffects, "weather", "terrain", "pseudoWeather", "sideCondition", "slotCondition")) {
@@ -96,9 +98,11 @@ public enum ActionBattleMoveHandlingGroup {
         return normalized.contains("self") || normalized.contains("ally") || normalized.contains("allies") || normalized.contains("team");
     }
 
-    private static boolean hasFlag(Set<String> flags, String... names) {
-        if (flags == null || flags.isEmpty()) return false;
-        for (String name : names) if (flags.contains(name)) return true;
+    private static boolean hasFlag(Set<String> flags, ActionBattleMoveFlag... candidates) {
+        if (flags == null || flags.isEmpty() || candidates == null) return false;
+        for (ActionBattleMoveFlag candidate : candidates) {
+            if (ActionBattleMoveMetadataRules.hasCanonicalFlag(flags, candidate)) return true;
+        }
         return false;
     }
 

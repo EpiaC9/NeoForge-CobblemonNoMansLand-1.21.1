@@ -43,33 +43,22 @@ public final class ActionBattleMoveMetadataRules {
     }
 
 
-    public static boolean hasCanonicalFlag(Set<String> flags, ActionBattleMoveFlag flag) {
+    public static Set<ActionBattleMoveFlag> typedFlags(Collection<?> rawFlags) {
+        return ActionBattleMoveFlag.resolveAll(rawFlags);
+    }
+
+    public static boolean hasCanonicalFlag(Collection<?> flags, ActionBattleMoveFlag flag) {
         if (flags == null || flags.isEmpty() || flag == null) return false;
-        for (String raw : flags) {
-            if (flag.matches(normalizeToken(raw))) return true;
+        for (Object raw : flags) {
+            if (flag.matches(raw != null ? raw.toString() : null)) return true;
         }
         return false;
     }
 
-    public static ActionBattleMoveDescriptor.ProtectInteraction protectInteraction(Set<String> flags) {
-        if (containsAny(flags, "bypassprotect", "protectbypass", "ignoreprotect", "breaksprotect")) {
-            return ActionBattleMoveDescriptor.ProtectInteraction.BYPASS;
-        }
-        if (containsAny(flags, "protectblocked", "blockedbyprotect", "protectable")) {
-            return ActionBattleMoveDescriptor.ProtectInteraction.BLOCKED;
-        }
-        return ActionBattleMoveDescriptor.ProtectInteraction.NORMAL;
-    }
-
-    private static boolean containsAny(Set<String> flags, String... candidates) {
-        if (flags == null || flags.isEmpty()) return false;
-        for (String raw : flags) {
-            String normalized = normalizeToken(raw);
-            for (String candidate : candidates) {
-                if (normalized.equals(candidate)) return true;
-            }
-        }
-        return false;
+    public static ActionBattleMoveDescriptor.ProtectInteraction protectInteraction(Collection<?> flags) {
+        return hasCanonicalFlag(flags, ActionBattleMoveFlag.PROTECT)
+                ? ActionBattleMoveDescriptor.ProtectInteraction.BLOCKED
+                : ActionBattleMoveDescriptor.ProtectInteraction.NORMAL;
     }
 
     public static double accuracy(double value) {

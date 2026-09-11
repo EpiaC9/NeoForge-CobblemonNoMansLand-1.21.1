@@ -163,7 +163,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         setDamage(FightOrFlightAdapter.isNativeDamageMove(move) ? ActionBattleCriticalRules.apply(FightOrFlightAdapter.scaleActionDamage(
                 shooter, target, move, PokemonAttackEffect.calculatePokemonDamage(shooter, target, move),
                 this.committedDamageMultiplier), this.committedContext.critical()) : 0.0F);
-        accuracySpeedMultiplier = FightOrFlightAdapter.actionAccuracyProjectileMultiplier(shooter);
+        accuracySpeedMultiplier = FightOrFlightAdapter.actionAccuracyProjectileMultiplier(shooter, move);
         maxLifetimeTicks = ActionProjectileProfile.maxLifetimeTicks(move.getName());
         Vec3 trackedTarget = target instanceof PokemonEntity pokemonTarget
                 ? ActionBattleEvasionController.trackedPosition(pokemonTarget, level.getGameTime()).add(0.0D, target.getBbHeight() * 0.5D, 0.0D)
@@ -216,7 +216,7 @@ public final class ActionBattleProjectileEntity extends PokemonArrow {
         this.bugCast = null;
         setElementalType(move.getType().getName());
         setDamage(0.0F);
-        accuracySpeedMultiplier = FightOrFlightAdapter.actionAccuracyProjectileMultiplier(shooter);
+        accuracySpeedMultiplier = FightOrFlightAdapter.actionAccuracyProjectileMultiplier(shooter, move);
         maxLifetimeTicks = ActionProjectileProfile.maxLifetimeTicks(move.getName());
         Vec3 shot = direction.lengthSqr() > 0.000001D ? direction.normalize() : new Vec3(1.0D, 0.0D, 0.0D);
         shoot(shot.x, shot.y, shot.z, (float) projectileSpeed(move.getName()), 0.0F);

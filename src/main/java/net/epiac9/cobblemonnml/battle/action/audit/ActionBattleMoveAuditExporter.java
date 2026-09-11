@@ -8,7 +8,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectDataManager;
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
+import net.epiac9.cobblemonnml.battle.action.hit.ActionBattleAccuracyRules;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveDescriptor;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveFlag;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveMetadataResolver;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleCanonicalMoveRegistry;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveMetadataRules;
@@ -75,6 +77,12 @@ public final class ActionBattleMoveAuditExporter {
         if (category.isBlank() && descriptor != null) category = descriptor.damageCategory().name().toLowerCase(Locale.ROOT);
         int power = intProperty(template, move, "power", descriptor != null ? descriptor.power() : 0);
         double accuracy = doubleProperty(template, move, "accuracy", descriptor != null ? descriptor.accuracy() : Double.NaN);
+        ActionBattleAccuracyRules.Mode accuracyMode = descriptor != null
+                ? ActionBattleAccuracyRules.mode(accuracy, descriptor.selfOrAllyTargeted(), descriptor.ohko())
+                : ActionBattleAccuracyRules.Mode.SPECIAL_RULE;
+        double canonicalAccuracyProjectileSpeedMultiplier = descriptor != null
+                ? ActionBattleAccuracyRules.projectileSpeedMultiplier(accuracy, descriptor.selfOrAllyTargeted(), descriptor.ohko())
+                : 1.0D;
         int priority = intProperty(template, move, "priority", descriptor != null ? descriptor.priority() : 0);
         int pp = intProperty(template, move, "pp", descriptor != null ? descriptor.maxPp() : 0);
         String target = stringProperty(template, move, "target");
@@ -83,6 +91,8 @@ public final class ActionBattleMoveAuditExporter {
         Set<String> flags = showdownFlags(showdown);
         if (flags.isEmpty()) flags = canonicalFlags(template, move);
         if (flags.isEmpty() && descriptor != null) flags = descriptor.flags();
+        List<String> typedFlags = ActionBattleMoveMetadataRules.typedFlags(flags).stream()
+                .map(Enum::name).sorted().toList();
         ActionMoveDeliveryType delivery = ActionProjectileProfile.deliveryType(id);
         List<String> nativeEffects = ActionProjectileProfile.nativeCobblemonEffects(id);
         boolean explicitDelivery = ActionProjectileProfile.hasExplicitDeliveryProfile(id);
@@ -102,8 +112,9 @@ public final class ActionBattleMoveAuditExporter {
         String preferredVisualAssetSource = visualAssetSources.getFirst();
 
         return new MoveAuditEntry(
-                id, translationKey(template, move), type, category, power, finiteOrNull(accuracy), priority, pp, target,
-                finiteOrNull(critRatio), flags.stream().sorted().toList(), effectMetadata,
+                id, translationKey(template, move), type, category, power, finiteOrNull(accuracy), accuracyMode.name(),
+                canonicalAccuracyProjectileSpeedMultiplier, priority, pp, target,
+                finiteOrNull(critRatio), flags.stream().sorted().toList(), typedFlags, effectMetadata,
                 executable, nmlEffectMetadata, !explicitHandler.isBlank(), explicitHandler, explicitDelivery, delivery.name(), nativeEffects,
                 addonVisuals, visualAssetSources, preferredVisualAssetSource, support, handlingGroup.name(),
                 visual.family().name(), visual.source(), visual.confidence().name()
@@ -112,7 +123,7 @@ public final class ActionBattleMoveAuditExporter {
 
     private static JsonObject toJson(List<MoveAuditEntry> entries, Catalog catalog, ActionBattleAddonVisualAudit.Catalog addonVisuals) {
         JsonObject root = new JsonObject();
-        root.addProperty("schema", 7);
+        root.addProperty("schema", 9);
         root.addProperty("cobblemonVersion", COBBLEMON_VERSION);
         root.addProperty("catalogDiscovery", catalog.discoverySource());
         root.addProperty("metadataEnrichment", "ShowdownService.service.getRegistryData(move)");
@@ -123,6 +134,7 @@ public final class ActionBattleMoveAuditExporter {
         externalVisuals.addProperty("extraMoveAnimationsMoveCount", addonVisuals.moves().size());
         root.add("externalVisualSources", externalVisuals);
         root.add("summary", auditSummary(entries));
+        root.add("accuracyDiagnostics", accuracyDiagnostics(entries));
         root.add("handlingGroups", handlingGroups(entries));
         if (!catalog.templates().isEmpty()) root.add("runtimeSchema", runtimeSchema(catalog.templates().getFirst()));
         JsonArray moves = new JsonArray();
@@ -155,6 +167,12 @@ public final class ActionBattleMoveAuditExporter {
         if (!expectedFlags.equals(descriptor.flags())) {
             throw new IllegalStateException("ACTION descriptor canonical flags mismatch for " + id
                     + ": expected=" + expectedFlags + ", actual=" + descriptor.flags());
+        }
+
+        Set<ActionBattleMoveFlag> expectedTypedFlags = ActionBattleMoveMetadataRules.typedFlags(expectedFlags);
+        if (!expectedTypedFlags.equals(descriptor.typedFlags())) {
+            throw new IllegalStateException("ACTION descriptor typed flags mismatch for " + id
+                    + ": expected=" + expectedTypedFlags + ", actual=" + descriptor.typedFlags());
         }
 
         Map<String, JsonElement> expectedStructured = canonicalEffectMetadata(showdown, null, null);
@@ -395,6 +413,23 @@ public final class ActionBattleMoveAuditExporter {
         summary.add("visualConfidence", countBy(entries.stream().map(MoveAuditEntry::visualConfidence).toList()));
         summary.add("visualSources", countBy(entries.stream().map(MoveAuditEntry::visualClassificationSource).toList()));
         summary.addProperty("movesWithCanonicalFlags", entries.stream().filter(entry -> !entry.flags().isEmpty()).count());
+        summary.add("accuracyModes", countBy(entries.stream().map(MoveAuditEntry::accuracyMode).toList()));
+        Set<String> canonicalFlagKinds = new LinkedHashSet<>();
+        Set<String> typedFlagKinds = new LinkedHashSet<>();
+        Set<String> unmappedCanonicalFlags = new LinkedHashSet<>();
+        List<String> typedFlagUsage = new ArrayList<>();
+        for (MoveAuditEntry entry : entries) {
+            canonicalFlagKinds.addAll(entry.flags());
+            typedFlagKinds.addAll(entry.typedFlags());
+            typedFlagUsage.addAll(entry.typedFlags());
+            for (String rawFlag : entry.flags()) {
+                if (ActionBattleMoveFlag.fromCanonical(rawFlag) == null) unmappedCanonicalFlags.add(rawFlag);
+            }
+        }
+        summary.addProperty("canonicalFlagKinds", canonicalFlagKinds.size());
+        summary.addProperty("typedFlagKinds", typedFlagKinds.size());
+        summary.add("unmappedCanonicalFlags", GSON.toJsonTree(unmappedCanonicalFlags.stream().sorted().toList()));
+        summary.add("typedFlagUsage", countBy(typedFlagUsage));
         summary.addProperty("movesWithCanonicalEffectMetadata", entries.stream().filter(entry -> !entry.canonicalEffectMetadata().isEmpty()).count());
         summary.addProperty("movesWithExplicitHandlers", entries.stream().filter(MoveAuditEntry::explicitHandlerPresent).count());
         summary.add("explicitHandlers", countBy(entries.stream().filter(MoveAuditEntry::explicitHandlerPresent).map(MoveAuditEntry::explicitHandler).toList()));
@@ -403,6 +438,23 @@ public final class ActionBattleMoveAuditExporter {
         return summary;
     }
 
+
+    private static JsonObject accuracyDiagnostics(List<MoveAuditEntry> entries) {
+        JsonObject result = new JsonObject();
+        for (String id : List.of("aerialace", "flamethrower", "fireblast", "thunder", "dynamicpunch",
+                "hypnosis", "psychic", "crunch", "earthquake", "fissure")) {
+            entries.stream().filter(entry -> entry.id().equals(id)).findFirst().ifPresent(entry -> {
+                JsonObject value = new JsonObject();
+                if (entry.accuracy() != null) value.addProperty("accuracy", entry.accuracy());
+                value.addProperty("mode", entry.accuracyMode());
+                value.addProperty("canonicalProjectileSpeedMultiplier", entry.canonicalAccuracyProjectileSpeedMultiplier());
+                value.addProperty("delivery", entry.delivery());
+                value.addProperty("target", entry.target());
+                result.add(id, value);
+            });
+        }
+        return result;
+    }
 
     private static JsonObject handlingGroups(List<MoveAuditEntry> entries) {
         LinkedHashMap<String, JsonArray> groups = new LinkedHashMap<>();
@@ -442,8 +494,13 @@ public final class ActionBattleMoveAuditExporter {
 
     private static boolean requiresBespokeHandling(Set<String> flags, Map<String, JsonElement> canonicalEffects) {
         if (flags != null) {
-            for (String flag : List.of("charge", "recharge", "cantusetwice", "futuremove", "pledgecombo")) {
-                if (flags.contains(flag)) return true;
+            Set<ActionBattleMoveFlag> typed = ActionBattleMoveMetadataRules.typedFlags(flags);
+            if (typed.contains(ActionBattleMoveFlag.CHARGE)
+                    || typed.contains(ActionBattleMoveFlag.RECHARGE)
+                    || typed.contains(ActionBattleMoveFlag.CANNOT_USE_TWICE)
+                    || typed.contains(ActionBattleMoveFlag.FUTURE_MOVE)
+                    || typed.contains(ActionBattleMoveFlag.PLEDGE_COMBO)) {
+                return true;
             }
         }
         if (canonicalEffects == null || canonicalEffects.isEmpty()) return false;
@@ -496,11 +553,14 @@ public final class ActionBattleMoveAuditExporter {
             String category,
             int power,
             Double accuracy,
+            String accuracyMode,
+            double canonicalAccuracyProjectileSpeedMultiplier,
             int priority,
             int pp,
             String target,
             Double critRatio,
             List<String> flags,
+            List<String> typedFlags,
             Map<String, JsonElement> canonicalEffectMetadata,
             boolean actionExecutable,
             boolean nmlMoveEffectMetadata,

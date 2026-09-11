@@ -20,6 +20,8 @@ import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandl
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleEarthquakeHandler;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveDescriptor;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveMetadataResolver;
 import net.epiac9.cobblemonnml.battle.action.damage.ActionBattleDamageFeedbackController;
 import net.epiac9.cobblemonnml.battle.action.ActionBattleCommittedMove;
 import net.epiac9.cobblemonnml.battle.action.critical.ActionBattleCriticalRules;
@@ -96,12 +98,19 @@ public final class FightOrFlightAdapter {
         return move != null && (PokemonUtils.isMeleeAttackMove(move) || PokemonUtils.isRangeAttackMove(move));
     }
 
-    public static double actionAccuracyProjectileMultiplier(PokemonEntity attacker) {
-        if (attacker == null || attacker.level().isClientSide) return 1.0D;
+    public static double actionAccuracyProjectileMultiplier(PokemonEntity attacker, Move move) {
+        double canonical = 1.0D;
+        if (move != null) {
+            ActionBattleMoveDescriptor descriptor = ActionBattleMoveMetadataResolver.resolve(attacker, move);
+            canonical = net.epiac9.cobblemonnml.battle.action.hit.ActionBattleAccuracyRules.projectileSpeedMultiplier(
+                    descriptor.accuracy(), descriptor.selfOrAllyTargeted(), descriptor.ohko());
+        }
+        if (attacker == null || attacker.level().isClientSide) return canonical;
         ActionBattleSession session = ActionBattleManager.findSessionForBattlePokemonEntity(attacker.getUUID());
-        if (session == null) return 1.0D;
-        return ActionBattleStatResolver.accuracyProjectileMultiplier(
+        if (session == null) return canonical;
+        double stage = ActionBattleStatResolver.accuracyProjectileMultiplier(
                 session.battleId(), attacker.getPokemon().getUuid(), attacker.level().getGameTime());
+        return canonical * stage;
     }
 
     public static float scaleActionDamage(PokemonEntity attacker, LivingEntity target, Move move, float baseDamage) {

@@ -1,6 +1,8 @@
 package net.epiac9.cobblemonnml.battle.action.audit;
 
 import com.google.gson.JsonElement;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveFlag;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveMetadataRules;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionMoveDeliveryType;
 
 import java.util.Locale;
@@ -33,28 +35,28 @@ public final class ActionBattleMoveVisualClassifier {
         if (hasAny(effects, "sideCondition", "slotCondition")) {
             return new Classification(ActionBattleMoveVisualFamily.CONSTRUCT_WORLD, "canonical_field", Confidence.HIGH);
         }
-        if (safeFlags.contains("sound")) {
+        if (ActionBattleMoveMetadataRules.hasCanonicalFlag(safeFlags, ActionBattleMoveFlag.SOUND)) {
             return new Classification(ActionBattleMoveVisualFamily.SOUND, "canonical_flag:sound", Confidence.HIGH);
         }
-        if (safeFlags.contains("powder")) {
+        if (ActionBattleMoveMetadataRules.hasCanonicalFlag(safeFlags, ActionBattleMoveFlag.POWDER)) {
             return new Classification(ActionBattleMoveVisualFamily.POWDER_CLOUD, "canonical_flag:powder", Confidence.HIGH);
         }
-        if (safeFlags.contains("slicing")) {
+        if (ActionBattleMoveMetadataRules.hasCanonicalFlag(safeFlags, ActionBattleMoveFlag.SLICING)) {
             return new Classification(ActionBattleMoveVisualFamily.SLASH_ARC, "canonical_flag:slicing", Confidence.HIGH);
         }
-        if (safeFlags.contains("punch")) {
+        if (ActionBattleMoveMetadataRules.hasCanonicalFlag(safeFlags, ActionBattleMoveFlag.PUNCH)) {
             return new Classification(ActionBattleMoveVisualFamily.PUNCH_CONTACT, "canonical_flag:punch", Confidence.HIGH);
         }
-        if (safeFlags.contains("bite")) {
+        if (ActionBattleMoveMetadataRules.hasCanonicalFlag(safeFlags, ActionBattleMoveFlag.BITE)) {
             return new Classification(ActionBattleMoveVisualFamily.BITE_CONTACT, "canonical_flag:bite", Confidence.HIGH);
         }
-        if (safeFlags.contains("wind")) {
+        if (ActionBattleMoveMetadataRules.hasCanonicalFlag(safeFlags, ActionBattleMoveFlag.WIND)) {
             return new Classification(ActionBattleMoveVisualFamily.WIND_GUST, "canonical_flag:wind", Confidence.HIGH);
         }
-        if (safeFlags.contains("bullet")) {
+        if (ActionBattleMoveMetadataRules.hasCanonicalFlag(safeFlags, ActionBattleMoveFlag.BALL_BOMB)) {
             return new Classification(ActionBattleMoveVisualFamily.ORB_BALL, "canonical_flag:bullet", Confidence.MEDIUM);
         }
-        if (safeFlags.contains("contact")) {
+        if (ActionBattleMoveMetadataRules.hasCanonicalFlag(safeFlags, ActionBattleMoveFlag.CONTACT)) {
             return new Classification(ActionBattleMoveVisualFamily.CONTACT_MELEE, "canonical_flag:contact", Confidence.MEDIUM);
         }
 
