@@ -10,8 +10,10 @@ import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectResolver;
 import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleConfusionRules;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveTimingRules;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentController;
 import net.epiac9.cobblemonnml.battle.action.persistent.ActionBattlePersistentType;
@@ -617,7 +619,12 @@ public final class ActionBattleManager {
             }
             if (ActionBattleHailHandler.isHail(move)) {
                 if (!FightOrFlightAdapter.canCommit(pokemonEntity, targetEntity, move)) {
+                    session.resetPlayerMoveCommitReady(ownerUUID);
                     ActionBattleMovementController.pursuePlayerPendingMove(session, ownerUUID, pokemonEntity, targetEntity);
+                    return;
+                }
+                if (!playerMoveStartupReady(session, ownerUUID, pokemonEntity, move, currentTick)) {
+                    pokemonEntity.getNavigation().stop();
                     return;
                 }
                 if (!ActionBattleParalysisController.executionReady(pokemonEntity,
@@ -631,7 +638,12 @@ public final class ActionBattleManager {
             }
             if (ActionBattleToxicSpikesHandler.isToxicSpikes(move)) {
                 if (!FightOrFlightAdapter.canCommit(pokemonEntity, targetEntity, move)) {
+                    session.resetPlayerMoveCommitReady(ownerUUID);
                     ActionBattleMovementController.pursuePlayerPendingMove(session, ownerUUID, pokemonEntity, targetEntity);
+                    return;
+                }
+                if (!playerMoveStartupReady(session, ownerUUID, pokemonEntity, move, currentTick)) {
+                    pokemonEntity.getNavigation().stop();
                     return;
                 }
                 if (!ActionBattleParalysisController.executionReady(pokemonEntity,
@@ -651,6 +663,10 @@ public final class ActionBattleManager {
             ActionBattlePropulsionRules.CommitMode commitMode = FightOrFlightAdapter.commitMode(
                     pokemonEntity, targetEntity, move, momentum);
             if (commitMode != ActionBattlePropulsionRules.CommitMode.REPOSITION) {
+                if (!playerMoveStartupReady(session, ownerUUID, pokemonEntity, move, currentTick)) {
+                    pokemonEntity.getNavigation().stop();
+                    return;
+                }
                 if (!ActionBattleParalysisController.executionReady(pokemonEntity,
                         ActionBattleParalysisController.active(session, pokemonUUID, currentTick), currentTick)) return;
                 pokemonEntity.getNavigation().stop();
@@ -704,6 +720,7 @@ public final class ActionBattleManager {
                 }
                 return;
             }
+            session.resetPlayerMoveCommitReady(ownerUUID);
             ActionBattleMovementController.pursuePlayerPendingMove(session, ownerUUID, pokemonEntity, targetEntity);
             return;
         }
@@ -721,6 +738,17 @@ public final class ActionBattleManager {
             session.clearPlayerMoveTarget(ownerUUID);
             DebugLog.log("[CobblemonNML] Move Here cancelled after navigation stopped before reaching target. Battle=" + session.battleId());
         }
+    }
+
+
+    private static boolean playerMoveStartupReady(ActionBattleSession session, UUID ownerUUID,
+                                                  PokemonEntity pokemonEntity, Move move, long currentTick) {
+        if (session == null || ownerUUID == null || pokemonEntity == null || move == null) return false;
+        int speedStage = ActionBattleStatResolver.effectiveStage(session.battleId(),
+                pokemonEntity.getPokemon().getUuid(), ActionBattleStat.SPEED, currentTick);
+        int priority = FightOrFlightAdapter.movePriority(move);
+        long readySince = session.markPlayerMoveCommitReady(ownerUUID, currentTick);
+        return ActionBattleMoveTimingRules.ready(readySince, currentTick, priority, speedStage);
     }
 
     private static boolean handleFaintState(ServerPlayer player, ActionBattleSession session, ServerLevel level) {

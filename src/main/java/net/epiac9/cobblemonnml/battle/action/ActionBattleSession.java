@@ -31,10 +31,12 @@ public final class ActionBattleSession {
     private boolean playerMoveCommandPending = false;
     private int playerMoveSlot = -1;
     private UUID playerMoveTargetEntityUUID;
+    private long playerMoveCommitReadySinceTick = -1L;
     private long trainerCommandRevision = 0L;
     private boolean trainerMoveCommandPending = false;
     private int trainerMoveSlot = -1;
     private UUID trainerMoveTargetEntityUUID;
+    private long trainerMoveCommitReadySinceTick = -1L;
     private int trainerRepositionAttempt = 0;
     private boolean trainerRepositionTargetPending = false;
     private double trainerRepositionTargetX;
@@ -61,6 +63,7 @@ public final class ActionBattleSession {
         boolean moveCommandPending;
         int moveSlot = -1;
         UUID moveTargetEntityUUID;
+        long moveCommitReadySinceTick = -1L;
         boolean sendOutPending;
     }
 
@@ -109,6 +112,7 @@ public final class ActionBattleSession {
         player.moveCommandPending = false;
         player.moveSlot = -1;
         player.moveTargetEntityUUID = null;
+        player.moveCommitReadySinceTick = -1L;
         if (player.activePokemonUUID != null) lastAcceptedMoveHereDirectives.put(
                 player.activePokemonUUID, new Vec3(x, y, z));
         return ++player.commandRevision;
@@ -122,6 +126,7 @@ public final class ActionBattleSession {
         player.moveCommandPending = true;
         player.moveSlot = moveSlot;
         player.moveTargetEntityUUID = targetEntityUUID;
+        player.moveCommitReadySinceTick = -1L;
         return ++player.commandRevision;
     }
 
@@ -138,6 +143,7 @@ public final class ActionBattleSession {
         player.moveCommandPending = false;
         player.moveSlot = -1;
         player.moveTargetEntityUUID = null;
+        player.moveCommitReadySinceTick = -1L;
     }
 
     public void clearPlayerMoveState(UUID ownerUUID) {
@@ -354,6 +360,7 @@ public final class ActionBattleSession {
         playerMoveCommandPending = true;
         playerMoveSlot = moveSlot;
         playerMoveTargetEntityUUID = targetEntityUUID;
+        playerMoveCommitReadySinceTick = -1L;
         return ++playerCommandRevision;
     }
 
@@ -376,6 +383,7 @@ public final class ActionBattleSession {
         trainerMoveCommandPending = true;
         trainerMoveSlot = moveSlot;
         trainerMoveTargetEntityUUID = targetEntityUUID;
+        trainerMoveCommitReadySinceTick = -1L;
         return ++trainerCommandRevision;
     }
 
@@ -383,6 +391,7 @@ public final class ActionBattleSession {
         trainerMoveCommandPending = false;
         trainerMoveSlot = -1;
         trainerMoveTargetEntityUUID = null;
+        trainerMoveCommitReadySinceTick = -1L;
     }
 
     public void clearTrainerMoveState() {
@@ -425,7 +434,32 @@ public final class ActionBattleSession {
         playerMoveCommandPending = false;
         playerMoveSlot = -1;
         playerMoveTargetEntityUUID = null;
+        playerMoveCommitReadySinceTick = -1L;
     }
+
+    public long markPlayerMoveCommitReady(UUID ownerUUID, long currentTick) {
+        AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
+        if (player != null) {
+            if (player.moveCommitReadySinceTick < 0L) player.moveCommitReadySinceTick = currentTick;
+            return player.moveCommitReadySinceTick;
+        }
+        if (ownerUUID == null || !ownerUUID.equals(playerUUID)) return -1L;
+        if (playerMoveCommitReadySinceTick < 0L) playerMoveCommitReadySinceTick = currentTick;
+        return playerMoveCommitReadySinceTick;
+    }
+
+    public void resetPlayerMoveCommitReady(UUID ownerUUID) {
+        AdditionalPlayerState player = ownerUUID != null ? additionalPlayers.get(ownerUUID) : null;
+        if (player != null) { player.moveCommitReadySinceTick = -1L; return; }
+        if (ownerUUID != null && ownerUUID.equals(playerUUID)) playerMoveCommitReadySinceTick = -1L;
+    }
+
+    public long markTrainerMoveCommitReady(long currentTick) {
+        if (trainerMoveCommitReadySinceTick < 0L) trainerMoveCommitReadySinceTick = currentTick;
+        return trainerMoveCommitReadySinceTick;
+    }
+
+    public void resetTrainerMoveCommitReady() { trainerMoveCommitReadySinceTick = -1L; }
 
 
     public boolean startPokemonMoveCooldown(UUID pokemonUUID, long currentTick, long durationTicks) {

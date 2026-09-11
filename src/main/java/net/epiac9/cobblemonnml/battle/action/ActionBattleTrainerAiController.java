@@ -8,8 +8,10 @@ import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectResolver;
 import net.epiac9.cobblemonnml.battle.action.control.ActionBattleControlController;
 import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleConfusionRules;
+import net.epiac9.cobblemonnml.battle.action.effect.ActionBattleStat;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleBalefulBunkerHandler;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleHailHandler;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveTimingRules;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleToxicSpikesHandler;
 import net.epiac9.cobblemonnml.battle.action.protect.ActionBattleProtectController;
 import net.epiac9.cobblemonnml.battle.action.typeeffect.ghost.ActionBattleGhostRuntime;
@@ -152,6 +154,10 @@ final class ActionBattleTrainerAiController {
             return;
         }
         if (!onCooldown && ActionBattleHailHandler.isHail(move) && FightOrFlightAdapter.canCommit(trainerPokemonEntity, playerPokemonEntity, move)) {
+            if (!trainerMoveStartupReady(session, trainerPokemonEntity, move, currentTick)) {
+                trainerPokemonEntity.getNavigation().stop();
+                return;
+            }
             if (!ActionBattleParalysisController.executionReady(trainerPokemonEntity,
                     ActionBattleParalysisController.active(session, trainerPokemon.getUuid(), currentTick), currentTick)) return;
             trainerPokemonEntity.getNavigation().stop();
@@ -162,6 +168,10 @@ final class ActionBattleTrainerAiController {
             return;
         }
         if (!onCooldown && ActionBattleToxicSpikesHandler.isToxicSpikes(move) && FightOrFlightAdapter.canCommit(trainerPokemonEntity, playerPokemonEntity, move)) {
+            if (!trainerMoveStartupReady(session, trainerPokemonEntity, move, currentTick)) {
+                trainerPokemonEntity.getNavigation().stop();
+                return;
+            }
             if (!ActionBattleParalysisController.executionReady(trainerPokemonEntity,
                     ActionBattleParalysisController.active(session, trainerPokemon.getUuid(), currentTick), currentTick)) return;
             trainerPokemonEntity.getNavigation().stop();
@@ -175,6 +185,10 @@ final class ActionBattleTrainerAiController {
         ActionBattlePropulsionRules.CommitMode commitMode = FightOrFlightAdapter.commitMode(
                 trainerPokemonEntity, playerPokemonEntity, move, momentum);
         if (!onCooldown && commitMode != ActionBattlePropulsionRules.CommitMode.REPOSITION) {
+            if (!trainerMoveStartupReady(session, trainerPokemonEntity, move, currentTick)) {
+                trainerPokemonEntity.getNavigation().stop();
+                return;
+            }
             if (!ActionBattleParalysisController.executionReady(trainerPokemonEntity,
                     ActionBattleParalysisController.active(session, trainerPokemon.getUuid(), currentTick), currentTick)) return;
             trainerPokemonEntity.getNavigation().stop();
@@ -230,7 +244,18 @@ final class ActionBattleTrainerAiController {
             }
             return;
         }
+        session.resetTrainerMoveCommitReady();
         repositionPendingMove(session, trainerPokemon, trainerPokemonEntity, playerPokemonEntity, move, onCooldown, currentTick);
+    }
+
+    private static boolean trainerMoveStartupReady(ActionBattleSession session, PokemonEntity trainerEntity,
+                                                   Move move, long currentTick) {
+        if (session == null || trainerEntity == null || move == null) return false;
+        int speedStage = ActionBattleStatResolver.effectiveStage(session.battleId(),
+                trainerEntity.getPokemon().getUuid(), ActionBattleStat.SPEED, currentTick);
+        int priority = FightOrFlightAdapter.movePriority(move);
+        long readySince = session.markTrainerMoveCommitReady(currentTick);
+        return ActionBattleMoveTimingRules.ready(readySince, currentTick, priority, speedStage);
     }
 
 

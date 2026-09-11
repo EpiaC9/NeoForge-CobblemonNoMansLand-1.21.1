@@ -12,6 +12,7 @@ import net.epiac9.cobblemonnml.battle.action.hit.ActionBattleAccuracyRules;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveDescriptor;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveFlag;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveMetadataResolver;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveTimingRules;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleCanonicalMoveRegistry;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveMetadataRules;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveReflection;
@@ -84,6 +85,7 @@ public final class ActionBattleMoveAuditExporter {
                 ? ActionBattleAccuracyRules.projectileSpeedMultiplier(accuracy, descriptor.selfOrAllyTargeted(), descriptor.ohko())
                 : 1.0D;
         int priority = intProperty(template, move, "priority", descriptor != null ? descriptor.priority() : 0);
+        long neutralSpeedStartupTicks = ActionBattleMoveTimingRules.startupTicks(priority, 0);
         int pp = intProperty(template, move, "pp", descriptor != null ? descriptor.maxPp() : 0);
         String target = stringProperty(template, move, "target");
         if (target.isBlank() && descriptor != null) target = descriptor.targetCategory();
@@ -113,7 +115,7 @@ public final class ActionBattleMoveAuditExporter {
 
         return new MoveAuditEntry(
                 id, translationKey(template, move), type, category, power, finiteOrNull(accuracy), accuracyMode.name(),
-                canonicalAccuracyProjectileSpeedMultiplier, priority, pp, target,
+                canonicalAccuracyProjectileSpeedMultiplier, priority, neutralSpeedStartupTicks, pp, target,
                 finiteOrNull(critRatio), flags.stream().sorted().toList(), typedFlags, effectMetadata,
                 executable, nmlEffectMetadata, !explicitHandler.isBlank(), explicitHandler, explicitDelivery, delivery.name(), nativeEffects,
                 addonVisuals, visualAssetSources, preferredVisualAssetSource, support, handlingGroup.name(),
@@ -123,7 +125,7 @@ public final class ActionBattleMoveAuditExporter {
 
     private static JsonObject toJson(List<MoveAuditEntry> entries, Catalog catalog, ActionBattleAddonVisualAudit.Catalog addonVisuals) {
         JsonObject root = new JsonObject();
-        root.addProperty("schema", 9);
+        root.addProperty("schema", 10);
         root.addProperty("cobblemonVersion", COBBLEMON_VERSION);
         root.addProperty("catalogDiscovery", catalog.discoverySource());
         root.addProperty("metadataEnrichment", "ShowdownService.service.getRegistryData(move)");
@@ -135,6 +137,7 @@ public final class ActionBattleMoveAuditExporter {
         root.add("externalVisualSources", externalVisuals);
         root.add("summary", auditSummary(entries));
         root.add("accuracyDiagnostics", accuracyDiagnostics(entries));
+        root.add("prioritySpeedDiagnostics", prioritySpeedDiagnostics(entries));
         root.add("handlingGroups", handlingGroups(entries));
         if (!catalog.templates().isEmpty()) root.add("runtimeSchema", runtimeSchema(catalog.templates().getFirst()));
         JsonArray moves = new JsonArray();
@@ -414,6 +417,7 @@ public final class ActionBattleMoveAuditExporter {
         summary.add("visualSources", countBy(entries.stream().map(MoveAuditEntry::visualClassificationSource).toList()));
         summary.addProperty("movesWithCanonicalFlags", entries.stream().filter(entry -> !entry.flags().isEmpty()).count());
         summary.add("accuracyModes", countBy(entries.stream().map(MoveAuditEntry::accuracyMode).toList()));
+        summary.add("priorities", countBy(entries.stream().map(entry -> String.valueOf(entry.priority())).toList()));
         Set<String> canonicalFlagKinds = new LinkedHashSet<>();
         Set<String> typedFlagKinds = new LinkedHashSet<>();
         Set<String> unmappedCanonicalFlags = new LinkedHashSet<>();
@@ -450,6 +454,22 @@ public final class ActionBattleMoveAuditExporter {
                 value.addProperty("canonicalProjectileSpeedMultiplier", entry.canonicalAccuracyProjectileSpeedMultiplier());
                 value.addProperty("delivery", entry.delivery());
                 value.addProperty("target", entry.target());
+                result.add(id, value);
+            });
+        }
+        return result;
+    }
+
+    private static JsonObject prioritySpeedDiagnostics(List<MoveAuditEntry> entries) {
+        JsonObject result = new JsonObject();
+        for (String id : List.of("quickattack", "extremespeed", "protect", "fakeout",
+                "flamethrower", "avalanche", "dragontail", "roar")) {
+            entries.stream().filter(entry -> entry.id().equals(id)).findFirst().ifPresent(entry -> {
+                JsonObject value = new JsonObject();
+                value.addProperty("priority", entry.priority());
+                value.addProperty("startupTicksAtSpeedStage0", entry.neutralSpeedStartupTicks());
+                value.addProperty("startupTicksAtSpeedStagePlus6", ActionBattleMoveTimingRules.startupTicks(entry.priority(), 6));
+                value.addProperty("startupTicksAtSpeedStageMinus6", ActionBattleMoveTimingRules.startupTicks(entry.priority(), -6));
                 result.add(id, value);
             });
         }
@@ -556,6 +576,7 @@ public final class ActionBattleMoveAuditExporter {
             String accuracyMode,
             double canonicalAccuracyProjectileSpeedMultiplier,
             int priority,
+            long neutralSpeedStartupTicks,
             int pp,
             String target,
             Double critRatio,
