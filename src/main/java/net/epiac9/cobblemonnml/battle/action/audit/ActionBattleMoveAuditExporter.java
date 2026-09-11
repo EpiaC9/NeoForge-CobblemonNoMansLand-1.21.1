@@ -10,11 +10,11 @@ import net.epiac9.cobblemonnml.battle.action.compat.ActionBattleMoveEffectDataMa
 import net.epiac9.cobblemonnml.battle.action.compat.FightOrFlightAdapter;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveDescriptor;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveMetadataResolver;
+import net.epiac9.cobblemonnml.battle.action.move.ActionBattleCanonicalMoveRegistry;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveMetadataRules;
 import net.epiac9.cobblemonnml.battle.action.move.ActionBattleMoveReflection;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionMoveDeliveryType;
 import net.epiac9.cobblemonnml.battle.action.projectile.ActionProjectileProfile;
-import com.cobblemon.mod.common.battles.runner.ShowdownService;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
@@ -68,6 +68,7 @@ public final class ActionBattleMoveAuditExporter {
         if (id.isBlank()) return null;
 
         ActionBattleMoveDescriptor descriptor = move != null ? ActionBattleMoveMetadataResolver.resolve(null, move) : null;
+        validateDescriptorCanonicalConsistency(id, descriptor, showdown);
         String type = canonicalType(template, move, descriptor);
         String category = showdownString(showdown, "category");
         if (category.isBlank()) category = canonicalCategory(template, move);
@@ -144,6 +145,26 @@ public final class ActionBattleMoveAuditExporter {
         return result;
     }
 
+
+    private static void validateDescriptorCanonicalConsistency(String id, ActionBattleMoveDescriptor descriptor, JsonObject showdown) {
+        if (descriptor == null) {
+            throw new IllegalStateException("ACTION descriptor could not be resolved for canonical move: " + id);
+        }
+
+        Set<String> expectedFlags = showdownFlags(showdown);
+        if (!expectedFlags.equals(descriptor.flags())) {
+            throw new IllegalStateException("ACTION descriptor canonical flags mismatch for " + id
+                    + ": expected=" + expectedFlags + ", actual=" + descriptor.flags());
+        }
+
+        Map<String, JsonElement> expectedStructured = canonicalEffectMetadata(showdown, null, null);
+        Map<String, JsonElement> actualStructured = descriptor.canonicalMetadata().structuredMetadata();
+        if (!expectedStructured.equals(actualStructured)) {
+            throw new IllegalStateException("ACTION descriptor canonical metadata mismatch for " + id
+                    + ": expected=" + expectedStructured + ", actual=" + actualStructured);
+        }
+    }
+
     private static String canonicalType(Object template, Move move, ActionBattleMoveDescriptor descriptor) {
         Object value = firstNonNull(ActionBattleMoveReflection.property(template, "type"),
                 ActionBattleMoveReflection.property(move, "type"));
@@ -200,17 +221,7 @@ public final class ActionBattleMoveAuditExporter {
     }
 
     private static Map<String, JsonObject> showdownMoveData() {
-        LinkedHashMap<String, JsonObject> result = new LinkedHashMap<>();
-        try {
-            JsonArray data = ShowdownService.Companion.getService().getRegistryData("move");
-            for (JsonElement element : data) {
-                if (!element.isJsonObject()) continue;
-                JsonObject move = element.getAsJsonObject();
-                String id = ActionBattleMoveMetadataRules.canonicalMoveId(showdownString(move, "id"));
-                if (!id.isBlank()) result.put(id, move);
-            }
-        } catch (RuntimeException ignored) {}
-        return Map.copyOf(result);
+        return ActionBattleCanonicalMoveRegistry.rawSnapshot();
     }
 
     private static String showdownString(JsonObject source, String property) {
